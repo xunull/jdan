@@ -1,0 +1,13 @@
+---
+description: Go CLI 使用 Cobra、Viper 与 zerolog 时遵循项目技能文档
+globs: **/*.go
+alwaysApply: false
+---
+
+# Go CLI 栈（本仓库）
+
+在编写或重构 **Go 命令行程序**（含 `cmd/`、子命令、配置与日志）时：
+
+1. **必须先阅读** 项目技能：`.cursor/skills/go-cli-cobra-viper/SKILL.md`，并按其中的优先级与绑定顺序实现（命令行 > 环境变量 > 配置文件；zerolog 使用 `ConsoleWriter` 普通文本）。
+2. 默认采用 **Cobra** 的根命令与子命令结构；配置用 **Viper**；日志用 **zerolog** 的全局 `log.Logger`，与技能中的示例一致。
+3. 若技能与单次对话中的临时说法冲突，**以技能文件为准**。
