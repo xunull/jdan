@@ -37,16 +37,18 @@ func formatSingle(b *strings.Builder, r Result, label string) {
 	}
 	fmt.Fprintf(b, "URL:            %s\n", r.URL)
 	fmt.Fprintf(b, "状态码:         %d\n", r.StatusCode)
-	if r.DNSServer != "" {
-		fmt.Fprintf(b, "DNS 查询:       %s (%s)\n", fmtMs(r.DNSLookup), r.DNSServer)
-	} else {
-		fmt.Fprintf(b, "DNS 查询:       %s\n", fmtMs(r.DNSLookup))
-	}
+	fmt.Fprintf(b, "DNS 查询:       %s\n", fmtMs(r.DNSLookup))
 	fmt.Fprintf(b, "TCP 连接:       %s\n", fmtMs(r.TCPConnect))
 	fmt.Fprintf(b, "TLS 握手:       %s\n", fmtMs(r.TLSHandshake))
 	fmt.Fprintf(b, "服务端处理:     %s\n", fmtMs(r.ServerProcessing))
 	fmt.Fprintf(b, "内容传输:       %s\n", fmtMs(r.ContentTransfer))
 	fmt.Fprintf(b, "总耗时:         %s\n", fmtMs(r.Total))
+	if r.ResolvedAddrs != "" {
+		fmt.Fprintf(b, "目标地址:       %s\n", r.ResolvedAddrs)
+	}
+	if r.DNSServer != "" {
+		fmt.Fprintf(b, "DNS 服务器:     %s\n", r.DNSServer)
+	}
 }
 
 func average(results []Result) Result {

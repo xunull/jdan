@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptrace"
+	"strings"
 	"time"
 )
 
@@ -13,7 +15,8 @@ type Result struct {
 	URL              string
 	StatusCode       int
 	DNSLookup        time.Duration
-	DNSServer        string // ConnectStart 回调中记录的远端地址（即 DNS 解析后连接的 IP）
+	ResolvedAddrs    string // DNS 解析到的目标 IP（可能多个，逗号分隔）
+	DNSServer        string // 本次 DNS 查询使用的 DNS 服务器地址
 	TCPConnect       time.Duration
 	TLSHandshake     time.Duration
 	ServerProcessing time.Duration
@@ -29,13 +32,17 @@ func Measure(ctx context.Context, url string, transport http.RoundTripper) (Resu
 		tlsStart, tlsDone         time.Time
 		gotFirstByte              time.Time
 		reqStart                  time.Time
-		connectAddr               string
+		resolvedAddrs             []net.IPAddr
+		dnsServerUsed             string
 	)
 
 	trace := &httptrace.ClientTrace{
-		DNSStart:             func(_ httptrace.DNSStartInfo) { dnsStart = time.Now() },
-		DNSDone:              func(_ httptrace.DNSDoneInfo) { dnsDone = time.Now() },
-		ConnectStart:         func(_, addr string) { connectStart = time.Now(); connectAddr = addr },
+		DNSStart: func(_ httptrace.DNSStartInfo) { dnsStart = time.Now() },
+		DNSDone: func(info httptrace.DNSDoneInfo) {
+			dnsDone = time.Now()
+			resolvedAddrs = info.Addrs
+		},
+		ConnectStart:         func(_, _ string) { connectStart = time.Now() },
 		ConnectDone:          func(_, _ string, _ error) { connectDone = time.Now() },
 		TLSHandshakeStart:    func() { tlsStart = time.Now() },
 		TLSHandshakeDone:     func(_ tls.ConnectionState, _ error) { tlsDone = time.Now() },
@@ -47,14 +54,26 @@ func Measure(ctx context.Context, url string, transport http.RoundTripper) (Resu
 		return Result{}, err
 	}
 
-	if transport == nil {
-		transport = &http.Transport{
-			DisableKeepAlives: true,
-		}
-	} else if tr, ok := transport.(*http.Transport); ok {
-		tr.DisableKeepAlives = true
+	// Intercept the DNS server address via a custom Resolver.Dial
+	resolver := &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			dnsServerUsed = address
+			return (&net.Dialer{}).DialContext(ctx, network, address)
+		},
 	}
-	client := &http.Client{Transport: transport}
+
+	var tlsCfg *tls.Config
+	if t, ok := transport.(*http.Transport); ok && t != nil && t.TLSClientConfig != nil {
+		tlsCfg = t.TLSClientConfig
+	}
+
+	tr := &http.Transport{
+		DisableKeepAlives: true,
+		DialContext:       (&net.Dialer{Resolver: resolver}).DialContext,
+		TLSClientConfig:   tlsCfg,
+	}
+	client := &http.Client{Transport: tr}
 
 	reqStart = time.Now()
 	resp, err := client.Do(req)
@@ -71,11 +90,17 @@ func Measure(ctx context.Context, url string, transport http.RoundTripper) (Resu
 		serverBase = tlsDone
 	}
 
+	var addrStrs []string
+	for _, a := range resolvedAddrs {
+		addrStrs = append(addrStrs, a.IP.String())
+	}
+
 	r := Result{
-		URL:        url,
-		StatusCode: resp.StatusCode,
-		DNSServer:  connectAddr,
-		Total:      bodyDone.Sub(reqStart),
+		URL:           url,
+		StatusCode:    resp.StatusCode,
+		ResolvedAddrs: strings.Join(addrStrs, ", "),
+		DNSServer:     dnsServerUsed,
+		Total:         bodyDone.Sub(reqStart),
 	}
 	if !dnsStart.IsZero() && !dnsDone.IsZero() {
 		r.DNSLookup = dnsDone.Sub(dnsStart)
