@@ -45,10 +45,14 @@ func Measure(ctx context.Context, url string, transport http.RoundTripper) (Resu
 		return Result{}, err
 	}
 
-	client := &http.Client{}
-	if transport != nil {
-		client.Transport = transport
+	if transport == nil {
+		transport = &http.Transport{
+			DisableKeepAlives: true,
+		}
+	} else if tr, ok := transport.(*http.Transport); ok {
+		tr.DisableKeepAlives = true
 	}
+	client := &http.Client{Transport: transport}
 
 	reqStart = time.Now()
 	resp, err := client.Do(req)
