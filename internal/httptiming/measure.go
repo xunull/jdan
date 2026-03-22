@@ -13,6 +13,7 @@ type Result struct {
 	URL              string
 	StatusCode       int
 	DNSLookup        time.Duration
+	DNSServer        string // ConnectStart 回调中记录的远端地址（即 DNS 解析后连接的 IP）
 	TCPConnect       time.Duration
 	TLSHandshake     time.Duration
 	ServerProcessing time.Duration
@@ -23,17 +24,18 @@ type Result struct {
 // Measure performs a single HTTP GET and records per-phase timing via httptrace.
 func Measure(ctx context.Context, url string, transport http.RoundTripper) (Result, error) {
 	var (
-		dnsStart, dnsDone       time.Time
+		dnsStart, dnsDone         time.Time
 		connectStart, connectDone time.Time
-		tlsStart, tlsDone       time.Time
-		gotFirstByte            time.Time
-		reqStart                time.Time
+		tlsStart, tlsDone         time.Time
+		gotFirstByte              time.Time
+		reqStart                  time.Time
+		connectAddr               string
 	)
 
 	trace := &httptrace.ClientTrace{
 		DNSStart:             func(_ httptrace.DNSStartInfo) { dnsStart = time.Now() },
 		DNSDone:              func(_ httptrace.DNSDoneInfo) { dnsDone = time.Now() },
-		ConnectStart:         func(_, _ string) { connectStart = time.Now() },
+		ConnectStart:         func(_, addr string) { connectStart = time.Now(); connectAddr = addr },
 		ConnectDone:          func(_, _ string, _ error) { connectDone = time.Now() },
 		TLSHandshakeStart:    func() { tlsStart = time.Now() },
 		TLSHandshakeDone:     func(_ tls.ConnectionState, _ error) { tlsDone = time.Now() },
@@ -72,6 +74,7 @@ func Measure(ctx context.Context, url string, transport http.RoundTripper) (Resu
 	r := Result{
 		URL:        url,
 		StatusCode: resp.StatusCode,
+		DNSServer:  connectAddr,
 		Total:      bodyDone.Sub(reqStart),
 	}
 	if !dnsStart.IsZero() && !dnsDone.IsZero() {
