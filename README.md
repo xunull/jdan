@@ -27,6 +27,24 @@ jdan file bak ./report.pdf
 jdan file bak ./report.pdf --desc "before edit"
 ```
 
+### `jdan http timing`
+
+测量 HTTP 请求各阶段耗时：DNS 查询、TCP 连接、TLS 握手、服务端处理、内容传输、总耗时，以及 HTTP 状态码。
+
+```bash
+jdan http timing https://github.com
+jdan http timing https://github.com -n 3        # 请求 3 次，输出每次结果与平均值
+jdan http timing https://github.com --json       # JSON 格式输出
+jdan http timing https://github.com -n 3 --json  # 3 次 + JSON
+jdan http timing https://example.com -k          # 跳过 TLS 证书验证
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-n` | 请求次数（默认 1；大于 1 时追加平均值） |
+| `--json` | 以 JSON 格式输出（Duration 以毫秒浮点数表示） |
+| `-k` / `--insecure` | 跳过 TLS 证书验证 |
+
 ### 全局
 
 - `--config`：可选配置文件路径；配置与环境变量前缀为 `JDAN`（见 Viper 惯例）。命令行标志优先于环境变量与配置文件。
