@@ -45,9 +45,19 @@ jdan http timing https://example.com -k          # 跳过 TLS 证书验证
 | `--json` | 以 JSON 格式输出（Duration 以毫秒浮点数表示） |
 | `-k` / `--insecure` | 跳过 TLS 证书验证 |
 
-### 全局
+### `jdan pubip4` / `jdan pubip6`
 
-- `--config`：可选配置文件路径；配置与环境变量前缀为 `JDAN`（见 Viper 惯例）。命令行标志优先于环境变量与配置文件。
+查询本机当前出口的公网 IP 地址。
+
+```bash
+jdan pubip4       # 输出公网 IPv4 地址
+jdan pubip6       # 输出公网 IPv6 地址
+jdan pubip        # 查看帮助信息
+```
+
+内部自动重试至多 3 次，全部失败后输出提示信息并以非零退出码退出。
+
+### 全局
 
 ## 开发
 
