@@ -50,10 +50,15 @@ jdan http timing https://example.com -k          # 跳过 TLS 证书验证
 查询本机当前出口的公网 IP 地址。
 
 ```bash
-jdan pubip4       # 输出公网 IPv4 地址
-jdan pubip6       # 输出公网 IPv6 地址
-jdan pubip        # 查看帮助信息
+jdan pubip4                   # 输出公网 IPv4 地址（默认使用 ipify）
+jdan pubip6                   # 输出公网 IPv6 地址（默认使用 ipify）
+jdan pubip4 -p ipip           # 使用 ipip.net 查询 IPv4
+jdan pubip6 -p ipip           # 使用 ipip.net 查询 IPv6
 ```
+
+| 参数 | 说明 |
+|------|------|
+| `-p` / `--provider` | IP 查询服务：`ipify`（默认）或 `ipip` |
 
 内部自动重试至多 3 次，全部失败后输出提示信息并以非零退出码退出。
 
