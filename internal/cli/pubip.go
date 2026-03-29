@@ -10,15 +10,10 @@ import (
 )
 
 const (
-	pubip4URL = "https://api.ipify.org"
-	pubip6URL = "https://api6.ipify.org"
+	pubip4URL  = "https://api.ipify.org"
+	pubip6URL  = "https://api6.ipify.org"
 	maxRetries = 3
 )
-
-var pubipCmd = &cobra.Command{
-	Use:   "pubip",
-	Short: "查询本机公网 IP 地址",
-}
 
 var pubip4Cmd = &cobra.Command{
 	Use:   "pubip4",
@@ -70,9 +65,6 @@ func fetchPubIP(cmd *cobra.Command, url, ipType string) error {
 }
 
 func init() {
-	pubipCmd.AddCommand(pubip4Cmd)
-	pubipCmd.AddCommand(pubip6Cmd)
-	rootCmd.AddCommand(pubipCmd)
 	rootCmd.AddCommand(pubip4Cmd)
 	rootCmd.AddCommand(pubip6Cmd)
 }
