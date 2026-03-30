@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"os/exec"
 	"strconv"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 )
@@ -45,6 +47,8 @@ func (c *Collector) Start() {
 	go c.run()
 }
 
+const powermetricsPath = "/usr/bin/powermetrics"
+
 func (c *Collector) run() {
 	args := []string{
 		"--samplers", "gpu_power,thermal",
@@ -53,15 +57,21 @@ func (c *Collector) run() {
 		"-n", "0",
 	}
 
-	cmd := exec.CommandContext(c.ctx, "powermetrics", args...)
+	// 使用全路径，避免 sudo 环境下 PATH 不包含 /usr/bin 的问题。
+	cmd := exec.CommandContext(c.ctx, powermetricsPath, args...)
+
+	// 捕获 stderr，用于在 powermetrics 异常退出时提供诊断信息。
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		c.program.Send(ErrMsg{Err: err})
+		c.program.Send(ErrMsg{Err: fmt.Errorf("无法获取 powermetrics 输出管道: %w", err)})
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
-		c.program.Send(ErrMsg{Err: err})
+		c.program.Send(ErrMsg{Err: fmt.Errorf("无法启动 powermetrics: %w", err)})
 		return
 	}
 
@@ -71,6 +81,8 @@ func (c *Collector) run() {
 	// bufio.Scanner 默认缓冲区为 64KB，powermetrics plist 输出可能超过此限制。
 	// 将缓冲区扩大至 4MB，以适应多频率档位的大型 plist 块。
 	scanner.Buffer(make([]byte, 4*1024*1024), 4*1024*1024)
+
+	samplesReceived := 0
 
 	for scanner.Scan() {
 		select {
@@ -86,19 +98,36 @@ func (c *Collector) run() {
 
 		snapshot, parseErr := ParseSample(data)
 		if parseErr != nil {
-			c.program.Send(ErrMsg{Err: parseErr})
+			c.program.Send(ErrMsg{Err: fmt.Errorf("解析 plist 失败: %w", parseErr)})
 			continue
 		}
+		samplesReceived++
 		c.program.Send(SampleMsg{Snapshot: snapshot})
 	}
 
-	if err := scanner.Err(); err != nil {
-		select {
-		case <-c.ctx.Done():
-			// context 取消引起的读取错误是预期行为，不上报
-		default:
-			c.program.Send(ErrMsg{Err: err})
-		}
+	// 检查 context 是否已取消（用户主动退出），若是则静默退出。
+	select {
+	case <-c.ctx.Done():
+		return
+	default:
+	}
+
+	// powermetrics 在 context 未取消的情况下退出，属于异常。
+	// 收集诊断信息并上报 ErrMsg，让 TUI 显示错误而非永远停在"等待"状态。
+	_ = cmd.Wait() // 等待子进程退出，获取退出码
+
+	stderrStr := strings.TrimSpace(stderrBuf.String())
+	if scanErr := scanner.Err(); scanErr != nil {
+		c.program.Send(ErrMsg{Err: fmt.Errorf("读取 powermetrics 输出出错: %w", scanErr)})
+	} else if stderrStr != "" {
+		c.program.Send(ErrMsg{Err: fmt.Errorf("powermetrics 异常退出: %s", stderrStr)})
+	} else if samplesReceived == 0 {
+		c.program.Send(ErrMsg{Err: fmt.Errorf(
+			"powermetrics 未输出任何数据即退出（尝试手动执行: sudo %s %s）",
+			powermetricsPath, strings.Join(args, " "),
+		)})
+	} else {
+		c.program.Send(ErrMsg{Err: fmt.Errorf("powermetrics 意外退出（已采集 %d 条）", samplesReceived)})
 	}
 }
 
