@@ -12,7 +12,7 @@ import (
 type PowerMetricsSample struct {
 	ElapsedNS       uint64         `plist:"elapsed_ns"`
 	HWModel         string         `plist:"hw_model"`
-	Timestamp       string         `plist:"timestamp"`
+	Timestamp       time.Time      `plist:"timestamp"` // plist date 类型，直接映射到 time.Time
 	Processor       ProcessorStats `plist:"processor"`
 	ThermalPressure string         `plist:"thermal_pressure"`
 	GPU             GPUStats       `plist:"gpu"`
@@ -76,7 +76,7 @@ type GPUSnapshot struct {
 	SampledAt time.Time
 }
 
-// ParseSample 将一个 NUL 分隔的 plist 块反序列化为 GPUSnapshot。
+// ParseSample 将一个 plist 块反序列化为 GPUSnapshot。
 // 使用 plist.NewDecoder 与 encoding/json 风格一致的 API。
 // 字段缺失时返回零值；输入非法 plist 时返回 error。
 func ParseSample(data []byte) (*GPUSnapshot, error) {
@@ -85,18 +85,11 @@ func ParseSample(data []byte) (*GPUSnapshot, error) {
 		return nil, err
 	}
 
-	var sampledAt time.Time
-	if sample.Timestamp != "" {
-		if t, err := time.Parse(time.RFC3339, sample.Timestamp); err == nil {
-			sampledAt = t
-		}
-	}
-
 	return &GPUSnapshot{
 		ActiveResidency: sample.GPU.ActiveResidency(),
 		FreqMHz:         sample.GPU.FreqMHz,
 		PowerMW:         sample.Processor.GPUPowerMW,
 		ThermalPressure: sample.ThermalPressure,
-		SampledAt:       sampledAt,
+		SampledAt:       sample.Timestamp,
 	}, nil
 }

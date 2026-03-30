@@ -16,7 +16,7 @@ const m1PlistFixture = `<?xml version="1.0" encoding="UTF-8"?>
 	<key>hw_model</key>
 	<string>MacBookPro17,1</string>
 	<key>timestamp</key>
-	<string>2024-01-01T12:00:00Z</string>
+	<date>2024-01-01T12:00:00Z</date>
 	<key>thermal_pressure</key>
 	<string>Nominal</string>
 	<key>processor</key>
