@@ -62,6 +62,24 @@ jdan pubip6 -p ipip           # 使用 ipip.net 查询 IPv6
 
 内部自动重试至多 3 次，全部失败后输出提示信息并以非零退出码退出。
 
+### `jdan macgpu`
+
+实时监控 Apple Silicon Mac 的 GPU 使用率、功耗、频率和散热压力等级。
+以 htop/glances 风格的 TUI 界面展示：顶部带颜色的 ASCII 柱状图 + 底部详情表格。
+
+> **要求：** 仅支持 Apple Silicon（arm64）Mac，需要 `sudo` 权限运行。
+
+```bash
+sudo jdan macgpu                # 默认每 2 秒采样一次
+sudo jdan macgpu -i 1000        # 每 1 秒采样一次（最小 500ms）
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-i` / `--interval` | 采样间隔（ms，默认 2000，最小 500） |
+
+按 `q` 退出 TUI 界面。
+
 ### 全局
 
 ## 开发
