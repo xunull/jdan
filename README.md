@@ -118,6 +118,25 @@ echo 1711843200 | jdan unix-time
 
 ### 全局
 
+### `jdan obsidian install-claudian`
+
+从 GitHub 最新 Release 下载 [Claudian](https://github.com/YishenTu/claudian) 插件文件，并安装到指定 Obsidian Vault。
+
+```bash
+jdan obsidian install-claudian ./my-vault       # 安装到指定 vault 目录
+jdan obsidian install-claudian                  # 安装到当前目录
+jdan obsidian install-claudian ~/Documents/vault --force  # 覆盖已安装版本
+```
+
+| 参数 | 说明 |
+|------|------|
+| `vault-path` | Vault 目录路径（可选，默认当前目录） |
+| `--force` / `-f` | 若插件已安装则强制覆盖 |
+
+安装成功后会在 `{vault}/.obsidian/plugins/claudian/` 下创建 `main.js`、`manifest.json`、`styles.css`，之后在 Obsidian 的 Settings → Community plugins 中启用即可。
+
+### 全局
+
 ## 开发
 
 ```bash
