@@ -75,9 +75,27 @@ func newDNSCommand(deps dnsCmdDeps) *cobra.Command {
 	return dnsCmd
 }
 
+// runDNSLookup 是 `jdan dns lookup` 的 RunE。它只负责解析 lookup 专属的
+// `--type` flag，剩下的共享 flag + 查询 + 输出全部委托给 runDNSQuery。
 func runDNSLookup(cmd *cobra.Command, args []string, deps dnsCmdDeps) error {
-	domain := args[0]
 	typeStr, _ := cmd.Flags().GetString("type")
+	types, err := dnslookup.ParseTypes(typeStr)
+	if err != nil {
+		return err
+	}
+	// lookup 不需要 DisplayName 覆盖——formatter 会回退到 Domain。
+	return runDNSQuery(cmd, deps, args[0], types, "")
+}
+
+// runDNSQuery 是 dns 名空间下所有子命令的共享流水线：读取共享 flag、
+// 检查互斥、解析 DoH/server、构造 resolver、执行 lookup、按 flag 选 formatter、
+// 决定 exit code。caller 提供已解析好的 domain + types + 可选 displayName。
+//
+// 调用方约定：
+//   - domain：实际发出的 DNS 查询域名（lookup 直接传入参；reverse 传 PTR 域名）
+//   - types：要查询的 record type 列表（lookup 从 --type 解析；reverse 传 [TypePTR]）
+//   - displayName：空串表示 formatter 顶部用 domain；非空表示覆盖（reverse 用原始 IP）
+func runDNSQuery(cmd *cobra.Command, deps dnsCmdDeps, domain string, types []uint16, displayName string) error {
 	server, _ := cmd.Flags().GetString("server")
 	doh, _ := cmd.Flags().GetString("doh")
 	jsonOut, _ := cmd.Flags().GetBool("json")
@@ -102,14 +120,10 @@ func runDNSLookup(cmd *cobra.Command, args []string, deps dnsCmdDeps) error {
 		return fmt.Errorf("--timeout 必须大于 0")
 	}
 
-	types, err := dnslookup.ParseTypes(typeStr)
-	if err != nil {
-		return err
-	}
-
 	var dohTarget dnslookup.DoHTarget
 	useDoH := false
 	if doh != "" {
+		var err error
 		dohTarget, err = dnslookup.ResolveDoHTarget(doh)
 		if err != nil {
 			return err
@@ -134,10 +148,11 @@ func runDNSLookup(cmd *cobra.Command, args []string, deps dnsCmdDeps) error {
 	}
 
 	opts := dnslookup.Options{
-		Domain:  domain,
-		Types:   types,
-		Server:  server,
-		Timeout: timeout,
+		Domain:      domain,
+		DisplayName: displayName,
+		Types:       types,
+		Server:      server,
+		Timeout:     timeout,
 	}
 
 	res, err := doLookup(context.Background(), opts)

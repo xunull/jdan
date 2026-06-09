@@ -10,12 +10,21 @@ import (
 // 失败行的视觉标记（U+26A0 警告符）。
 const warnMark = "⚠"
 
+// headerDomain 决定顶部一行展示的 domain 标签：reverse 查询用 DisplayName
+// 显示原始 IP；lookup 查询 DisplayName 为空，回退到 Domain。
+func headerDomain(res *Result) string {
+	if res.DisplayName != "" {
+		return res.DisplayName
+	}
+	return res.Domain
+}
+
 // FormatText 渲染默认三列输出：TYPE / TTL / VALUE。多值条目在后续行只填 VALUE 列。
 //
 // 顶部一行 `domain — via server`，便于用户确认查询是否走了期望的 resolver。
 func FormatText(res *Result) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s — via %s\n\n", res.Domain, res.Server)
+	fmt.Fprintf(&b, "%s — via %s\n\n", headerDomain(res), res.Server)
 
 	w := tabwriter.NewWriter(&b, 0, 0, 3, ' ', 0)
 	fmt.Fprintln(w, "TYPE\tTTL\tVALUE")
@@ -59,7 +68,7 @@ func FormatShort(res *Result) string {
 // FormatVerbose 在 text 输出之上追加 query time 等元数据，并把 rcode 单独列一列。
 func FormatVerbose(res *Result) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s — via %s\n", res.Domain, res.Server)
+	fmt.Fprintf(&b, "%s — via %s\n", headerDomain(res), res.Server)
 	fmt.Fprintf(&b, "query time: %d ms\n\n", res.QueryTimeMs)
 
 	w := tabwriter.NewWriter(&b, 0, 0, 3, ' ', 0)

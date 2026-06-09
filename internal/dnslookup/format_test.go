@@ -165,6 +165,82 @@ func TestFormatJSON_EmptyValuesRendersAsEmptyArray(t *testing.T) {
 	}
 }
 
+func TestFormatText_DisplayNameOverridesHeaderDomain(t *testing.T) {
+	// reverse 场景：Domain 是 arpa 形式，DisplayName 是原始 IP，顶部应显示 IP。
+	res := &Result{
+		Domain:      "8.8.8.8.in-addr.arpa.",
+		DisplayName: "8.8.8.8",
+		Server:      "1.1.1.1:53",
+		Results: []TypeResult{
+			{Type: "PTR", Rcode: "NOERROR", TTL: 300, Values: []string{"dns.google."}},
+		},
+	}
+	out := FormatText(res)
+	if !strings.HasPrefix(out, "8.8.8.8 — via 1.1.1.1:53\n") {
+		t.Errorf("expected header 8.8.8.8 — via, got first line: %q", strings.SplitN(out, "\n", 2)[0])
+	}
+	if strings.Contains(out, "in-addr.arpa") {
+		t.Errorf("arpa form leaked into text output: %s", out)
+	}
+}
+
+func TestFormatText_NoDisplayNameFallsBackToDomain(t *testing.T) {
+	// lookup 场景：DisplayName 为空，顶部回退到 Domain（保持现有行为）。
+	res := &Result{
+		Domain: "example.com",
+		Server: "8.8.8.8:53",
+		Results: []TypeResult{
+			{Type: "A", Rcode: "NOERROR", TTL: 60, Values: []string{"1.2.3.4"}},
+		},
+	}
+	out := FormatText(res)
+	if !strings.HasPrefix(out, "example.com — via 8.8.8.8:53\n") {
+		t.Errorf("expected fallback to Domain, got first line: %q", strings.SplitN(out, "\n", 2)[0])
+	}
+}
+
+func TestFormatVerbose_DisplayNameOverridesHeaderDomain(t *testing.T) {
+	res := &Result{
+		Domain:      "8.8.8.8.in-addr.arpa.",
+		DisplayName: "8.8.8.8",
+		Server:      "1.1.1.1:53",
+		QueryTimeMs: 12,
+		Results: []TypeResult{
+			{Type: "PTR", Rcode: "NOERROR", TTL: 300, Values: []string{"dns.google."}},
+		},
+	}
+	out := FormatVerbose(res)
+	if !strings.HasPrefix(out, "8.8.8.8 — via 1.1.1.1:53\n") {
+		t.Errorf("verbose header should use DisplayName, got: %q", strings.SplitN(out, "\n", 2)[0])
+	}
+}
+
+func TestFormatJSON_DisplayNameOmittedWhenEmpty(t *testing.T) {
+	// lookup 场景：JSON 不应该多一个 display_name 字段
+	res := &Result{
+		Domain: "x", Server: "y",
+		Results: []TypeResult{{Type: "A", Rcode: "NOERROR", TTL: 60, Values: []string{"1.2.3.4"}}},
+	}
+	out, _ := FormatJSON(res)
+	if strings.Contains(out, "display_name") {
+		t.Errorf("display_name should be omitted when empty, got:\n%s", out)
+	}
+}
+
+func TestFormatJSON_DisplayNameIncludedWhenSet(t *testing.T) {
+	res := &Result{
+		Domain: "8.8.8.8.in-addr.arpa.", DisplayName: "8.8.8.8", Server: "1.1.1.1:53",
+		Results: []TypeResult{{Type: "PTR", Rcode: "NOERROR", TTL: 300, Values: []string{"dns.google."}}},
+	}
+	out, _ := FormatJSON(res)
+	if !strings.Contains(out, `"display_name": "8.8.8.8"`) {
+		t.Errorf("display_name should appear in JSON, got:\n%s", out)
+	}
+	if !strings.Contains(out, `"domain": "8.8.8.8.in-addr.arpa."`) {
+		t.Errorf("domain should still carry arpa form for scripts wanting raw query, got:\n%s", out)
+	}
+}
+
 func TestFormatJSON_ErrorFieldOmittedWhenEmpty(t *testing.T) {
 	res := &Result{
 		Domain: "x", Server: "y",

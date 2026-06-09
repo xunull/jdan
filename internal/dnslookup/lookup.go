@@ -13,10 +13,14 @@ import (
 
 // Options 控制一次 Lookup 调用的行为。
 type Options struct {
-	Domain  string
-	Types   []uint16      // 至少 1 个 record type
-	Server  string        // 不带端口时由 ensurePort 补 :53
-	Timeout time.Duration // 整体查询超时；<=0 表示不另外加 timeout
+	Domain string
+	// DisplayName 是面向用户的 domain 标签——例如 reverse 查询时实际查的是
+	// `8.8.8.8.in-addr.arpa.`，但用户在 text/verbose 顶部看到的应是 `8.8.8.8`。
+	// 空串表示沿用 Domain（保持现有 lookup 行为）。
+	DisplayName string
+	Types       []uint16      // 至少 1 个 record type
+	Server      string        // 不带端口时由 ensurePort 补 :53
+	Timeout     time.Duration // 整体查询超时；<=0 表示不另外加 timeout
 }
 
 // TypeResult 单个 type 的查询结果。
@@ -39,8 +43,13 @@ func (t TypeResult) IsSuccess() bool {
 }
 
 // Result 一次 Lookup 调用的全量结果。
+//
+// DisplayName 在 reverse 查询场景下保留原始 IP 供 formatter 在顶部展示；
+// lookup 场景下为空，formatter 自动回退到 Domain。omitempty 保证现有
+// JSON 输出不变（lookup 输出里不会多一个 display_name 字段）。
 type Result struct {
 	Domain      string       `json:"domain"`
+	DisplayName string       `json:"display_name,omitempty"`
 	Server      string       `json:"server"`
 	QueryTimeMs int64        `json:"query_time_ms"`
 	Results     []TypeResult `json:"results"`
@@ -94,9 +103,10 @@ func Lookup(ctx context.Context, r Resolver, opts Options) (*Result, error) {
 
 	server := ensurePort(opts.Server)
 	res := &Result{
-		Domain:  opts.Domain,
-		Server:  server,
-		Results: make([]TypeResult, len(opts.Types)),
+		Domain:      opts.Domain,
+		DisplayName: opts.DisplayName,
+		Server:      server,
+		Results:     make([]TypeResult, len(opts.Types)),
 	}
 
 	start := time.Now()
