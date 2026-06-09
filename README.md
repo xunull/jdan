@@ -6,9 +6,15 @@ Go 编写的常用小工具集合（单二进制）。
 
 ```bash
 # 若上级目录存在 go.work 导致构建报错，可临时：
-# Linux/macOS: GOWORK=off go build -o jdan ./cmd/jdan
+# Linux/macOS: GOWORK=off go build -o jdan .
 # Windows PowerShell:
-$env:GOWORK="off"; go build -o jdan.exe ./cmd/jdan
+$env:GOWORK="off"; go build -o jdan.exe .
+```
+
+也可以直接安装：
+
+```bash
+go install github.com/xunull/jdan@latest
 ```
 
 ## 命令
@@ -115,6 +121,31 @@ echo 1711843200 | jdan unix-time
 | 输入长度 10 | 按秒级时间戳解析 |
 | 输入长度 13 | 按毫秒级时间戳解析 |
 | 输出时区 | 本机本地时区 |
+
+### `jdan readme`
+
+输出指定目录（默认当前目录）下的 `README.md` 内容。文件名大小写不敏感，`README.md` / `readme.md` / `Readme.md` 等均可识别。
+
+```bash
+jdan readme                      # 输出当前目录的 README.md
+jdan readme ./internal/cli       # 相对路径
+jdan readme /path/to/project     # 绝对路径
+jdan readme ~/code/myrepo        # 支持 ~ 展开
+jdan readme --paging             # 强制启用 bat 分页器（可按空格/回车翻页，q 退出）
+```
+
+| 参数 | 说明 |
+|------|------|
+| `dir` | 目录路径（可选，默认当前目录） |
+| `--paging` | 使用 bat 时强制启用分页（等同于 `bat --paging=always`）；默认不分页 |
+
+渲染方式按以下优先级选择：
+
+1. 若 `PATH` 中存在 `bat`，使用 `bat` 输出（带语法高亮）。默认追加 `--paging=never` 一次性输出；加 `--paging` 后追加 `--paging=always` 进入 less 等分页器。
+2. 否则若存在 `cat`，使用 `cat` 输出（`--paging` 对 `cat` 无效）。
+3. 两者都不可用时（如 Windows 默认环境），直接读取文件内容写到标准输出。
+
+若目录中没有任何大小写形式的 `README.md`，会以非零退出码报错。
 
 ### 全局
 
