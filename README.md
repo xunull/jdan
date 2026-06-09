@@ -51,6 +51,66 @@ jdan http timing https://example.com -k          # 跳过 TLS 证书验证
 | `--json` | 以 JSON 格式输出（Duration 以毫秒浮点数表示） |
 | `-k` / `--insecure` | 跳过 TLS 证书验证 |
 
+### `jdan dns lookup`
+
+并发查询域名的多个 DNS 记录类型，一发命令拿到 A / AAAA / MX / TXT / CNAME / NS 的完整诊断信息。相比 `dig` 默认仅查 A 记录，`jdan dns lookup` 默认一次查 6 个最常用 type，并发送出，总耗时 ≈ 最慢单 type。
+
+```bash
+jdan dns lookup example.com                       # 默认查询 6 个 type
+jdan dns lookup example.com -t A                  # 仅查 A 记录
+jdan dns lookup example.com -t A,MX,TXT           # 指定多个 type，逗号分隔
+jdan dns lookup example.com -t all                # 查询 9 个 type（含 SOA / CAA / SRV）
+jdan dns lookup example.com -s 8.8.8.8            # 指定 DNS server（绕过本地 resolver）
+jdan dns lookup example.com --json                # JSON 输出，便于脚本消费
+jdan dns lookup example.com --short -t A          # 仅输出值，dig +short 风格
+jdan dns lookup example.com --verbose             # 顶部追加 query time、rcode 列
+jdan dns lookup example.com --strict              # 任一 type 失败即 exit 1
+jdan dns lookup example.com --timeout 2s          # 调整整体查询超时（默认 5s）
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-t` / `--type` | 查询的 record type，逗号分隔；`all` 表示 9 个；空表示默认 6 个（A / AAAA / MX / TXT / CNAME / NS） |
+| `-s` / `--server` | DNS server（如 `8.8.8.8` 或 `8.8.8.8:53`）；空表示从 `/etc/resolv.conf` 读取系统配置 |
+| `-j` / `--json` | 以 JSON 格式输出（含 TTL / rcode / query_time_ms 等完整 metadata） |
+| `--short` | 仅输出值，每行一条（适合脚本：`IP=$(jdan dns lookup example.com --short -t A)`） |
+| `-v` / `--verbose` | 顶部追加 query time，rcode 单独列 |
+| `--strict` | 任一 type 失败（NXDOMAIN / SERVFAIL / TIMEOUT）即 `exit 1`；默认宽容（任一成功即 `exit 0`） |
+| `--timeout` | 整体查询超时（默认 5s） |
+
+退出码：默认宽容模式下，只要任一 type 返回 NOERROR（含空记录）就 `exit 0`；所有 type 都失败才 `exit 1`。`--strict` 切换为严格模式，任一 type 失败立即 `exit 1`。
+
+默认从 `/etc/resolv.conf` 读取系统 DNS server，读不到时 fallback 到 `8.8.8.8:53`。顶部一行会打印 `domain — via X.X.X.X:53` 说明实际查询源，便于在 VPN / 公司内网 / DNS 劫持环境下确认查询路径。
+
+**通过 DoH (DNS-over-HTTPS, RFC 8484) 绕过本地 DNS 劫持：**
+
+```bash
+jdan dns lookup example.com --doh google         # 使用 Google DoH (8.8.8.8)
+jdan dns lookup example.com --doh cloudflare     # 使用 Cloudflare DoH (1.1.1.1)
+jdan dns lookup example.com --doh quad9          # 使用 Quad9 DoH (9.9.9.9)
+jdan dns lookup example.com --doh dns.google     # 主机名形式（自动补 /dns-query）
+jdan dns lookup example.com --doh https://dns.alidns.com/dns-query  # 自定义完整 URL
+```
+
+支持的内置别名（共 6 个）：
+
+| 别名 | DoH endpoint | Bootstrap IPs |
+|------|--------------|----------------|
+| `google` | `https://dns.google/dns-query` | `8.8.8.8` / `8.8.4.4` |
+| `cloudflare` | `https://cloudflare-dns.com/dns-query` | `1.1.1.1` / `1.0.0.1` |
+| `quad9` | `https://dns.quad9.net/dns-query` | `9.9.9.9` / `149.112.112.112` |
+| `opendns` | `https://doh.opendns.com/dns-query` | `208.67.222.222` / `208.67.220.220` |
+| `ali` | `https://dns.alidns.com/dns-query` | `223.5.5.5` / `223.6.6.6` |
+| `360` | `https://doh.360.cn/dns-query` | `101.226.4.6` / `218.30.118.6` |
+
+**别名形式**会用内置的 Bootstrap IPs 直连对应的 DoH 服务器，**完全绕过本地 resolver**——这是 jdan dns lookup 在 DNS 被劫持环境下的"看真相"模式。TLS SNI 仍是 endpoint 的 host 名（`dns.google` 等），证书验证不变。机制与 `curl --resolve` 一致。
+
+**主机名 / 完整 URL 形式**走 OS resolver 解析 DoH host，适合非劫持环境或自定义 DoH 服务器（含 NextDNS 等带 UUID path 的私有 endpoint）。
+
+`--doh` 与 `--server` 互斥；默认验证 TLS 证书（DoH 不提供 `--insecure-tls`）。
+
+> 仅支持 macOS 和 Linux；Windows 暂不在 first release 范围内（resolver 自动检测的 Windows 路径需单独实现）。
+
 ### `jdan pubip4` / `jdan pubip6`
 
 查询本机当前出口的公网 IP 地址。
