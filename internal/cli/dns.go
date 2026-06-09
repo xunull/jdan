@@ -72,6 +72,7 @@ func newDNSCommand(deps dnsCmdDeps) *cobra.Command {
 	lookupCmd.Flags().Duration("timeout", 5*time.Second, "整体查询超时")
 
 	dnsCmd.AddCommand(lookupCmd)
+	dnsCmd.AddCommand(newReverseCommand(deps))
 	return dnsCmd
 }
 
