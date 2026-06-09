@@ -11,6 +11,7 @@ package dnslookup
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -190,6 +191,103 @@ func TestIntegration_DoH_BypassesLocalHijack(t *testing.T) {
 	if res.Results[0].Rcode != "NXDOMAIN" {
 		t.Errorf("expected NXDOMAIN via DoH (bypass hijack), got rcode=%q values=%v",
 			res.Results[0].Rcode, res.Results[0].Values)
+	}
+}
+
+// --- Reverse (PTR) integration tests ---
+
+// 通过 DoH cloudflare 反向查询稳定 PTR，劫持环境下也能稳定通过
+// （别名 → 内置 bootstrap IP 直连，绕开本地 resolver）。
+
+func TestIntegration_Reverse_8888(t *testing.T) {
+	target, _ := ResolveDoHTarget("cloudflare")
+	r := NewDoHResolver(target, 10*time.Second)
+	ptr, err := dns.ReverseAddr("8.8.8.8")
+	if err != nil {
+		t.Fatalf("ReverseAddr: %v", err)
+	}
+	res, err := Lookup(context.Background(), r, Options{
+		Domain:      ptr,
+		DisplayName: "8.8.8.8",
+		Types:       []uint16{dns.TypePTR},
+		Server:      target.URL,
+		Timeout:     10 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Lookup: %v", err)
+	}
+	if !res.HasAnySuccess() {
+		t.Fatalf("expected PTR success, got: %+v", res.Results)
+	}
+	// 8.8.8.8 的 PTR 稳定为 dns.google.
+	found := false
+	for _, v := range res.Results[0].Values {
+		if v == "dns.google." {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected dns.google. in PTR values, got %v", res.Results[0].Values)
+	}
+	if res.DisplayName != "8.8.8.8" {
+		t.Errorf("DisplayName should be 8.8.8.8, got %q", res.DisplayName)
+	}
+}
+
+func TestIntegration_Reverse_Cloudflare(t *testing.T) {
+	// 1.1.1.1 → one.one.one.one. （Cloudflare 公开稳定 PTR）
+	target, _ := ResolveDoHTarget("google")
+	r := NewDoHResolver(target, 10*time.Second)
+	ptr, _ := dns.ReverseAddr("1.1.1.1")
+	res, err := Lookup(context.Background(), r, Options{
+		Domain:      ptr,
+		DisplayName: "1.1.1.1",
+		Types:       []uint16{dns.TypePTR},
+		Server:      target.URL,
+		Timeout:     10 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Lookup: %v", err)
+	}
+	if !res.HasAnySuccess() {
+		t.Fatalf("expected PTR success for 1.1.1.1, got: %+v", res.Results)
+	}
+	found := false
+	for _, v := range res.Results[0].Values {
+		if v == "one.one.one.one." {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("expected one.one.one.one. in PTR values, got %v", res.Results[0].Values)
+	}
+}
+
+func TestIntegration_Reverse_IPv6(t *testing.T) {
+	// 2001:4860:4860::8888 (Google Public DNS v6) → dns.google.
+	target, _ := ResolveDoHTarget("cloudflare")
+	r := NewDoHResolver(target, 10*time.Second)
+	ptr, err := dns.ReverseAddr("2001:4860:4860::8888")
+	if err != nil {
+		t.Fatalf("ReverseAddr: %v", err)
+	}
+	if !strings.HasSuffix(ptr, ".ip6.arpa.") {
+		t.Errorf("expected ip6.arpa suffix, got %q", ptr)
+	}
+	res, err := Lookup(context.Background(), r, Options{
+		Domain:      ptr,
+		DisplayName: "2001:4860:4860::8888",
+		Types:       []uint16{dns.TypePTR},
+		Server:      target.URL,
+		Timeout:     10 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Lookup: %v", err)
+	}
+	if !res.HasAnySuccess() {
+		t.Errorf("expected PTR success for IPv6, got: %+v", res.Results)
 	}
 }
 

@@ -111,6 +111,34 @@ jdan dns lookup example.com --doh https://dns.alidns.com/dns-query  # 自定义�
 
 > 仅支持 macOS 和 Linux；Windows 暂不在 first release 范围内（resolver 自动检测的 Windows 路径需单独实现）。
 
+### `jdan dns reverse`
+
+把 IP 反向解析为域名（PTR 查询）。`jdan dns lookup` 的对偶——前者"域名 → 信息"，后者"IP → 域名"。
+
+```bash
+jdan dns reverse 8.8.8.8                    # 默认走系统 resolver
+jdan dns reverse 8.8.8.8 --doh cloudflare   # 通过 DoH 绕过本地劫持
+jdan dns reverse 1.1.1.1 --doh google       # 任意内置别名（与 dns lookup 一致）
+jdan dns reverse 2001:4860:4860::8888       # IPv6 自动用 ip6.arpa
+jdan dns reverse 8.8.8.8 --short            # 仅输出 PTR 值（脚本友好）
+jdan dns reverse 8.8.8.8 --json             # 完整 metadata（含 display_name 字段）
+```
+
+支持与 `jdan dns lookup` 完全相同的 flag：`--server` / `--doh` / `--json` / `--short` / `--verbose` / `--strict` / `--timeout`。**唯一不同**是没有 `--type`——reverse 只查 PTR 一种 record type。`--doh` 别名（`google` / `cloudflare` / `quad9` / `opendns` / `ali` / `360`）依然走内置 IP 直连，劫持环境下也能拿到真实 PTR。
+
+**输入要求**：只接受单一 IP 字面量（IPv4 或 IPv6）。以下输入会被拒绝并提示正确用法：
+
+| 输入 | 错误提示 |
+|------|----------|
+| 域名（如 `google.com`） | "请用 `jdan dns lookup`" |
+| CIDR（如 `8.8.8.8/32`） | "请传单一 IP" |
+| host:port（如 `8.8.8.8:53`） | "不要传端口" |
+| 带 zone-id 的链路本地（如 `fe80::1%en0`） | "不是合法 IP" |
+
+`0.0.0.0` / `127.0.0.1` / 私网 IP 等不拦截——按"DNS 真相"原则透传查询（多数返回 NXDOMAIN），与命令的诊断定位一致。
+
+**输出顶部**显示原始 IP（`8.8.8.8 — via …`），不是 `8.8.8.8.in-addr.arpa.` 形式。JSON 输出含 `display_name` 字段（原始 IP）+ `domain` 字段（实际查询的 arpa 域名），方便脚本根据需要消费。
+
 ### `jdan pubip4` / `jdan pubip6`
 
 查询本机当前出口的公网 IP 地址。
