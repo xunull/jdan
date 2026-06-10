@@ -1,6 +1,6 @@
 # jdan
 
-Go 编写的常用小工具集合（单二进制）。
+Go 编写的常用小工具集合（单二进制）。定位：每个子命令解决一个**系统自带工具行为不一致 / 输出难看 / 跨平台缺失**的小痛点，组合在一起避免装一堆小工具。设计倾向：默认聪明（合理 default + 自动检测），但不剥夺用户控制权（所有自动行为都能通过 flag 覆盖）；text 默认友好，`--json` 始终可被脚本消费。
 
 ## 构建
 
@@ -19,6 +19,29 @@ go install github.com/xunull/jdan@latest
 
 ## 命令
 
+按主题分组的目录（实际章节顺序按命令引入时间排列，所以网络类和文件类不连续）：
+
+**网络 & DNS**
+- [`jdan http timing`](#jdan-http-timing) — 测 HTTP 请求各阶段耗时
+- [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
+- [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
+- [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
+- [`jdan pubip4`](#jdan-pubip4--jdan-pubip6) / [`jdan pubip6`](#jdan-pubip4--jdan-pubip6) — 查本机公网 IP
+- [`jdan ports`](#jdan-ports) — 显示本机正在监听的端口（macOS）
+
+**文件 & 归档**
+- [`jdan file bak`](#jdan-file-bak) — 给文件打带时间戳的备份
+- [`jdan zip`](#jdan-zip) — 把文件或目录打成 `.zip`
+- [`jdan tree2`](#jdan-tree2) — 多列展示两层目录树
+- [`jdan readme`](#jdan-readme) — 输出指定目录的 README.md（带 bat 高亮）
+
+**系统**
+- [`jdan macgpu`](#jdan-macgpu) — Apple Silicon GPU TUI 监控
+- [`jdan unix-time`](#jdan-unix-time) — Unix 时间戳 → 本地时间
+
+**集成**
+- [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
+
 ### `jdan file bak`
 
 将**普通文件**复制到**同目录**下的备份文件，命名规则：
@@ -32,6 +55,27 @@ go install github.com/xunull/jdan@latest
 jdan file bak ./report.pdf
 jdan file bak ./report.pdf --desc "before edit"
 ```
+
+### `jdan zip`
+
+把指定的**文件**或**目录**打成 zip 归档。输出文件命名为 `{源名}.zip`，写到**当前工作目录**（不是源所在目录）。
+
+```bash
+jdan zip ./report.pdf      # 生成 report.pdf.zip 到 CWD
+jdan zip ./my-project      # 递归压缩目录，生成 my-project.zip
+jdan zip /tmp/data         # 绝对路径也行，输出仍写到 CWD
+```
+
+| 参数 | 说明 |
+|------|------|
+| `path` | 文件或目录路径（必传） |
+
+实现细节：
+
+- 使用 Go 标准库 `archive/zip`，压缩方法 `Deflate`
+- 目录场景下递归遍历，zip 内以源目录的 basename 作为根目录
+- 不支持密码、不支持排除规则、不支持自定义输出名——保持单一职责
+- 不依赖系统 `zip` 二进制，跨平台一致
 
 ### `jdan http timing`
 
@@ -187,6 +231,34 @@ jdan pubip6 -p ipip           # 使用 ipip.net 查询 IPv6
 
 内部自动重试至多 3 次，全部失败后输出提示信息并以非零退出码退出。
 
+### `jdan ports`
+
+显示本机当前所有处于 LISTEN 状态的网络端口。表格按协议分块（TCP 在前 / UDP 在后），同协议内按端口号升序排列。
+
+```bash
+jdan ports               # 默认表格输出，TCP + UDP 都显示
+jdan ports --tcp         # 仅 TCP（-t）
+jdan ports --udp         # 仅 UDP（-u）
+jdan ports --json        # JSON 数组输出（-j），脚本友好
+```
+
+| 参数 | 说明 |
+|------|------|
+| `-j` / `--json` | 以 JSON 数组输出（`[{protocol, address, port, process}, ...]`） |
+| `-t` / `--tcp` | 仅显示 TCP 端口 |
+| `-u` / `--udp` | 仅显示 UDP 端口 |
+
+每条记录包含：`PROTOCOL`、`ADDRESS`（如 `127.0.0.1`、`*`、`[::1]`）、`PORT`、`PROCESS`（进程名）。
+
+实现细节：
+
+- 底层调用 macOS 内置的 `lsof -i -P -n -sTCP:LISTEN`（TCP）和 `-sUDP:LISTEN`（UDP）
+- 无 sudo 时也能显示端口和地址；进程名权限不足时显示 `-`
+- Docker 通过 `-p` 映射到宿主的端口会被检测到（宿主 socket 真实存在）
+- 不显示 LISTEN 之外的连接状态（ESTABLISHED 等）
+
+> 当前仅 macOS。Linux 支持留作未来扩展（用 `ss` 或 `/proc/net/{tcp,udp}` 替代 `lsof`）。
+
 ### `jdan macgpu`
 
 实时监控 Apple Silicon Mac 的 GPU 使用率、功耗、频率和散热压力等级。
@@ -266,8 +338,6 @@ jdan readme --paging             # 强制启用 bat 分页器（可按空格/回
 
 若目录中没有任何大小写形式的 `README.md`，会以非零退出码报错。
 
-### 全局
-
 ### `jdan obsidian install-claudian`
 
 从 GitHub 最新 Release 下载 [Claudian](https://github.com/YishenTu/claudian) 插件文件，并安装到指定 Obsidian Vault。
@@ -285,10 +355,27 @@ jdan obsidian install-claudian ~/Documents/vault --force  # 覆盖已安装版�
 
 安装成功后会在 `{vault}/.obsidian/plugins/claudian/` 下创建 `main.js`、`manifest.json`、`styles.css`，之后在 Obsidian 的 Settings → Community plugins 中启用即可。
 
-### 全局
+## 全局 flag
+
+所有子命令都接受：
+
+| 参数 | 说明 |
+|------|------|
+| `--config` | 配置文件路径（可选；viper 加载，子命令各自决定是否消费） |
+| `-h` / `--help` | 子命令帮助 |
 
 ## 开发
 
 ```bash
+# 单元测试（默认不跑需要外网的集成测试）
 go test ./...
+
+# 集成测试（真实打 DNS / DoH；CI 默认不跑）
+go test -tags integration ./internal/dnslookup/... ./internal/dnstrace/...
+
+# 构建（若上级目录有 go.work 干扰）
+GOWORK=off go build -o jdan .
 ```
+
+设计文档在 `docs/brainstorms/` 与 `docs/plans/` 下按时间排列，每个新子命令通常对应一对 brainstorm + plan。
+
