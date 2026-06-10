@@ -139,6 +139,37 @@ jdan dns reverse 8.8.8.8 --json             # 完整 metadata（含 display_name
 
 **输出顶部**显示原始 IP（`8.8.8.8 — via …`），不是 `8.8.8.8.in-addr.arpa.` 形式。JSON 输出含 `display_name` 字段（原始 IP）+ `domain` 字段（实际查询的 arpa 域名），方便脚本根据需要消费。
 
+### `jdan dns trace`
+
+从根 DNS 服务器开始**迭代解析**，展示每一跳的委派路径（`dig +trace` 的 jdan 同款）。`jdan dns lookup` 是"问 recursive resolver 拿最终答案"，`jdan dns trace` 是"自己一跳一跳走完全程，看每个 NS 怎么把你交给下一跳"。
+
+```bash
+jdan dns trace example.com                  # 从 13 个根开始追，默认查 A
+jdan dns trace example.com -t NS            # --type 覆盖（dig +trace 风格）
+jdan dns trace example.com --doh google     # glueless NS 走 DoH bootstrap（绕本地劫持）
+jdan dns trace example.com --short          # 仅最终答案
+jdan dns trace example.com --json | jq '.hops | length'  # 脚本消费
+jdan dns trace example.com --verbose        # 每跳含 NS referrals 与 glue 详情
+jdan dns trace example.com -s 1.1.1.1       # 用 recursive resolver 作起步 server
+jdan dns trace example.com --hop-timeout 2s --timeout 15s
+```
+
+**与 `jdan dns lookup` 的核心差异**：
+
+| | `dns lookup` | `dns trace` |
+|---|--------------|-------------|
+| 查询模型 | 单次问 recursive resolver | 多跳从根迭代追 auth NS |
+| 走 DoH | `--doh` 把整条查询切到 HTTPS | `--doh` **仅**用于 glueless NS bootstrap，主跳路径仍直接 UDP/TCP 查权威 NS |
+| `--server` | DNS resolver IP | 起步 NS IP（覆盖 13 个根） |
+| 默认 type | 6 个 type 并发 | 仅 A，`--type` 覆盖（dig 风格；多 type 会让 chain ×6） |
+| 适用场景 | "这个域名 / IP 现在解析到哪" | "委派链路是怎么走的、哪一跳慢、NS 委派对了吗、本地是否被劫持" |
+
+**Hijack detection（重要）**：trace 自带一个 sanity check——根服务器对非根域名查询本应返回 REFERRAL 而非 ANSWER。在被网关拦截 UDP-53 的网络下（连发往根服务器 IP 的流量都被伪造响应），第一跳直接给 ANSWER 会被识别为"可疑响应"并标 ERROR，提示用户改走 `jdan dns lookup --doh google` 走 HTTPS 加密查询。这是 trace 在污染网络下保持**不撒谎**的关键。
+
+**`--strict` 在 trace 中的语义**：默认拿到 final answer 即 `exit 0`（即使中途某个 root server 超时被 fallback）。`--strict` 切换为"任一 hop 出错即 `exit 1`"——用于诊断"哪一跳不稳"。
+
+> 仅支持 macOS 和 Linux；与 `dns lookup` / `reverse` 一致。
+
 ### `jdan pubip4` / `jdan pubip6`
 
 查询本机当前出口的公网 IP 地址。

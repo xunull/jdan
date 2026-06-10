@@ -259,15 +259,20 @@ func TestTrace_MaxHopsExceeded(t *testing.T) {
 }
 
 func TestTrace_SequentialNSFallback(t *testing.T) {
-	// root server a 失败，b 成功 → 走 fallback
+	// root server a 失败，b 给 referral，再走一跳到 answer。
+	// 注意：root server 不能直接给 ANSWER 否则被 hijack detection 拦截。
 	callCount := 0
 	transport := &fakeTransport{handler: func(msg *dns.Msg, server string) (*dns.Msg, time.Duration, error) {
 		callCount++
 		switch hostOf(server) {
-		case "198.41.0.4": // a fails
+		case "198.41.0.4": // a 失败
 			return nil, 1 * time.Millisecond, errors.New("i/o timeout")
-		case "170.247.170.2": // b succeeds
-			return mkAnswerA("x.", "1.2.3.4", 60), 2 * time.Millisecond, nil
+		case "170.247.170.2": // b 给 referral
+			return mkReferral("x.",
+				[]string{"ns1.x."},
+				map[string]string{"ns1.x.": "9.9.9.9"}, 60), 2 * time.Millisecond, nil
+		case "9.9.9.9": // ns1.x 给最终 answer
+			return mkAnswerA("x.", "1.2.3.4", 60), 1 * time.Millisecond, nil
 		}
 		return nil, 0, fmt.Errorf("unexpected: %s", server)
 	}}
@@ -277,8 +282,8 @@ func TestTrace_SequentialNSFallback(t *testing.T) {
 	if !res.Succeeded() {
 		t.Fatalf("expected success after fallback, got: %+v", res.Hops)
 	}
-	if callCount != 2 {
-		t.Errorf("expected 2 transport calls (a fail + b success), got %d", callCount)
+	if callCount != 3 {
+		t.Errorf("expected 3 transport calls (a fail + b referral + ns answer), got %d", callCount)
 	}
 }
 
@@ -352,6 +357,43 @@ func TestTrace_TypeNSOverride(t *testing.T) {
 	}
 	if len(res.Final.Answers) != 2 {
 		t.Errorf("expected 2 NS answers, got %v", res.Final.Answers)
+	}
+}
+
+func TestTrace_DetectsHijackedRootResponse(t *testing.T) {
+	// 网关劫持场景：UDP-53 到 root server IP 被拦截，返回伪造的 ANSWER
+	// 而不是 REFERRAL。trace 应当识别这是协议违规并报错。
+	transport := &fakeTransport{handler: func(msg *dns.Msg, server string) (*dns.Msg, time.Duration, error) {
+		// 任意 server 都返回 ANSWER（劫持网关的常见行为）
+		return mkAnswerA("example.com.", "198.18.0.19", 1), 1 * time.Millisecond, nil
+	}}
+
+	tracer := newTracerWithTransport(Options{}, transport)
+	res, _ := tracer.Trace(context.Background(), "example.com", dns.TypeA)
+	if res.Succeeded() {
+		t.Fatal("劫持的 ANSWER 不应被认作成功")
+	}
+	// 最后一跳应当是 ERROR 类型，包含"可疑"或"协议"字样
+	last := res.Hops[len(res.Hops)-1]
+	if last.Type != HopError {
+		t.Errorf("expected hijack to be flagged as ERROR, got %s", last.Type)
+	}
+	if !strings.Contains(last.Error, "可疑") && !strings.Contains(last.Error, "协议") {
+		t.Errorf("expected hijack hint, got: %s", last.Error)
+	}
+}
+
+func TestTrace_StartServerSkipsHijackDetection(t *testing.T) {
+	// 用户传 --server 覆盖时，可能是指向 recursive resolver（如 1.1.1.1）。
+	// 这种场景下第一跳就拿 ANSWER 是合法的，不应触发 hijack detection。
+	transport := &fakeTransport{handler: func(msg *dns.Msg, server string) (*dns.Msg, time.Duration, error) {
+		return mkAnswerA("example.com.", "1.2.3.4", 60), 1 * time.Millisecond, nil
+	}}
+
+	tracer := newTracerWithTransport(Options{StartServer: "1.1.1.1"}, transport)
+	res, _ := tracer.Trace(context.Background(), "example.com", dns.TypeA)
+	if !res.Succeeded() {
+		t.Errorf("StartServer 模式下首跳 ANSWER 应当被接受为合法，got: %+v", res.Hops)
 	}
 }
 

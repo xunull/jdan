@@ -242,6 +242,20 @@ func (t *Tracer) Trace(ctx context.Context, domain string, qtype uint16) (*Resul
 		case HopError:
 			return result, nil
 		case HopAnswer:
+			// Sanity check：从真根开始的第一跳就拿到 ANSWER 是 DNS 协议违规——
+			// 根服务器对非根域名应当返回 REFERRAL 而非 ANSWER。在劫持环境下
+			// （网关拦截 UDP-53 到任意 IP 并伪造响应）会出现这种"假成功"。
+			// 仅在用户没用 --server 覆盖时触发（自定义起步 server 可能是
+			// recursive resolver，给 ANSWER 是合法的）。
+			if hopIdx == 0 && t.startServer == "" && currentZone == "." && domain != "." {
+				result.Hops = append(result.Hops, Hop{
+					Type: HopError,
+					Error: "可疑响应：根服务器在第一跳直接给出 ANSWER，违反 DNS 协议。" +
+						"可能是本地网关拦截了 UDP-53 流量并伪造响应。" +
+						"建议改用 `jdan dns lookup --doh google` 走 HTTPS 加密查询。",
+				})
+				return result, nil
+			}
 			final := result.Hops[len(result.Hops)-1]
 			result.Final = &final
 			return result, nil

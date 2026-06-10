@@ -11,14 +11,16 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xunull/jdan/internal/dnslookup"
+	"github.com/xunull/jdan/internal/dnstrace"
 )
 
-// dnsCmdDeps 把外部依赖暴露为依赖注入点，便于在测试里替换 lookup / detectServer / exit。
+// dnsCmdDeps 把外部依赖暴露为依赖注入点，便于在测试里替换 lookup / trace / detectServer / exit。
 type dnsCmdDeps struct {
-	out           io.Writer
-	lookup        func(ctx context.Context, opts dnslookup.Options) (*dnslookup.Result, error)
-	detectServer  func() string
-	exit          func(code int)
+	out          io.Writer
+	lookup       func(ctx context.Context, opts dnslookup.Options) (*dnslookup.Result, error)
+	trace        func(ctx context.Context, domain string, qtype uint16) (*dnstrace.Result, error)
+	detectServer func() string
+	exit         func(code int)
 }
 
 func newDNSCommand(deps dnsCmdDeps) *cobra.Command {
@@ -73,6 +75,7 @@ func newDNSCommand(deps dnsCmdDeps) *cobra.Command {
 
 	dnsCmd.AddCommand(lookupCmd)
 	dnsCmd.AddCommand(newReverseCommand(deps))
+	dnsCmd.AddCommand(newTraceCommand(deps))
 	return dnsCmd
 }
 
