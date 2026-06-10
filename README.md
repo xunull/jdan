@@ -39,6 +39,14 @@ go install github.com/xunull/jdan@latest
 - [`jdan macgpu`](#jdan-macgpu) — Apple Silicon GPU TUI 监控
 - [`jdan unix-time`](#jdan-unix-time) — Unix 时间戳 → 本地时间
 
+**随机生成（CSPRNG）**
+- [`jdan rand password`](#jdan-rand-password) — 1Password 风格随机密码
+- [`jdan rand uuid`](#jdan-rand-uuid) — UUID v4 / v7
+- [`jdan rand hex`](#jdan-rand-hex--base64--base64url--base32) / [`base64`](#jdan-rand-hex--base64--base64url--base32) / [`base64url`](#jdan-rand-hex--base64--base64url--base32) / [`base32`](#jdan-rand-hex--base64--base64url--base32) — 字节级随机 + 编码
+- [`jdan rand alnum`](#jdan-rand-alnum) — 字母数字串（无类约束）
+- [`jdan rand int`](#jdan-rand-int) — 闭区间随机整数
+- [`jdan rand word`](#jdan-rand-word) — EFF diceware passphrase
+
 **集成**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
 
@@ -337,6 +345,127 @@ jdan readme --paging             # 强制启用 bat 分页器（可按空格/回
 3. 两者都不可用时（如 Windows 默认环境），直接读取文件内容写到标准输出。
 
 若目录中没有任何大小写形式的 `README.md`，会以非零退出码报错。
+
+### `jdan rand`
+
+随机生成子命令族。**全部使用 `crypto/rand` (CSPRNG)**，禁止 `math/rand`；字符选取
+一律走 `crypto/rand.Int(charsetLen)`，禁止 `b[i] % len(charset)` 这种 mod-bias
+写法（`TestNoCharSelectionModulo` 静态门禁）。
+
+9 个子命令，全部接受共享 flag `--count N` / `--json` / `--no-newline`（互斥与
+`--count >1`）：
+
+```bash
+jdan rand password                       # 1Password 风格：20 位 + symbols + 排除歧义
+jdan rand uuid                           # 默认 v4
+jdan rand uuid -V 7 -c 10                # 10 个 v7（time-ordered）
+jdan rand hex -l 32                      # 32 字节 → 64 hex chars
+jdan rand base64 -l 32                   # 标准 base64
+jdan rand base64url -l 32                # URL-safe base64（无 +/=）
+jdan rand base32 -l 20                   # RFC 4648 base32
+jdan rand alnum -l 12                    # 字母数字（无类约束）
+jdan rand int 1 100                      # [1, 100] 闭区间
+jdan rand int -c 5 -- -10 10             # 负数请用 -- 分隔，flag 须在 -- 前
+jdan rand word                           # 6 词 diceware passphrase (EFF 7776 词)
+jdan rand word -w 8 --sep "_"            # 8 词，下划线分隔
+jdan rand hex --json -c 100              # 100 条 → JSON 数组（脚本友好）
+jdan rand password --no-newline | pbcopy # 单条无换行管道
+```
+
+#### `jdan rand password`
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `-l` / `--length` | `20` | 密码长度 |
+| `--no-symbols` | `false` | 仅字母数字（仍要求每类至少一个） |
+| `--include-ambiguous` | `false` | 不排除 `I`/`l`/`1`/`O`/`0` |
+
+算法：**固定位置 + Fisher-Yates 洗牌**（每类先抽 1 字符放固定位置，剩余位置用全
+字符集填充，最后 Fisher-Yates 洗牌）。无偏差，`-l 4` 边界也高效。
+
+`--no-symbols` 与 `jdan rand alnum` **不同**：前者仍要求 lower/upper/digit 每类
+至少一个；后者无类约束。
+
+熵参考：默认 20 位 + symbols + 排除歧义 ≈ 123 bits（字符集 71）；`--no-symbols`
+≈ 117 bits（字符集 57）。
+
+#### `jdan rand uuid`
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `-V` / `--version` | `4` | UUID 版本（`4` 或 `7`） |
+
+- **v4** = 122 个随机比特 + 版本/variant 标记。RFC 9562。
+- **v7** = 48-bit unix 毫秒时间戳 + 74-bit 随机。同毫秒内 `rand_a` 提供大致单调
+  排序，适合数据库索引。RFC 9562。
+- v1（含 MAC 地址）和 v5（SHA-1 命名空间）不在 scope。
+
+UUID 子命令**手写实现**，不引入 `github.com/google/uuid` 依赖。
+
+#### `jdan rand hex` / `base64` / `base64url` / `base32`
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `-l` / `--length` | `32` | 字节数（编码后输出更长） |
+
+- `hex` → 输出 `2 × length` hex chars（`0-9a-f`）
+- `base64` → 标准 base64（含 `+ / =` padding）
+- `base64url` → URL-safe base64（用 `- _`，无 `=` padding，可直接放 URL / JWT）
+- `base32` → RFC 4648 大写 `A-Z` + `2-7`。Crockford 变体不支持
+
+#### `jdan rand alnum`
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `-l` / `--length` | `20` | 字符长度 |
+| `--include-ambiguous` | `false` | 不排除 `I`/`l`/`1`/`O`/`0` |
+
+字母数字串，**无类约束**——`-l 1` 也合法。与 `password --no-symbols` 区别明确：
+后者仍要求 lower/upper/digit 每类至少一个。
+
+#### `jdan rand int`
+
+```bash
+jdan rand int <min> <max>
+```
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `min` `max` | — | 必传，`cobra.ExactArgs(2)` |
+| `-c` / `--count` | `1` | 生成数量 |
+| `-j` / `--json` | `false` | JSON **整数**数组（非字符串数组） |
+
+闭区间 `[min, max]`，支持负数 / 跨零 / `min == max`。负数请用 `--` 分隔，且 flag
+必须在 `--` **之前**：
+
+```bash
+jdan rand int -c 5 -- -10 10   # ✓ 对
+jdan rand int -- -10 10 -c 5   # ✗ 错（-c 5 被当 positional）
+```
+
+不支持 `--no-newline`（整数 + newline 是标准 stdout 格式）。
+
+#### `jdan rand word`
+
+| 参数 | 默认 | 说明 |
+|------|------|------|
+| `-w` / `--words` | `6` | 每个 passphrase 的词数 |
+| `--sep` | `-` | 词之间分隔符（空串合法，输出不可分割串） |
+
+从 **EFF Large Wordlist** (7776 词，CC-BY 3.0，`go:embed` 嵌入二进制，
+SHA256 在 `init()` 时校验) 抽词。12.9 bits 熵/词；默认 6 词约 77.5 bits 熵
+（超过 12 字符 alnum 密码 ≈ 71 bits）。
+
+注意 **`--words` 是每个 passphrase 的词数；`--count` 是 passphrase 数**：
+
+```bash
+jdan rand word                         # 1 个 6 词 passphrase
+jdan rand word -w 8                    # 1 个 8 词 passphrase
+jdan rand word -c 5                    # 5 个 6 词 passphrase（每行一个）
+jdan rand word -w 8 -c 5 --json        # 5 个 8 词 passphrase → JSON 数组
+```
+
+> 当前仅 macOS + Linux（沿用 jdan 现状）。
 
 ### `jdan obsidian install-claudian`
 
