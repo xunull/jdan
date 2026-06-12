@@ -2,19 +2,51 @@
 
 Go 编写的常用小工具集合（单二进制）。定位：每个子命令解决一个**系统自带工具行为不一致 / 输出难看 / 跨平台缺失**的小痛点，组合在一起避免装一堆小工具。设计倾向：默认聪明（合理 default + 自动检测），但不剥夺用户控制权（所有自动行为都能通过 flag 覆盖）；text 默认友好，`--json` 始终可被脚本消费。
 
-## 构建
+## 安装
+
+### 方式 1：下载预编译二进制（推荐）
+
+从 [GitHub Releases](https://github.com/xunull/jdan/releases) 下载对应平台的 archive：
+
+| 平台 | Archive |
+|------|---------|
+| macOS Apple Silicon | `jdan_<VERSION>_darwin_arm64.tar.gz` |
+| macOS Intel | `jdan_<VERSION>_darwin_amd64.tar.gz` |
+| Linux x86_64 | `jdan_<VERSION>_linux_amd64.tar.gz` |
+| Linux ARM64 | `jdan_<VERSION>_linux_arm64.tar.gz` |
 
 ```bash
-# 若上级目录存在 go.work 导致构建报错，可临时：
-# Linux/macOS: GOWORK=off go build -o jdan .
-# Windows PowerShell:
-$env:GOWORK="off"; go build -o jdan.exe .
+# 例：macOS Apple Silicon，把 <VERSION> 换成你下的版本号
+curl -L -o jdan.tar.gz https://github.com/xunull/jdan/releases/download/v<VERSION>/jdan_<VERSION>_darwin_arm64.tar.gz
+tar xzf jdan.tar.gz
+sudo mv jdan /usr/local/bin/
+jdan version
 ```
 
-也可以直接安装：
+校验 SHA256（同一 Release 页面有 `checksums.txt`）：
+
+```bash
+curl -LO https://github.com/xunull/jdan/releases/download/v<VERSION>/checksums.txt
+shasum -a 256 -c checksums.txt --ignore-missing
+```
+
+### 方式 2：go install
 
 ```bash
 go install github.com/xunull/jdan@latest
+```
+
+此方式 `jdan version` 显示的是 `dev / none / unknown`，因为没经过 goreleaser 的 ldflags 注入。
+
+### 方式 3：从源码构建
+
+```bash
+git clone https://github.com/xunull/jdan.git
+cd jdan
+go build -o jdan .
+# 若上级目录存在 go.work 导致构建报错：
+# Linux/macOS: GOWORK=off go build -o jdan .
+# Windows PowerShell: $env:GOWORK="off"; go build -o jdan.exe .
 ```
 
 ## 命令
@@ -49,6 +81,28 @@ go install github.com/xunull/jdan@latest
 
 **集成**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
+
+**元命令**
+- [`jdan version`](#jdan-version) — 显示版本、commit、构建时间
+
+### `jdan version`
+
+显示当前二进制的版本号、构建 commit、构建时间和平台。release 二进制由 GoReleaser 通过 `-ldflags` 在 build 时注入；`go install` 或本地 `go build` 编译的二进制会显示 `dev / none / unknown`，这是设计内的回退。
+
+```bash
+$ jdan version
+jdan v0.1.0 (commit abc1234, built 2026-06-12T10:00:00Z, darwin/arm64)
+
+$ jdan version --short
+v0.1.0
+```
+
+`--short` 适合在脚本里捕获版本号：
+
+```bash
+JDAN_VER=$(jdan version --short)
+echo "running jdan $JDAN_VER"
+```
 
 ### `jdan file bak`
 

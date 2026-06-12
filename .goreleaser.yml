@@ -1,0 +1,78 @@
+version: 2
+
+project_name: jdan
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: jdan
+    main: ./
+    binary: jdan
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X github.com/xunull/jdan/internal/cli.buildVersion={{.Version}}
+      - -X github.com/xunull/jdan/internal/cli.buildCommit={{.ShortCommit}}
+      - -X github.com/xunull/jdan/internal/cli.buildDate={{.Date}}
+
+archives:
+  - id: jdan
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: [tar.gz]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  sort: asc
+  use: git
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - 'Merge pull request'
+      - 'Merge branch'
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Other
+      order: 999
+
+release:
+  github:
+    owner: xunull
+    name: jdan
+  draft: false
+  prerelease: auto
+  name_template: 'v{{ .Version }}'
+  header: |
+    ## jdan {{ .Tag }}
+
+    安装方式见 [README](https://github.com/xunull/jdan#installation)。
+  footer: |
+    ---
+    **Checksums**: `checksums.txt` 内每个 archive 的 SHA256。
