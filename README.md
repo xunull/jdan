@@ -84,6 +84,7 @@ go build -o jdan .
 
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
+- [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
 
 **元命令**
 - [`jdan version`](#jdan-version) — 显示版本、commit、构建时间
@@ -124,6 +125,63 @@ cat secret.txt | jdan qr --output secret.png --ecc H
 ```
 
 不支持的扩展名（如 `.jpg`）会报错；要 JPEG 自行用 `sips`/`ffmpeg` 从 PNG 转。
+
+### `jdan jwt decode`
+
+纯本地解析 JWT 的 header 和 payload，**不验签、不发任何网络请求**。日常调试场景里通常不需要验签：你只想看一眼 token 里到底装了什么 claim，且不想把可能含 PII 的 token 粘到 jwt.io 这类在线工具。
+
+```
+$ jdan jwt decode "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImFiYyJ9..."
+
+Header:
+  {
+    "alg": "RS256",
+    "kid": "abc",
+    "typ": "JWT"
+  }
+
+Payload:
+  {
+    "iat": 1516239022,
+    "name": "John Doe",
+    "sub": "1234567890"
+  }
+
+算法: RS256
+Key ID: abc
+Subject: 1234567890
+签发: 2018-01-18 01:30:22 UTC
+Signature: (present, 21 chars base64url)
+```
+
+**设计细节**：
+
+- **不引 jwt 库**：JWT 三段 base64url 用 stdlib 20 行就能解开；引 `golang-jwt` 反而会暴露 secret/key API 表面，让用户误以为本工具会做签名验证
+- **签名段在文本输出里只显示字符数**，不打印原文，避免误粘到 PR / 日志 / Slack 里
+- **`--json` 输出含完整 signature**（脚本场景需要它做 verify pipeline）
+- exp / iat / nbf 自动按 RFC 7519 NumericDate（unix 秒）解读；过期会标注 "已过期"，未过期显示剩余时间（紧凑写法 `3d 4h`）
+- `aud` 支持 `string` 或 `[]string` 两种 RFC 7519 合法形态
+
+flags：
+
+| flag | 作用 |
+|------|------|
+| `--header-only` | 只输出 header（不打印 payload，适合只想看 alg/kid 的场景） |
+| `--json` | 结构化 JSON 输出，含完整 signature，便于脚本消费 |
+| `--raw` | 不 pretty-print，输出紧凑 JSON |
+
+stdin 输入也行（适合从 `kubectl get secret` 等命令链管下来）：
+
+```bash
+echo "$TOKEN" | jdan jwt decode
+kubectl get secret my-jwt -o jsonpath='{.data.token}' | base64 -d | jdan jwt decode
+```
+
+**不提供的功能**（设计取舍）：
+
+- 不验签 —— 后续可能加 `jdan jwt verify --key ...` 单独子命令
+- 不查 issuer 的 jwks_uri —— 任何网络行为都属于 `verify` 而不是 `decode`
+- 不构造 JWT —— 同上
 
 ### `jdan version`
 
