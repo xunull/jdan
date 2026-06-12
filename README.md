@@ -82,8 +82,48 @@ go build -o jdan .
 **集成**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
 
+**编码 & 二维码**
+- [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
+
 **元命令**
 - [`jdan version`](#jdan-version) — 显示版本、commit、构建时间
+
+### `jdan qr`
+
+把任意字符串生成二维码并打印到终端，或写入 PNG / SVG 文件。**用途**：临时分享 URL 到手机（扫码）、把 Wi-Fi 密码 / 配置串嵌到文档、给将来的 `jdan http serve` 输出 LAN URL 时复用。
+
+**终端默认用半角块** `▀▄` 叠合渲染，高度减半，长 URL 不至于撑爆 80 列宽：
+
+```bash
+$ jdan qr "https://github.com/xunull/jdan"
+
+█▀▀▀▀▀█ ▄█  ▀▀▄▄█▄▄█  █▀▀▀▀▀█
+█ ███ █   ▄ ▄██▄▀ ▄▀  █ ███ █
+█ ▀▀▀ █ ▀▀▄ ▄▄▀  ███▄ █ ▀▀▀ █
+▀▀▀▀▀▀▀ ▀ ▀▄█▄█ █▄▀▄█ ▀▀▀▀▀▀▀
+...
+```
+
+flags：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `--ecc` | `M` | 容错等级 `L/M/Q/H`（30% 容错的 H 适合含 logo 或可能被遮挡） |
+| `--invert` | false | 反色，适合白底终端 |
+| `--full-block` | false | 用全角 `██` 而不是半角，兼容老终端（如某些 Windows CMD） |
+| `--output <path>` | 终端 | 按扩展名写文件：`.png` / `.svg` |
+| `--png-size <int>` | 256 | PNG 像素尺寸 |
+| `--svg-module <int>` | 8 | SVG 每模块像素数 |
+| `--json` | false | 输出 `{data, ecc, modules}` 元信息 |
+
+stdin 也可以：
+
+```bash
+echo "data" | jdan qr
+cat secret.txt | jdan qr --output secret.png --ecc H
+```
+
+不支持的扩展名（如 `.jpg`）会报错；要 JPEG 自行用 `sips`/`ffmpeg` 从 PNG 转。
 
 ### `jdan version`
 
