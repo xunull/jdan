@@ -141,6 +141,9 @@ func printStartBanner(out io.Writer, root, bind string, port int, redirect strin
 	if bind == "0.0.0.0" || bind == "::" {
 		fmt.Fprintf(out, "⚠  serving on all interfaces (%s:%d) — anyone on your LAN can read these files\n", bind, port)
 		fmt.Fprintf(out, "   to limit to localhost: --bind 127.0.0.1\n\n")
+		if hint := macOSFirewallHint(); hint != "" {
+			fmt.Fprintln(out, hint)
+		}
 	}
 
 	fmt.Fprintf(out, "serving %s on:\n", root)

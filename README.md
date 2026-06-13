@@ -314,6 +314,44 @@ flags：
 - TLS / HTTPS —— 自签证书 UX 越来越差（现代浏览器警告劝退），HTTPS 留给 reverse proxy。分享 5 分钟下载不值得这个复杂度
 - 自动开浏览器 —— 服务器场景常常用 ssh，没浏览器；手动复制 URL 不麻烦
 
+#### macOS firewall：LAN 连接被拒绝
+
+**症状**：`jdan http serve` 启动后，**本机 `http://localhost:8080` 通**，但**用 LAN IP（如 `http://192.168.1.42:8080`）访问就 "Connection Refused" / "拒绝连接"**。
+
+**原因**：macOS 自带的 Application Firewall 默认拦截**所有未经 Apple Developer 签名的二进制**的入站连接。jdan 即使是从 GitHub Releases 下载的也没有 Apple 签名（Apple Developer Program 是 $99/年，开源工具一般不会签），所以会被默认 deny。`localhost` 走 lo0 不经防火墙，所以本机通。
+
+启动 banner 会自动检测并打提示：
+
+```
+⚠  serving on all interfaces (0.0.0.0:8080) — anyone on your LAN can read these files
+   to limit to localhost: --bind 127.0.0.1
+ℹ  macOS firewall is on; unsigned binaries may be blocked from LAN access.
+   if LAN clients get "connection refused", see README §macOS firewall.
+```
+
+**两种修法**：
+
+**方案 1：临时关防火墙（测试时最快）**
+
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
+# 测试完一定要恢复：
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
+```
+
+**方案 2：把 jdan 加白名单（sustainable，推荐）**
+
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which jdan)
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which jdan)
+```
+
+二进制路径变了（比如重新 `go install`、换装 brew 版本）就要重新 `--add`。
+
+也可以走 GUI：**System Settings → Network → Firewall → Options →** 点 `+` 加 jdan 二进制 → 设为 **"Allow incoming connections"**。
+
+**根本解决**需要 Apple Developer 签名 + notarize，这不是 jdan 这一刻该做的事。同样的问题在 `python3 -m http.server`、`npx serve`、自 build 的 Rust 二进制上也都有。
+
 ### `jdan dns lookup`
 
 并发查询域名的多个 DNS 记录类型，一发命令拿到 A / AAAA / MX / TXT / CNAME / NS 的完整诊断信息。相比 `dig` 默认仅查 A 记录，`jdan dns lookup` 默认一次查 6 个最常用 type，并发送出，总耗时 ≈ 最慢单 type。
