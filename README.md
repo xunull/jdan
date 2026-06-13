@@ -55,6 +55,7 @@ go build -o jdan .
 
 **网络 & DNS**
 - [`jdan http timing`](#jdan-http-timing) — 测 HTTP 请求各阶段耗时
+- [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -254,6 +255,64 @@ jdan http timing https://example.com -k          # 跳过 TLS 证书验证
 | `-n` | 请求次数（默认 1；大于 1 时追加平均值） |
 | `--json` | 以 JSON 格式输出（Duration 以毫秒浮点数表示） |
 | `-k` / `--insecure` | 跳过 TLS 证书验证 |
+
+### `jdan http serve`
+
+临时静态文件服务器。**核心动作**：找空闲端口（8080 起 fallback）→ 探测 LAN IP（RFC1918 私有段）→ 在终端打印 LAN URL 的二维码（复用 `jdan qr` 的渲染器）→ 监听访问日志 → Ctrl+C 优雅关闭并打 summary。**用途**：mac → 手机文件传输、给同事分享 build artifact、临时分发安装包。
+
+```bash
+$ jdan http serve ~/Downloads
+
+⚠  serving on all interfaces (0.0.0.0:8080) — anyone on your LAN can read these files
+   to limit to localhost: --bind 127.0.0.1
+
+serving /Users/quincy/Downloads on:
+  http://localhost:8080
+  http://192.168.10.16:8080
+
+  █▀▀▀▀▀█ ▄ ▄ ▀▄█ █▀▀▀▀▀█
+  █ ███ █  ▄▄ ▀  █ ███ █     ← 192.168.10.16:8080 的二维码
+  █ ▀▀▀ █ ▀▄█▄▀▀▄ █ ▀▀▀ █
+  ▀▀▀▀▀▀▀ ▀▄█▄▀▄█ ▀▀▀▀▀▀▀
+  ...
+
+press Ctrl+C to stop
+
+[GET] 200 /             127.0.0.1     12ms  (3.2KB)
+[GET] 200 /report.pdf   192.168.10.42 78ms  (124.3KB)  ← 手机扫码后下载
+^C
+
+served 2 request(s) to 2 client(s), 127.5KB total
+```
+
+**关键设计**：
+
+- **默认 `--bind 0.0.0.0`**（LAN 可达），启动打 ⚠ 警告显眼提示风险。`--bind 127.0.0.1` 选退。这是 `python -m http.server` / `npx serve` 等的惯例
+- **端口自动找空闲**：默认从 8080 试到 8129，失败回退到内核分配的随机端口
+- **LAN IP 探测纯本机**：遍历 `net.Interfaces()` 过滤 loopback/down/IPv6 link-local，挑 RFC1918 私有地址。**不联网**（不像 `jdan pubip4` 查公网）
+- **二维码用第一个 LAN IP**（家用 WiFi 一般 `192.168.1.x`，优先级高于 `10.x` 和 `172.16-31.x`）
+- **单文件 serve**：`jdan http serve report.pdf` 自动 serve 父目录，根路径 `/` 重定向到 `/report.pdf`
+- **directory traversal 防护**：`http.FileServer` 内置 `..` 路径清理 + symlink 跳出 root 检查（`filepath.EvalSymlinks` 规范化后比对前缀，特别处理 macOS `/var` → `/private/var` symlink）
+- **优雅关闭**：SIGINT/SIGTERM 触发 `http.Server.Shutdown(5s)`，已有下载不被切断
+- **`--upload` 双向模式**：启用后 `POST /upload` 接收 multipart 表单写入 `<root>/uploads/`，同名加时间戳后缀防覆盖；`GET /upload` 返回 mobile-friendly HTML 表单方便手机浏览器选文件
+
+flags：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `--port` | 0（自动） | 强制端口，否则 8080 → +1 → 随机 |
+| `--bind` | `0.0.0.0` | 绑定地址 |
+| `--no-qr` | false | 不打印终端二维码 |
+| `--upload` | false | 启用 `POST /upload` + 上传表单 |
+| `--upload-dir` | `<root>/uploads` | 上传文件落地目录 |
+| `--auth` | 无 | Basic Auth `user:pass` |
+| `--quiet` | false | 不打访问日志 |
+| `--json` | false | 访问日志输出 ndjson（每行一个 event） |
+
+**有意不做**：
+
+- TLS / HTTPS —— 自签证书 UX 越来越差（现代浏览器警告劝退），HTTPS 留给 reverse proxy。分享 5 分钟下载不值得这个复杂度
+- 自动开浏览器 —— 服务器场景常常用 ssh，没浏览器；手动复制 URL 不麻烦
 
 ### `jdan dns lookup`
 
