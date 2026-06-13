@@ -16,6 +16,7 @@ import (
 
 	"github.com/xunull/jdan/internal/httpserve"
 	"github.com/xunull/jdan/internal/qrcode"
+	"github.com/xunull/jdan/internal/sysprobe"
 )
 
 type httpServeCmdDeps struct {
@@ -141,7 +142,7 @@ func printStartBanner(out io.Writer, root, bind string, port int, redirect strin
 	if bind == "0.0.0.0" || bind == "::" {
 		fmt.Fprintf(out, "⚠  serving on all interfaces (%s:%d) — anyone on your LAN can read these files\n", bind, port)
 		fmt.Fprintf(out, "   to limit to localhost: --bind 127.0.0.1\n\n")
-		if hint := macOSFirewallHint(); hint != "" {
+		if hint := sysprobe.MacFirewallHint(); hint != "" {
 			fmt.Fprintln(out, hint)
 		}
 	}
@@ -149,7 +150,7 @@ func printStartBanner(out io.Writer, root, bind string, port int, redirect strin
 	fmt.Fprintf(out, "serving %s on:\n", root)
 	fmt.Fprintf(out, "  http://localhost:%d%s\n", port, redirect)
 
-	lanIPs, _ := httpserve.DetectLANIPs()
+	lanIPs, _ := sysprobe.DetectLANIPs()
 	var primaryURL string
 	for _, ip := range lanIPs {
 		url := fmt.Sprintf("http://%s%s", net.JoinHostPort(ip.String(), fmt.Sprintf("%d", port)), redirect)

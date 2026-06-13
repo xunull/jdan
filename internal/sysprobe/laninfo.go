@@ -1,12 +1,12 @@
-// Package httpserve 实现 jdan http serve 子命令的核心逻辑。
+// Package sysprobe 暴露"探查本机系统状态"的通用工具：网络接口、LAN IP
+// 探测、操作系统防火墙状态。被多个子命令复用（jdan http serve 启动 banner、
+// jdan net selfcheck、未来可能的诊断命令）。
 //
-// 设计目标：一行命令起静态文件服务器 + 自动检测 LAN IP + 终端打印 URL 二维码
-// （复用 internal/qrcode），降低 "把这个文件从 mac 发到手机" 这类高频但需要
-// 多个小工具配合的场景的摩擦。
+// 设计目标：不联网，纯本机探查。所有需要发起网络请求的逻辑应放在调用方。
 //
 // laninfo.go 负责：枚举本机所有网络接口，挑出能让局域网内的其他设备访问到
-// 本机服务器的 IP（RFC 1918 私有地址段）。不联网，不查 STUN。
-package httpserve
+// 本机服务器的 IP（RFC 1918 私有地址段）。
+package sysprobe
 
 import (
 	"net"
