@@ -57,6 +57,7 @@ go build -o jdan .
 - [`jdan http timing`](#jdan-http-timing) — 测 HTTP 请求各阶段耗时
 - [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
+- [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -424,6 +425,76 @@ $ jdan net probe 127.0.0.1:1
 - **错误 → hint 映射**：connection refused、timeout、self-signed cert、x509 hostname mismatch 等 9 种常见错误都有针对性建议
 - **cross-reference 到 `jdan net selfcheck`**：连不上时引导用户去服务端跑自检
 - 退出码恒为 0（probe 命令本身正常）；要识别"probe 是否通过"用 `--json` 看 `.ok` 字段
+
+### `jdan net selfcheck`
+
+服务端视角的诊断："我作为 server 该不该被外部访问？"和 `jdan net probe` 配对：probe 在客户端发现连不上时，hint 会让用户去服务端跑 `jdan net selfcheck :PORT`。
+
+```
+$ jdan net selfcheck :8080
+
+◇ os & firewall
+  • darwin/arm64
+  ⚠ Application Firewall: ON
+    macOS App Firewall is ON. unsigned binaries (like jdan) may be blocked.
+      fix:
+        sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add $(which jdan)
+        sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which jdan)
+
+◇ network interfaces
+    lo0 (loopback)
+      127.0.0.1/8
+    en0 (LAN)
+      192.168.10.16/24
+  ★ utun1024 (primary)
+      198.18.0.1/30
+
+◇ listening on :8080
+  ✓ jdan (pid 29377, user quincy) bind=127.0.0.1:8080 (localhost-only)
+
+◇ self-loop test
+  ✓ http://127.0.0.1:8080 in 1ms
+
+◇ prediction
+  port :8080 is bound to loopback only (127.0.0.1 or ::1).
+    external clients CANNOT reach this. server must bind 0.0.0.0 or specific LAN IP.
+```
+
+**它做的检查**：
+
+| 检查 | 方式 |
+|------|------|
+| OS / 架构 | `runtime.GOOS` / `runtime.GOARCH` |
+| macOS 防火墙状态 | exec `socketfilterfw --getglobalstate`（复用 `internal/sysprobe`） |
+| 网络接口列表 | `net.Interfaces()` + 标 LAN / loopback / **★ primary**（默认路由出口） |
+| 端口监听情况（带端口时） | exec `lsof -iTCP:PORT -sTCP:LISTEN` 看进程、PID、用户、bind 地址 |
+| `bind` 是 LAN-reachable 还是 localhost-only | 区分 `0.0.0.0` / `*` / 具体 LAN IP（可达）vs `127.0.0.1` / `::1`（只本机） |
+| Self-loop 测试 | HTTP GET `http://localhost:PORT` 和 `http://<primary LAN IP>:PORT` |
+| Prediction | 综合上面所有，给一句"外部客户端能/不能访问"的判断 + 修复路径 |
+
+**CLI**：
+
+```bash
+jdan net selfcheck                 # 通用诊断（不查具体端口）
+jdan net selfcheck 8080            # 显式端口
+jdan net selfcheck :8080           # 同上（冒号可有可无）
+jdan net selfcheck 8080 --json     # 结构化输出
+```
+
+**prediction 的几种典型场景**：
+
+| 状况 | prediction 怎么说 |
+|------|------|
+| firewall off + bind 0.0.0.0 + 自连通 | "LAN-reachable from self. external clients should reach ..." |
+| firewall ON + bind 0.0.0.0 | "LAN-reachable, BUT firewall is on; clients may see 'connection refused', apply fix above" |
+| bind 127.0.0.1 | "bound to loopback only ... external clients CANNOT reach this. server must bind 0.0.0.0" |
+| 端口上没人 listen | "nothing is listening on :PORT. start your server first." |
+| lsof 不存在 | "can't determine if anyone is listening on :PORT (install lsof to enable)." |
+
+**依赖**：
+
+- macOS / 主流 Linux 默认带 `lsof`。Alpine 等极简环境可能没，selfcheck 会优雅降级提示 `install lsof`
+- 只 macOS 有真正的应用层防火墙检测；Linux/Windows 暂不实现（iptables/ufw/Defender 语义差异大）
 
 ### `jdan dns lookup`
 
