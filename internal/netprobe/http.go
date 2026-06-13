@@ -35,8 +35,10 @@ func runHTTP(ctx context.Context, t *Target, ip net.IP, tlsState *tls.Connection
 	r.Duration = time.Since(stageStart)
 	if err != nil {
 		r.Success = false
+		r.Class = ClassifyHTTPError(err)
 		r.Err = err.Error()
-		r.Hint = hintForHTTPError(err.Error())
+		r.Explanation = WhatItMeans(r.Class)
+		r.Hint = HintForClass(r.Class)
 		r.HTTP = &HTTPDetail{Method: method}
 		return r
 	}
@@ -75,10 +77,12 @@ func runHTTP(ctx context.Context, t *Target, ip net.IP, tlsState *tls.Connection
 	r.Detail = fmt.Sprintf("%s %s, %d %s", method, resp.Proto, resp.StatusCode, http.StatusText(resp.StatusCode))
 
 	// 视为成功的范围：所有 1xx-5xx 响应都算 "HTTP 拿到了"；
-	// 业务层 4xx/5xx 不是网络问题，但 hint 一下让用户知道
+	// 业务层 4xx/5xx 不是网络问题，但分类 + hint 一下让用户知道
 	r.Success = true
-	if resp.StatusCode >= 400 {
-		r.Hint = hintForHTTPStatus(resp.StatusCode)
+	if cls := ClassifyHTTPStatus(resp.StatusCode); cls != ClassNone {
+		r.Class = cls
+		r.Explanation = WhatItMeans(cls)
+		r.Hint = HintForClass(cls)
 	}
 	return r
 }

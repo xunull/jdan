@@ -38,6 +38,13 @@ type Options struct {
 
 	// Verbose 控制 TLS / HTTP 阶段是否捕获额外细节（全 cert chain、所有响应 header）。
 	Verbose bool
+
+	// SkipHealth 跳过 tcp_health 阶段。默认跑（hold HealthDuration 默认 1s）。
+	// 脚本场景或者已经知道目标是 HTTP server 时可以 --no-health 节省 1s。
+	SkipHealth bool
+
+	// HealthDuration 是 tcp_health 阶段 hold 多久 Read。默认 1s。
+	HealthDuration time.Duration
 }
 
 // Target 是一个解析过的探查目标，区分 host / port / scheme。
@@ -178,26 +185,30 @@ func defaultPath(scheme string) string {
 type Stage string
 
 const (
-	StageResolve Stage = "resolve"
-	StageTCP     Stage = "tcp"
-	StageTLS     Stage = "tls"
-	StageHTTP    Stage = "http"
+	StageResolve   Stage = "resolve"
+	StageTCP       Stage = "tcp"
+	StageTCPHealth Stage = "tcp_health"
+	StageTLS       Stage = "tls"
+	StageHTTP      Stage = "http"
 )
 
 // StageResult 是一个阶段的结果。Success 决定后续阶段是否跑。
 type StageResult struct {
-	Stage    Stage         `json:"stage"`
-	Success  bool          `json:"success"`
-	Duration time.Duration `json:"duration_ns"`
-	Detail   string        `json:"detail,omitempty"` // 一行人类可读概述
-	Err      string        `json:"error,omitempty"`
-	Hint     string        `json:"hint,omitempty"` // 失败时的修复 hint
+	Stage       Stage         `json:"stage"`
+	Success     bool          `json:"success"`
+	Class       ErrorClass    `json:"class,omitempty"`       // 失败时的语义分类
+	Duration    time.Duration `json:"duration_ns"`
+	Detail      string        `json:"detail,omitempty"`      // 一行人类可读概述
+	Err         string        `json:"error,omitempty"`
+	Explanation string        `json:"explanation,omitempty"` // "what it means" 中等长度解释
+	Hint        string        `json:"hint,omitempty"`        // 修复建议
 
 	// 阶段特有字段
-	Resolve *ResolveDetail `json:"resolve,omitempty"`
-	TCP     *TCPDetail     `json:"tcp,omitempty"`
-	TLS     *TLSDetail     `json:"tls,omitempty"`
-	HTTP    *HTTPDetail    `json:"http,omitempty"`
+	Resolve   *ResolveDetail   `json:"resolve,omitempty"`
+	TCP       *TCPDetail       `json:"tcp,omitempty"`
+	TCPHealth *TCPHealthDetail `json:"tcp_health,omitempty"`
+	TLS       *TLSDetail       `json:"tls,omitempty"`
+	HTTP      *HTTPDetail      `json:"http,omitempty"`
 }
 
 // Result 是 Probe 的完整结果。
@@ -255,6 +266,27 @@ func Probe(ctx context.Context, target string, opts Options, emit stageEmit) (*R
 		return res, nil
 	}
 	winningIP := tcpStage.TCP.WinningIP
+
+	// stage 2.5: tcp_health（默认跑，hold 1s 看是否被远端立刻关）
+	if !opts.SkipHealth {
+		healthStage := runTCPHealth(ctx, tgt, winningIP, opts)
+		res.Stages = append(res.Stages, healthStage)
+		if emit != nil {
+			emit(healthStage)
+		}
+		if !healthStage.Success {
+			// REMOTE_RESET / REMOTE_CLOSED 在 TLS 之前发生，不继续后续阶段
+			res.OK = false
+			res.Stopped = StageTCPHealth
+			res.Total = time.Since(start)
+			return res, nil
+		}
+		// banner 情况：server 主动推送了数据。继续 TLS/HTTP 没意义（非 HTTP 服务）
+		if healthStage.TCPHealth != nil && healthStage.TCPHealth.GotBanner {
+			res.Total = time.Since(start)
+			return res, nil
+		}
+	}
 
 	// stage 3: tls（仅 https）
 	var tlsState *tls.ConnectionState

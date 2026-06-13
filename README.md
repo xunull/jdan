@@ -356,46 +356,105 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which jdan)
 
 ### `jdan net probe`
 
-从客户端视角逐阶段探查目标主机/端口/URL，DNS → TCP → TLS → HTTP 四阶段实时输出。失败时给出针对性的修复 hint。**用途**：撞到"连不上 / 拒绝连接 / 证书报错"时，30 秒内定位是哪一层出问题。
+从客户端视角逐阶段探查目标主机/端口/URL，**DNS → TCP → tcp_health → TLS → HTTP** 五阶段实时输出。**每个失败都带一个醒目的 `ErrorClass` 标签** 让你 0.5 秒识别"哪类问题"，配 **"what it means"** 中等长度解释和针对性 hint。**用途**：撞到"连不上 / 拒绝连接 / 证书报错 / 被踢"时，30 秒内定位是哪一层出问题。
 
 ```
 $ jdan net probe https://github.com
 
-✓ resolve     140.82.113.4
+✓ resolve      github.com → 1 record(s) via system resolver
+  A     140.82.113.4
   duration: 8ms
 
-✓ tcp         connected to 140.82.113.4:443 in 38ms
+✓ tcp          connected to 140.82.113.4:443 in 38ms
   ✓ 140.82.113.4 from 192.168.10.16:54321 (38ms)
 
-✓ tls         TLS 1.3, cert: github.com (issued by Sectigo, exp 2026-08-02)
+✓ tcp_health   held 1s without remote close (healthy)
+
+✓ tls          TLS 1.3, cert: github.com (issued by Sectigo, exp 2026-08-02)
   ALPN=h2, SNI=github.com, duration=142ms
 
-✓ http        HEAD HTTP/2.0, 200 OK
+✓ http         HEAD HTTP/2.0, 200 OK
   server: github.com
   content-length: 56012
   duration: 312ms
 
-✓ all green · total 312ms
+✓ all green · total 1521ms
 ```
 
-失败时给 hint：
+失败时显示 `ErrorClass` 标签 + 三层信息（标签 / what it means / what to check）：
 
 ```
 $ jdan net probe 127.0.0.1:1
 
-✓ resolve     127.0.0.1 (literal IP)
-✗ tcp         1 attempt(s), all failed
+✓ resolve      127.0.0.1 (literal IP)
+✗ tcp          CONNECTION_REFUSED
   ✗ 127.0.0.1: dial tcp 127.0.0.1:1: connect: connection refused
-  error: dial tcp 127.0.0.1:1: connect: connection refused
 
-  likely causes:
-    • target host not listening on this port (check: lsof -i :PORT on target)
-    • OS firewall blocking inbound (macOS App Firewall, ufw, Windows Defender)
-    • if you're on a different LAN segment, check routing
+  what it means:
+    target host received our SYN but responded with RST.
+    either no process is listening on this port, or a host-level
+    firewall is actively rejecting connections.
+  raw error: dial tcp 127.0.0.1:1: connect: connection refused
+
+  what to check:
+    • target host not listening (check: lsof -i :PORT on target)
+    • OS firewall blocking (macOS App Firewall, ufw, Windows Defender)
     ↳ run `jdan net selfcheck :PORT` on the target host to investigate
 
-✗ failed at tcp · total 473µs
+✗ failed at tcp · total 287µs
 ```
+
+#### ErrorClass 分类清单
+
+probe 把失败按 **协议层 + 用户视角语义** 分类，避免你看 Go 内部错误字符串猜原因。完整的 class 表：
+
+| 阶段 | Class | 含义 |
+|------|-------|------|
+| **resolve** | `DNS_NO_SUCH_HOST` | 域名不存在 |
+| | `DNS_RESOLVER_UNREACHABLE` | DNS server 连不上 |
+| | `DNS_TIMEOUT` | DNS 查询超时 |
+| **tcp**（建立连接失败） | `CONNECTION_REFUSED` | 收到 RST：端口无人 listen / 防火墙 reject |
+| | `CONNECTION_TIMEOUT` | SYN 无回应：防火墙静默 drop |
+| | `NO_ROUTE_TO_HOST` | 你说的"链路不通"：路由器返回 unreachable |
+| | `NETWORK_UNREACHABLE` | 本地网络 down / 无默认路由 |
+| **tcp_health**（被远程关闭）| `REMOTE_RESET_AFTER_CONNECT` | TCP 建好后立刻 RST：**stateful firewall / IPS / 反爬** |
+| | `REMOTE_CLOSED_AFTER_CONNECT` | 被 FIN：服务在 drain / 协议不匹配 |
+| **tls** | `TLS_CERT_INVALID` | 自签 / 过期 / SAN 不匹配 |
+| | `TLS_HANDSHAKE_FAIL` | 协议错位 / 中间人切断 |
+| | `TLS_PLAIN_HTTP_ON_TLS_PORT` | 用 https:// 访问到 plain HTTP 服务 |
+| **http** | `HTTP_4XX` / `HTTP_5XX` | 应用层错误（连接本身健康） |
+| | `HTTP_PROTOCOL_ERROR` | 协议级失败 |
+
+**分类算法**（class.go）：优先用 `errors.Is(err, syscall.ECONNREFUSED)` 等 errno 比对（跨 Go 版本最稳定），其次 `net.Error.Timeout()` 接口，最后字符串关键词兜底。
+
+#### tcp_health 阶段：检测"被远程立刻关"
+
+TCP 三次握手成功后，**默认 hold 1s 不发数据，看远端是否会主动 RST/FIN**。这是普通 curl 看不出来的语义——curl 只会显示 "connection reset"，分不清是 TCP 建好就被踢，还是发出 HTTP request 后被踢。tcp_health 把第一种情况单独归类成 `REMOTE_RESET_AFTER_CONNECT`，常见于：
+
+- **反爬虫 / 安全设备**（CDN WAF、IPS）在 SYN-ACK 后基于 source IP 做 policy 判定再 RST
+- **云 LB 健康检查失败** 导致流量被 drop
+- **反向代理 IP allowlist** 拒绝你的源 IP
+
+tcp_health 也识别 **server banner**（SSH/SMTP/POP3 在 accept 后立刻发欢迎行）：
+
+```
+✓ tcp_health   server pushed banner (12 bytes): SSH-2.0-OpenSSH_8.0
+```
+
+banner 不算错误——你 probe 的目标本来就不是 HTTP 服务。
+
+#### flags
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `--timeout` | 10s | 单阶段超时 |
+| `--resolver` | 系统 | 指定 DNS server（`host[:port]`） |
+| `--method` | HEAD | HTTP 方法；405 时自动 fallback GET 一次 |
+| `-k` / `--insecure` | false | 跳过 TLS 证书验证 |
+| `-v` / `--verbose` | false | 显示 cert chain + 所有响应 header |
+| `--json` | false | 结构化输出（含 Class / Explanation / Hint 字段）|
+| `--no-health` | false | 跳过 tcp_health 阶段（节省 1s，脚本场景） |
+| `--health-duration` | 1s | tcp_health 阶段 hold 时长 |
 
 **支持的 target 形态**：
 
@@ -407,22 +466,11 @@ $ jdan net probe 127.0.0.1:1
 | `192.168.1.42:8080` | http + 8080 |
 | `[::1]:8080` | IPv6 literal |
 
-**flags**：
-
-| flag | 默认 | 作用 |
-|------|------|------|
-| `--timeout` | 10s | 单阶段超时 |
-| `--resolver` | 系统 | 指定 DNS server（host[:port]） |
-| `--method` | HEAD | HTTP 方法；405 时自动 fallback GET 一次 |
-| `-k` / `--insecure` | false | 跳过 TLS 证书验证（自签场景） |
-| `-v` / `--verbose` | false | 显示 cert chain + 所有响应 header |
-| `--json` | false | 结构化输出，可被 jq 等消费 |
-
 **设计要点**：
 
 - **逐 IP 串行 TCP connect**，不用 Go 默认的 Happy Eyeballs。探查工具的核心价值就是显示每个 IP 的具体结果（IPv4 通但 IPv6 不通这种问题用 Happy Eyeballs 会被隐藏）
 - **HEAD 默认**，405 时自动 fallback 到 GET（很多服务器不支持 HEAD）
-- **错误 → hint 映射**：connection refused、timeout、self-signed cert、x509 hostname mismatch 等 9 种常见错误都有针对性建议
+- **errno-based 错误分类**：`errors.Is(err, syscall.ECONNREFUSED)` 这类比字符串关键词匹配跨 Go 版本稳定，字符串匹配作为兜底
 - **cross-reference 到 `jdan net selfcheck`**：连不上时引导用户去服务端跑自检
 - 退出码恒为 0（probe 命令本身正常）；要识别"probe 是否通过"用 `--json` 看 `.ok` 字段
 

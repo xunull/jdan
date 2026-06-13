@@ -56,8 +56,10 @@ func runTLS(ctx context.Context, t *Target, ip net.IP, opts Options) *StageResul
 	if err := tlsConn.HandshakeContext(hsCtx); err != nil {
 		_ = tcpConn.Close()
 		r.Success = false
+		r.Class = ClassifyTLSError(err)
 		r.Err = err.Error()
-		r.Hint = hintForTLSError(err.Error())
+		r.Explanation = WhatItMeans(r.Class)
+		r.Hint = HintForClass(r.Class)
 		r.Duration = time.Since(stageStart)
 		return r
 	}

@@ -51,6 +51,8 @@ func newNetProbeCommand(deps netProbeCmdDeps) *cobra.Command {
 	cmd.Flags().BoolP("insecure", "k", false, "跳过 TLS 证书验证")
 	cmd.Flags().BoolP("verbose", "v", false, "显示完整 cert chain + 所有响应 header")
 	cmd.Flags().Bool("json", false, "输出 JSON 而不是 text")
+	cmd.Flags().Bool("no-health", false, "跳过 tcp_health 阶段（默认会 hold 1s 检测远端立刻关闭）")
+	cmd.Flags().Duration("health-duration", 0, "tcp_health 阶段 hold 时长（默认 1s）")
 	return cmd
 }
 
@@ -61,13 +63,17 @@ func runNetProbe(cmd *cobra.Command, target string, out io.Writer) error {
 	insecure, _ := cmd.Flags().GetBool("insecure")
 	verbose, _ := cmd.Flags().GetBool("verbose")
 	asJSON, _ := cmd.Flags().GetBool("json")
+	noHealth, _ := cmd.Flags().GetBool("no-health")
+	healthDur, _ := cmd.Flags().GetDuration("health-duration")
 
 	opts := netprobe.Options{
-		Timeout:  timeout,
-		Resolver: resolver,
-		Method:   method,
-		Insecure: insecure,
-		Verbose:  verbose,
+		Timeout:        timeout,
+		Resolver:       resolver,
+		Method:         method,
+		Insecure:       insecure,
+		Verbose:        verbose,
+		SkipHealth:     noHealth,
+		HealthDuration: healthDur,
 	}
 
 	var emit func(*netprobe.StageResult)
@@ -108,22 +114,28 @@ func renderStage(out io.Writer, s *netprobe.StageResult, verbose bool) {
 		icon = "✗"
 	}
 
+	// 头行：icon + stage 名 + 失败时的 Class 标签（醒目，0.5 秒识别）
+	stageName := stageDisplayName(s.Stage)
+	if !s.Success && s.Class != "" {
+		fmt.Fprintf(out, "%s %s  %s\n", icon, stageName, s.Class)
+	} else {
+		fmt.Fprintf(out, "%s %s  %s\n", icon, stageName, s.Detail)
+	}
+
 	switch s.Stage {
 	case netprobe.StageResolve:
-		fmt.Fprintf(out, "%s resolve     %s\n", icon, s.Detail)
-		if s.Resolve != nil && len(s.Resolve.IPs) > 1 {
+		if s.Resolve != nil && !s.Resolve.IsLiteral {
 			for _, ip := range s.Resolve.IPs {
 				kind := "A"
 				if ip.To4() == nil {
 					kind = "AAAA"
 				}
-				fmt.Fprintf(out, "  → %s (%s)\n", ip, kind)
+				fmt.Fprintf(out, "  %-5s %s\n", kind, ip)
 			}
+			fmt.Fprintf(out, "  duration: %s\n", formatMs(s.Duration))
 		}
-		fmt.Fprintf(out, "  duration: %s\n", formatMs(s.Duration))
 
 	case netprobe.StageTCP:
-		fmt.Fprintf(out, "%s tcp         %s\n", icon, s.Detail)
 		if s.TCP != nil {
 			for _, a := range s.TCP.Attempts {
 				if a.Success {
@@ -134,20 +146,20 @@ func renderStage(out io.Writer, s *netprobe.StageResult, verbose bool) {
 			}
 		}
 
+	case netprobe.StageTCPHealth:
+		// 头行已经显示了 detail；tcp_health 没有额外字段需要 body 展开
+		_ = s.TCPHealth
+
 	case netprobe.StageTLS:
 		if s.Success && s.TLS != nil {
-			fmt.Fprintf(out, "%s tls         %s\n", icon, s.Detail)
 			fmt.Fprintf(out, "  ALPN=%s, SNI=%s, duration=%s\n", s.TLS.ALPN, s.TLS.SNI, formatMs(s.Duration))
 			if verbose {
 				fmt.Fprintf(out, "  cipher: %s\n", s.TLS.CipherSuite)
 				fmt.Fprintf(out, "  chain depth: %d\n", s.TLS.ChainDepth)
 			}
-		} else {
-			fmt.Fprintf(out, "%s tls         (%s)\n", icon, formatMs(s.Duration))
 		}
 
 	case netprobe.StageHTTP:
-		fmt.Fprintf(out, "%s http        %s\n", icon, s.Detail)
 		if s.HTTP != nil {
 			if s.HTTP.Server != "" {
 				fmt.Fprintf(out, "  server: %s\n", s.HTTP.Server)
@@ -164,12 +176,22 @@ func renderStage(out io.Writer, s *netprobe.StageResult, verbose bool) {
 					fmt.Fprintf(out, "    %s: %s\n", k, v)
 				}
 			}
+			fmt.Fprintf(out, "  duration: %s\n", formatMs(s.Duration))
 		}
-		fmt.Fprintf(out, "  duration: %s\n", formatMs(s.Duration))
 	}
 
-	if !s.Success && s.Err != "" {
-		fmt.Fprintf(out, "  error: %s\n", s.Err)
+	// 失败时显示 "what it means" + raw error + hint
+	if !s.Success {
+		if s.Explanation != "" {
+			fmt.Fprintln(out)
+			fmt.Fprintln(out, "  what it means:")
+			for _, line := range strings.Split(s.Explanation, "\n") {
+				fmt.Fprintf(out, "    %s\n", line)
+			}
+		}
+		if s.Err != "" {
+			fmt.Fprintf(out, "  raw error: %s\n", s.Err)
+		}
 	}
 	if s.Hint != "" {
 		fmt.Fprintln(out)
@@ -185,6 +207,23 @@ func formatMs(d time.Duration) string {
 		return fmt.Sprintf("%dµs", d.Microseconds())
 	}
 	return fmt.Sprintf("%dms", d.Milliseconds())
+}
+
+// stageDisplayName 把内部 stage 常量映射成 CLI 显示用的 12 字符对齐名字。
+func stageDisplayName(s netprobe.Stage) string {
+	switch s {
+	case netprobe.StageResolve:
+		return "resolve    "
+	case netprobe.StageTCP:
+		return "tcp        "
+	case netprobe.StageTCPHealth:
+		return "tcp_health "
+	case netprobe.StageTLS:
+		return "tls        "
+	case netprobe.StageHTTP:
+		return "http       "
+	}
+	return string(s)
 }
 
 func init() {

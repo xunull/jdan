@@ -3,6 +3,7 @@ package netprobe
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"sort"
 	"time"
@@ -41,16 +42,20 @@ func runResolve(ctx context.Context, t *Target, opts Options) *StageResult {
 	r.Duration = time.Since(start)
 	if err != nil {
 		r.Success = false
+		r.Class = ClassifyDNSError(err)
 		r.Detail = "failed: " + err.Error()
 		r.Err = err.Error()
-		r.Hint = hintForResolveError(err)
+		r.Explanation = WhatItMeans(r.Class)
+		r.Hint = HintForClass(r.Class)
 		r.Resolve = d
 		return r
 	}
 	if len(ips) == 0 {
 		r.Success = false
+		r.Class = ClassDNSNoSuchHost
 		r.Err = "no addresses returned"
-		r.Hint = "DNS server reachable but returned 0 addresses; check if hostname exists"
+		r.Explanation = WhatItMeans(r.Class)
+		r.Hint = HintForClass(r.Class)
 		r.Resolve = d
 		return r
 	}
@@ -58,7 +63,11 @@ func runResolve(ctx context.Context, t *Target, opts Options) *StageResult {
 	sortIPs(ips)
 	d.IPs = ips
 	r.Success = true
-	r.Detail = summarizeIPs(ips)
+	resolverDisplay := d.Resolver
+	if resolverDisplay == "" || resolverDisplay == "system" {
+		resolverDisplay = "system resolver"
+	}
+	r.Detail = fmt.Sprintf("%s → %d record(s) via %s", t.Host, len(ips), resolverDisplay)
 	r.Resolve = d
 	return r
 }

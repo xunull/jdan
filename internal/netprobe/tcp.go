@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"time"
 )
 
@@ -14,6 +15,10 @@ type TCPAttempt struct {
 	Duration  time.Duration `json:"duration_ns"`
 	LocalAddr string        `json:"local_addr,omitempty"`
 	Err       string        `json:"error,omitempty"`
+
+	// lastErr 保留原始 error 对象供 ClassifyTCPError 用 errors.Is/As。
+	// unexported 字段 encoding/json 不会序列化，正合我意。
+	lastErr error
 }
 
 // TCPDetail 是 TCP 阶段的特有字段。
@@ -48,10 +53,19 @@ func runTCP(ctx context.Context, t *Target, ips []net.IP, opts Options) *StageRe
 	if d.WinningIP == nil {
 		r.Success = false
 		r.Detail = fmt.Sprintf("%d attempt(s), all failed", len(d.Attempts))
-		// hint 用第一次失败的 error 推断
+		// 用第一次失败的 error 推断 class（实际上各 IP 失败原因往往相同）
 		if len(d.Attempts) > 0 {
 			r.Err = d.Attempts[0].Err
-			r.Hint = hintForTCPError(d.Attempts[0].Err)
+			// 重新分类需要原始 error，但 Attempts 存的是 string；TCP 阶段
+			// 比较特殊——我们这里保留原错误对象在临时 slice 里以便 classify
+			if d.Attempts[0].lastErr != nil {
+				r.Class = ClassifyTCPError(d.Attempts[0].lastErr)
+			} else {
+				// 兜底：从字符串重新分类
+				r.Class = classifyTCPErrorFromString(d.Attempts[0].Err)
+			}
+			r.Explanation = WhatItMeans(r.Class)
+			r.Hint = HintForClass(r.Class)
 		}
 		return r
 	}
@@ -76,11 +90,28 @@ func tryTCP(ctx context.Context, dialer *net.Dialer, ip net.IP, port int) TCPAtt
 	conn, err := dialer.DialContext(ctx, "tcp", addr)
 	dur := time.Since(start)
 	if err != nil {
-		return TCPAttempt{IP: ip, Success: false, Duration: dur, Err: err.Error()}
+		return TCPAttempt{IP: ip, Success: false, Duration: dur, Err: err.Error(), lastErr: err}
 	}
 	local := conn.LocalAddr().String()
 	_ = conn.Close()
 	return TCPAttempt{IP: ip, Success: true, Duration: dur, LocalAddr: local}
+}
+
+// classifyTCPErrorFromString 是 ClassifyTCPError 的 string-only 兜底版本，
+// 用于 lastErr 因某种原因丢失时（不应发生，但保守）。
+func classifyTCPErrorFromString(s string) ErrorClass {
+	low := strings.ToLower(s)
+	switch {
+	case strings.Contains(low, "connection refused"):
+		return ClassConnRefused
+	case strings.Contains(low, "i/o timeout"), strings.Contains(low, "timed out"):
+		return ClassConnTimeout
+	case strings.Contains(low, "no route to host"), strings.Contains(low, "host is down"):
+		return ClassNoRoute
+	case strings.Contains(low, "network is unreachable"):
+		return ClassNetUnreachable
+	}
+	return ClassUnknown
 }
 
 func formatDurationMs(d time.Duration) string {

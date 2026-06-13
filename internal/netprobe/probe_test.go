@@ -208,58 +208,71 @@ func TestProbe_EmitCallback(t *testing.T) {
 
 	var emitted []Stage
 	_, err := Probe(context.Background(), "http://"+u.Host, Options{
-		Timeout: 2 * time.Second,
+		Timeout:        2 * time.Second,
+		HealthDuration: 100 * time.Millisecond, // 测试时不等 1s
 	}, func(s *StageResult) {
 		emitted = append(emitted, s.Stage)
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	// 应当看到 resolve → tcp → http（http scheme 没有 tls）
-	want := []Stage{StageResolve, StageTCP, StageHTTP}
+	// 应当看到 resolve → tcp → tcp_health → http（http scheme 没有 tls）
+	want := []Stage{StageResolve, StageTCP, StageTCPHealth, StageHTTP}
 	if len(emitted) != len(want) {
 		t.Errorf("expected %v emit, got %v", want, emitted)
 	}
 	for i, s := range emitted {
+		if i >= len(want) {
+			break
+		}
 		if s != want[i] {
 			t.Errorf("emit[%d] = %s, want %s", i, s, want[i])
 		}
 	}
 }
 
-func TestHintForHTTPStatus(t *testing.T) {
+func TestProbe_SkipHealthOmitsTcpHealthStage(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer ts.Close()
+	u, _ := url.Parse(ts.URL)
+
+	var emitted []Stage
+	_, err := Probe(context.Background(), "http://"+u.Host, Options{
+		Timeout:    2 * time.Second,
+		SkipHealth: true,
+	}, func(s *StageResult) {
+		emitted = append(emitted, s.Stage)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range emitted {
+		if s == StageTCPHealth {
+			t.Error("SkipHealth=true should not emit tcp_health stage")
+		}
+	}
+}
+
+func TestClassifyHTTPStatus(t *testing.T) {
 	for _, tc := range []struct {
 		code int
-		want string
+		want ErrorClass
 	}{
-		{401, "unauthorized"},
-		{404, "not found"},
-		{503, "service unavailable"},
-		{418, "client-side error"}, // 未定义但 4xx
-		{599, "server-side error"}, // 未定义但 5xx
-		{200, ""},                  // 2xx 不打 hint
+		{200, ClassNone},
+		{301, ClassNone},
+		{401, ClassHTTPClientError},
+		{404, ClassHTTPClientError},
+		{418, ClassHTTPClientError},
+		{500, ClassHTTPServerError},
+		{503, ClassHTTPServerError},
+		{599, ClassHTTPServerError},
 	} {
-		got := hintForHTTPStatus(tc.code)
-		if tc.want == "" && got != "" {
-			t.Errorf("status %d should have no hint, got %q", tc.code, got)
+		got := ClassifyHTTPStatus(tc.code)
+		if got != tc.want {
+			t.Errorf("ClassifyHTTPStatus(%d) = %s, want %s", tc.code, got, tc.want)
 		}
-		if tc.want != "" && !strings.Contains(strings.ToLower(got), tc.want) {
-			t.Errorf("status %d hint should mention %q, got %q", tc.code, tc.want, got)
-		}
-	}
-}
-
-func TestHintForTCPError_Refused(t *testing.T) {
-	h := hintForTCPError("dial tcp 127.0.0.1:1: connect: connection refused")
-	if !strings.Contains(h, "selfcheck") {
-		t.Errorf("refused hint should cross-ref selfcheck: %s", h)
-	}
-}
-
-func TestHintForTLSError_SelfSigned(t *testing.T) {
-	h := hintForTLSError("x509: certificate signed by unknown authority")
-	if !strings.Contains(h, "--insecure") {
-		t.Errorf("self-signed hint should mention --insecure: %s", h)
 	}
 }
 
