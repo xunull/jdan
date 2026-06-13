@@ -56,6 +56,7 @@ go build -o jdan .
 **网络 & DNS**
 - [`jdan http timing`](#jdan-http-timing) — 测 HTTP 请求各阶段耗时
 - [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
+- [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -351,6 +352,78 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp $(which jdan)
 也可以走 GUI：**System Settings → Network → Firewall → Options →** 点 `+` 加 jdan 二进制 → 设为 **"Allow incoming connections"**。
 
 **根本解决**需要 Apple Developer 签名 + notarize，这不是 jdan 这一刻该做的事。同样的问题在 `python3 -m http.server`、`npx serve`、自 build 的 Rust 二进制上也都有。
+
+### `jdan net probe`
+
+从客户端视角逐阶段探查目标主机/端口/URL，DNS → TCP → TLS → HTTP 四阶段实时输出。失败时给出针对性的修复 hint。**用途**：撞到"连不上 / 拒绝连接 / 证书报错"时，30 秒内定位是哪一层出问题。
+
+```
+$ jdan net probe https://github.com
+
+✓ resolve     140.82.113.4
+  duration: 8ms
+
+✓ tcp         connected to 140.82.113.4:443 in 38ms
+  ✓ 140.82.113.4 from 192.168.10.16:54321 (38ms)
+
+✓ tls         TLS 1.3, cert: github.com (issued by Sectigo, exp 2026-08-02)
+  ALPN=h2, SNI=github.com, duration=142ms
+
+✓ http        HEAD HTTP/2.0, 200 OK
+  server: github.com
+  content-length: 56012
+  duration: 312ms
+
+✓ all green · total 312ms
+```
+
+失败时给 hint：
+
+```
+$ jdan net probe 127.0.0.1:1
+
+✓ resolve     127.0.0.1 (literal IP)
+✗ tcp         1 attempt(s), all failed
+  ✗ 127.0.0.1: dial tcp 127.0.0.1:1: connect: connection refused
+  error: dial tcp 127.0.0.1:1: connect: connection refused
+
+  likely causes:
+    • target host not listening on this port (check: lsof -i :PORT on target)
+    • OS firewall blocking inbound (macOS App Firewall, ufw, Windows Defender)
+    • if you're on a different LAN segment, check routing
+    ↳ run `jdan net selfcheck :PORT` on the target host to investigate
+
+✗ failed at tcp · total 473µs
+```
+
+**支持的 target 形态**：
+
+| 形态 | 推断 |
+|------|------|
+| `https://github.com` | https + 443 |
+| `example.com` | https + 443（无 scheme 默认 https） |
+| `example.com:80` | http + 80（端口推断 scheme） |
+| `192.168.1.42:8080` | http + 8080 |
+| `[::1]:8080` | IPv6 literal |
+
+**flags**：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `--timeout` | 10s | 单阶段超时 |
+| `--resolver` | 系统 | 指定 DNS server（host[:port]） |
+| `--method` | HEAD | HTTP 方法；405 时自动 fallback GET 一次 |
+| `-k` / `--insecure` | false | 跳过 TLS 证书验证（自签场景） |
+| `-v` / `--verbose` | false | 显示 cert chain + 所有响应 header |
+| `--json` | false | 结构化输出，可被 jq 等消费 |
+
+**设计要点**：
+
+- **逐 IP 串行 TCP connect**，不用 Go 默认的 Happy Eyeballs。探查工具的核心价值就是显示每个 IP 的具体结果（IPv4 通但 IPv6 不通这种问题用 Happy Eyeballs 会被隐藏）
+- **HEAD 默认**，405 时自动 fallback 到 GET（很多服务器不支持 HEAD）
+- **错误 → hint 映射**：connection refused、timeout、self-signed cert、x509 hostname mismatch 等 9 种常见错误都有针对性建议
+- **cross-reference 到 `jdan net selfcheck`**：连不上时引导用户去服务端跑自检
+- 退出码恒为 0（probe 命令本身正常）；要识别"probe 是否通过"用 `--json` 看 `.ok` 字段
 
 ### `jdan dns lookup`
 
