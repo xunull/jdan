@@ -91,10 +91,14 @@ go build -o jdan .
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
+- [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
+- [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
 
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
+
+
 
 **元命令**
 - [`jdan version`](#jdan-version) — 显示版本、commit、构建时间
@@ -308,6 +312,61 @@ archive: data.zip  (5 entries, 1.2MB total)
 - `.7z` —— 外部 lib（`github.com/saracen/go7z` 或调用 7zz 二进制）复杂
 - `.tar.xz` —— Go stdlib 无 lzma；引 `github.com/ulikunitz/xz` 是新 dep，等用户真要再加
 - `.rar` —— 专利问题
+
+### `jdan b64`
+
+base64 编码/解码。支持 standard / URL-safe 字母表 + 可选 padding。
+
+```bash
+$ jdan b64 enc "hello world"
+aGVsbG8gd29ybGQ=
+
+$ jdan b64 dec "aGVsbG8gd29ybGQ="
+hello world
+
+$ jdan b64 enc "data" --url --no-pad      # URL-safe + 去 padding
+ZGF0YQ
+
+$ echo "secret" | jdan b64 enc -          # stdin
+c2VjcmV0Cg==
+
+$ jdan b64 enc -i input.bin -o out.b64    # file → file
+```
+
+| flag | 作用 |
+|------|------|
+| `--url` | URL-safe 字母表（`-_` 替换 `+/`） |
+| `--no-pad` | 去掉末尾 `=` padding（用于 enc）|
+| `-i <file>` | 从文件读 |
+| `-o <file>` | 写到文件 |
+| `--no-newline` | enc 输出末尾不加换行（脚本管道用） |
+
+**dec 自动识别 padding**：含 `=` 用 standard，不含用 raw。无需 flag。
+
+### `jdan url`
+
+URL percent-encoding / decoding（RFC 3986）。
+
+```bash
+$ jdan url enc "hello world"
+hello%20world
+
+$ jdan url dec "hello%20world"
+hello world
+
+$ jdan url enc "a b" --query              # query string 模式（+ 代空格）
+a+b
+
+$ jdan url dec "a+b" --query
+a b
+```
+
+**path vs query 模式**：
+
+| 模式 | 空格编码为 | 用途 |
+|------|-----------|------|
+| 默认 / `--path` | `%20` | URL path 段 / 大多数场景 |
+| `--query` | `+` | URL query string（兼容 application/x-www-form-urlencoded）|
 
 ### `jdan version`
 
