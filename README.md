@@ -59,6 +59,7 @@ go build -o jdan .
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
 - [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
+- [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -616,6 +617,104 @@ OCSP:
 - `jdan ssl ct` 查 Certificate Transparency log
 - CRL revocation 检查（用 OCSP 就够）
 - OCSP stapling 解析
+
+### `jdan ssl scan`
+
+TLS 配置综合审计：对一个 HTTPS host 做 5 大块检查（版本 / cipher / ALPN / HSTS / session 重用 / cert），按 ssllabs 风格 5 维度加权给出 A+/A/B/C/D/F 评分。**用途**：
+
+- 替代 ssllabs.com 在**内网 / 私有 host** 的本地能力
+- CI/CD 安全门禁：`--grade-only` 输出 grade 字母，C 以下 exit 1
+- 运维快速回答"我这 server 配置安全吗"
+- 升级 TLS 配置后前后对比
+
+```
+$ jdan ssl scan github.com
+
+╭─ TLS Versions ─────────────────────────────────────────────╮
+│ ✗ TLS 1.0   refused    (recommended off)                 │
+│ ✗ TLS 1.1   refused    (recommended off)                 │
+│ ✓ TLS 1.2   supported                                    │
+│ ✓ TLS 1.3   supported (preferred)                        │
+╰──────────────────────────────────────────────────────────╯
+
+╭─ Cipher Suites (TLS 1.2) ──────────────────────────────────╮
+│ ✓ TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384    (strong)      │
+│ ✓ TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305   (strong)      │
+│ ✓ TLS_RSA_WITH_AES_256_GCM_SHA384  (acceptable; no forward sec) │
+│                                                          │
+│ Weak ciphers correctly refused:                          │
+│   ✓ TLS_RSA_WITH_3DES_EDE_CBC_SHA refused                │
+│                                                          │
+│ TLS 1.3 ciphers are mandatory (5 fixed suites); not enumerated │
+╰──────────────────────────────────────────────────────────╯
+
+╭─ HTTP Stack ───────────────────────────────────────────────╮
+│ ALPN:    h2, http/1.1                                    │
+│ HSTS:    max-age=31536000; includeSubdomains; preload    │
+│          strength=preload, max-age=31536000              │
+╰──────────────────────────────────────────────────────────╯
+
+╭─ Cert ─────────────────────────────────────────────────────╮
+│ Subject:    CN=github.com                                │
+│ Key:        EC P-256                                     │
+│ Days left:  49                                           │
+│ Chain:      trusted ✓                                    │
+│ Hostname:   matches SAN ✓                                │
+╰──────────────────────────────────────────────────────────╯
+
+Overall: A+  (100/100)
+
+Strong points:
+  ✓ certificate trusted and valid
+  ✓ TLS 1.3 supported
+  ✓ TLS 1.3 enforces forward secrecy
+  ✓ 6 modern cipher(s) supported (AES-GCM/ChaCha20)
+  ✓ HSTS with preload (1y + subdomains + preload list)
+  ✓ HTTP/2 supported via ALPN
+```
+
+**评分逻辑**（借鉴 ssllabs SSL Server Test）：
+
+| 维度 | 权重 | 评判 |
+|------|------|------|
+| Cert | 25 分 | trusted + valid + key ≥ 2048 + sig ≠ SHA1 |
+| Protocol | 30 分 | TLS 1.3 +30 / 1.2 +20 / 1.1 -15 / 1.0 -20 |
+| Key Exchange | 25 分 | Forward Secrecy（ECDHE / DHE） |
+| Cipher Strength | 20 分 | RC4/DES/3DES 减分；AES-GCM/ChaCha20 加分 |
+| Modifiers | bonus | HSTS preload +5 / HSTS good +3 / H2 +2 / resume +1 |
+
+映射：90+ A+ / 80+ A / 65+ B / 50+ C / 35+ D / < 35 F
+
+**flags**：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `--sni` | host | TLS 握手发的 server_name |
+| `--full-cipher` | false | 试 40 个 cipher 而不是 16 个常见（更慢） |
+| `--no-cipher` | false | 跳过 cipher 枚举（最快） |
+| `--no-hsts` | false | 跳过 HSTS HTTP GET |
+| `--no-resume` | false | 跳过 session resumption 测试 |
+| `--json` | false | 结构化输出 |
+| `--grade-only` | false | 只输出 grade 字母；C 以下 exit 1（CI/CD 用） |
+| `--timeout` | 15s | 整体超时 |
+
+**设计要点**：
+
+- **逐版本独立握手**：用 `MinVersion=MaxVersion` 强制单一版本，server 失败 = 不支持。比"询问 server 支持列表"更可靠
+- **TLS 1.3 cipher 不枚举**：协议规定 mandatory 5 个固定 suite，没意义
+- **不做 SSL 3.0**：Go stdlib 已移除，且生产环境已绝迹
+- **不做密码学评估**：用静态分类表（RC4/DES = weak, AES-GCM = strong）。jdan 不是密码学审计工具，是配置审计
+- **HSTS 通过 HTTPS GET 抓 header**：失败不影响 grade（标 "not configured"）
+- **CI/CD 门禁**：`--grade-only` 让 `if ! jdan ssl scan host --grade-only; then alert; fi` 一行接入监控
+- **复用 internal/sslcert/**：cert 块用同一套 fetch + Describe，零额外代码
+
+**有意不做**：
+
+- SSL Labs 那种公网测试 + 缓存共享
+- 真实密码学算法强度评估
+- Certificate Transparency log 查询
+- Client cert / mTLS 测试
+- HTTP/3 (QUIC) 支持（QUIC 走 UDP 不在 TCP+TLS 范围）
 
 ### `jdan dns lookup`
 
