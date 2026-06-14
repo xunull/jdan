@@ -52,6 +52,65 @@ func newJSONCommand(deps jsonCmdDeps) *cobra.Command {
 	cmd.AddCommand(newJSONKeysCommand(deps))
 	cmd.AddCommand(newJSONDiffCommand(deps))
 	cmd.AddCommand(newJSONLinesCommand(deps))
+	cmd.AddCommand(newJSONFromYAMLCommand(deps))
+	cmd.AddCommand(newJSONToYAMLCommand(deps))
+	return cmd
+}
+
+func newJSONFromYAMLCommand(deps jsonCmdDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "from-yaml [file]",
+		Short:         "YAML → JSON",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pretty, _ := cmd.Flags().GetBool("pretty")
+			indent, _ := cmd.Flags().GetInt("indent")
+			data, err := readJSONInput(args, deps.in)
+			if err != nil {
+				return err
+			}
+			useIndent := 0
+			if pretty {
+				useIndent = indent
+			}
+			out, err := jsonx.YAMLToJSON(data, useIndent)
+			if err != nil {
+				return fmt.Errorf("yaml → json: %w", err)
+			}
+			fmt.Fprintln(deps.out, string(out))
+			return nil
+		},
+	}
+	cmd.Flags().Bool("pretty", true, "pretty-print 输出（默认开；--pretty=false 拿紧凑 JSON）")
+	cmd.Flags().Int("indent", 2, "缩进空格数")
+	return cmd
+}
+
+func newJSONToYAMLCommand(deps jsonCmdDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "to-yaml [file]",
+		Short:         "JSON → YAML",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			indent, _ := cmd.Flags().GetInt("indent")
+			data, err := readJSONInput(args, deps.in)
+			if err != nil {
+				return err
+			}
+			out, err := jsonx.JSONToYAML(data, indent)
+			if err != nil {
+				return fmt.Errorf("json → yaml: %w", err)
+			}
+			// yaml.Marshal 已带末尾换行
+			fmt.Fprint(deps.out, string(out))
+			return nil
+		},
+	}
+	cmd.Flags().Int("indent", 2, "YAML 缩进空格数")
 	return cmd
 }
 

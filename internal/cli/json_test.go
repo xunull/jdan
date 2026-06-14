@@ -305,6 +305,54 @@ func TestJSONLines_Head(t *testing.T) {
 	}
 }
 
+func TestJSONFromYAML_Stdin(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader("name: alice\nport: 8080\n"),
+	})
+	cmd.SetArgs([]string{"from-yaml"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `"name": "alice"`) || !strings.Contains(out, `"port": 8080`) {
+		t.Errorf("got:\n%s", out)
+	}
+}
+
+func TestJSONFromYAML_NotPretty(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader("a: 1\n"),
+	})
+	cmd.SetArgs([]string{"from-yaml", "--pretty=false"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(buf.String())
+	if got != `{"a":1}` {
+		t.Errorf("got %q, want {\"a\":1}", got)
+	}
+}
+
+func TestJSONToYAML_Stdin(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader(`{"name":"alice","port":8080}`),
+	})
+	cmd.SetArgs([]string{"to-yaml"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, "name: alice") || !strings.Contains(out, "port: 8080") {
+		t.Errorf("got:\n%s", out)
+	}
+}
+
 func TestJSONLines_ModesAreMutuallyExclusive(t *testing.T) {
 	cmd := newJSONCommand(jsonCmdDeps{
 		out: &bytes.Buffer{},
