@@ -92,6 +92,9 @@ go build -o jdan .
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
 
+**文件 hash**
+- [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
+
 **元命令**
 - [`jdan version`](#jdan-version) — 显示版本、commit、构建时间
 
@@ -188,6 +191,62 @@ kubectl get secret my-jwt -o jsonpath='{.data.token}' | base64 -d | jdan jwt dec
 - 不验签 —— 后续可能加 `jdan jwt verify --key ...` 单独子命令
 - 不查 issuer 的 jwks_uri —— 任何网络行为都属于 `verify` 而不是 `decode`
 - 不构造 JWT —— 同上
+
+### `jdan hash`
+
+跨平台计算文件的 md5 / sha1 / sha256 / sha512。**streaming**（不全读进内存，1GB+ 文件 OK）；多算法时一遍读取并行算（`io.MultiWriter` 喂多个 hasher）。
+
+**为什么单独做一个**：macOS 的 `shasum -a 256` 跟 Linux 的 `sha256sum` 命令名不一致；`md5sum` 在 macOS 上根本没有（叫 `md5`）；输出格式还略有差异。`jdan hash` 跨平台一致 + 输出格式跟系统工具兼容。
+
+```bash
+$ jdan hash file.zip
+edeaaff3f1774ad2888673770c6d64097e391bc362d7d6fb34982ddf0efd18cb  file.zip
+
+$ jdan hash file.zip --algo md5,sha256
+MD5:    0bee89b07a248e27c83fc3d5951213c1
+SHA256: edeaaff3f1774ad2888673770c6d64097e391bc362d7d6fb34982ddf0efd18cb
+file:   file.zip
+
+$ jdan hash file.zip --all
+MD5:    0bee89b07a248e27c83fc3d5951213c1
+SHA1:   03cfd743661f07975fa2f1220c5194cbaff48451
+SHA256: edeaaff3...
+SHA512: 4f285d0c...
+
+$ echo "hi" | jdan hash -
+98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4  -
+```
+
+**`--check` 模式**（跟 `shasum -c` / `sha256sum -c` 输出 byte-equal）：
+
+```bash
+$ cat checksums.txt
+abc123...sha256...  file1.zip
+def456...sha256...  file2.tar
+
+$ jdan hash --check checksums.txt
+file1.zip: OK
+file2.tar: OK
+
+2 total, 0 failed
+```
+
+如果有 FAILED → exit 1，方便监控 / CI gate。**算法按 hash 长度自动识别**：32 chars = md5、40 = sha1、64 = sha256、128 = sha512。所以 `--check` 不需要再加 `--algo` flag。
+
+**flags**：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `--algo` | `sha256` | csv：`md5,sha256` 多算法一遍读取 |
+| `--all` | false | md5 + sha1 + sha256 + sha512 全跑（覆盖 `--algo`） |
+| `--check <file>` | 无 | 校验模式；FAILED → exit 1 |
+| `--json` | false | 结构化输出 |
+
+**有意不做**：
+
+- xxh3（非加密但 4 GB/s 的 hash）—— 引第三方 dep（`github.com/zeebo/xxh3`），等用户真要再加
+- BLAKE2 / BLAKE3 —— 同上
+- `--binary` flag（跟 GNU `sha256sum -b` 对齐）—— 文本 / binary 模式在 Unix 上没区别
 
 ### `jdan version`
 
