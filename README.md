@@ -99,6 +99,7 @@ go build -o jdan .
 
 **网络 / 查询**
 - [`jdan whois`](#jdan-whois) — 域名/IP WHOIS（自动路由 + IANA/ARIN referral 跟随 + parsed 表）
+- [`jdan ip`](#jdan-ip) — IP / CIDR 计算（info / contains / range / split / normalize）
 
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
@@ -485,6 +486,76 @@ jdan ssl cert example.com --json | jdan json path "not_after" -r
 ```
 
 **parser 兜底**：parser 失败（schema 不识别如 `.br`）→ **自动回退到 raw**，永远有内容；`--raw` 永远拿原文，是 1st-class citizen。
+
+### `jdan ip`
+
+IP 地址 & CIDR 计算工具集。5 个子命令覆盖 **综合信息 / 网段包含判断 / IP 列表 / 子网划分 / IPv6 标准化**。
+
+详细技术文档：[docs/jdan-ip.md](docs/jdan-ip.md)
+
+**为什么单独做一个**：SRE / 网管 / 后端的日常工具链零碎（在线 CIDR 计算器、`ipcalc` 不跨平台、`sipcalc` 不在 macOS 默认装），且没有一个统一接口能同时吃 IP 和 CIDR、IPv4 和 IPv6。`jdan ip` 一组命令统一搞定，0 新依赖（纯 Go stdlib `net/netip`）。
+
+```bash
+# 综合信息（吃 IP / CIDR / IPv4 / IPv6）
+$ jdan ip info 192.168.1.0/24
+  CIDR:           192.168.1.0/24
+  Version:        IPv4
+  Network:        192.168.1.0
+  Broadcast:      192.168.1.255
+  First host:     192.168.1.1
+  Last host:      192.168.1.254
+  Netmask:        255.255.255.0
+  Wildcard:       0.0.0.255
+  Total IPs:      256
+  Usable:         254
+
+$ jdan ip info 192.168.1.42                  # 单 IP：分类 + binary/hex/decimal + reverse-DNS
+  Address:        192.168.1.42
+  Version:        IPv4
+  Hex:            0xC0A8012A
+  Decimal:        3232235818
+  Binary:         11000000.10101000.00000001.00101010
+  Reverse DNS:    42.1.168.192.in-addr.arpa
+  Private:        yes
+
+# 退出码：CI gate 友好
+$ jdan ip contains 10.0.0.0/8 10.5.1.2 && echo "internal"
+internal
+$ jdan ip contains 10.0.0.0/8 10.5.1.2 --verbose
+yes
+
+# 子网划分
+$ jdan ip split 10.0.0.0/22 24
+10.0.0.0/24
+10.0.1.0/24
+10.0.2.0/24
+10.0.3.0/24
+(4 subnets)
+
+# 列出 IP（默认 16 个，--limit 0 全列，硬上限 1M 防 OOM）
+$ jdan ip range 192.168.1.0/29
+192.168.1.0
+...
+192.168.1.7
+(8 total)
+
+# IPv6 expand / compact
+$ jdan ip normalize 2001:db8::1 --expand
+2001:0db8:0000:0000:0000:0000:0000:0001
+```
+
+**Classification 字段** 覆盖 RFC 1918 / 3849 / 4193 / 5737 / 6598：Private / Loopback / Multicast / Link-local / Doc range / Unique local / CGNAT / Global unicast 都打 tag。
+
+**跟 whois / dns 配套**：
+
+```bash
+# WHOIS NetRange → ip 计算
+jdan whois 8.8.8.8 --json | jdan json path "parsed.netrange" -r
+
+# DNS A 记录拿 IP → 判断是否内部
+ip=$(jdan dns lookup myserver.com -t A | tail -1)
+jdan ip contains 10.0.0.0/8 "$ip" && deploy-internal
+```
 
 ### `jdan version`
 
