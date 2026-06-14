@@ -94,6 +94,9 @@ go build -o jdan .
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
 
+**JSON / YAML / CSV**
+- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines + yaml ↔ json + csv ↔ json
+
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
@@ -367,6 +370,65 @@ a b
 |------|-----------|------|
 | 默认 / `--path` | `%20` | URL path 段 / 大多数场景 |
 | `--query` | `+` | URL query string（兼容 application/x-www-form-urlencoded）|
+
+### `jdan json`
+
+JSON 工具集（**10 个子命令**）。设计目标：常见操作 0 学习曲线，**不替代 jq**。复杂查询请用 jq；jdan json 覆盖日常 80% 高频场景。
+
+详细技术文档：[docs/jdan-json.md](docs/jdan-json.md)
+
+**为什么单独做一个**：`python -m json.tool` 美化但参数难记 + 丢数字精度；`jq` 强大但语法陡；YAML / CSV 想转 JSON 要单独装 `yq` / `csvjson`；JSONL（结构化日志）没有趁手命令。`jdan json` 一组命令统一搞定。
+
+```bash
+# 美化 / 压缩（保留数字精度，2^53 + 1 不丢）
+$ jdan json pretty data.json
+$ jdan json minify data.json --in-place
+
+# 按 path 取值（dot-path / bracket / RFC 6901 三选一，可混用）
+$ jdan json path "users[0].name" data.json
+"alice"
+$ jdan json path "users.0.name" data.json -r       # -r 去引号
+alice
+$ jdan json path "/users/0/name" data.json --pointer
+
+# 列 key（顶层 / 递归所有路径）
+$ jdan json keys data.json --all
+age
+name
+users[0].email
+users[0].name
+
+# 语义 diff（输出 RFC 6902 JSON Patch）
+$ jdan json diff a.json b.json
+~ /age: 30 -> 31
++ /new = true
+$ jdan json diff a.json b.json --json              # RFC 6902 patch
+$ jdan json diff schema.json prod.json --exit-code # CI gate
+
+# JSONL（结构化日志，一行一个 JSON）
+$ jdan json lines --count < logs.jsonl
+12847
+$ jdan json lines --head 5 < logs.jsonl
+
+# YAML ↔ JSON（数字、嵌套、大 int 都不丢精度）
+$ jdan json from-yaml config.yaml > config.json
+$ jdan json to-yaml config.json > config.yaml
+
+# CSV ↔ JSON（UTF-8 BOM 自动剥除、quoted fields 正确处理）
+$ jdan json from-csv users.csv               # → array of objects
+$ jdan json from-csv data.tsv --delim '\t'
+$ jdan json to-csv users.json --header "name,age"
+```
+
+**与 jq 配合**：
+
+```bash
+# YAML → JSON 后用 jq 查询
+$ jdan json from-yaml config.yaml | jq '.servers[].port'
+
+# CSV → JSON 后取第一行的 name 字段
+$ jdan json from-csv users.csv --pretty=false | jdan json path "0.name" -r
+```
 
 ### `jdan version`
 

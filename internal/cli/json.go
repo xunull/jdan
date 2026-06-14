@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -54,7 +55,100 @@ func newJSONCommand(deps jsonCmdDeps) *cobra.Command {
 	cmd.AddCommand(newJSONLinesCommand(deps))
 	cmd.AddCommand(newJSONFromYAMLCommand(deps))
 	cmd.AddCommand(newJSONToYAMLCommand(deps))
+	cmd.AddCommand(newJSONFromCSVCommand(deps))
+	cmd.AddCommand(newJSONToCSVCommand(deps))
 	return cmd
+}
+
+func newJSONFromCSVCommand(deps jsonCmdDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "from-csv [file]",
+		Short:         "CSV → JSON array of objects (--no-header → array of arrays)",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			noHeader, _ := cmd.Flags().GetBool("no-header")
+			delimStr, _ := cmd.Flags().GetString("delim")
+			pretty, _ := cmd.Flags().GetBool("pretty")
+			data, err := readJSONInput(args, deps.in)
+			if err != nil {
+				return err
+			}
+			delim, err := pickCSVDelim(delimStr)
+			if err != nil {
+				return err
+			}
+			out, err := jsonx.CSVToJSON(data, !noHeader, delim)
+			if err != nil {
+				return err
+			}
+			if pretty {
+				out, err = jsonx.Pretty(out, 2)
+				if err != nil {
+					return err
+				}
+			}
+			fmt.Fprintln(deps.out, string(out))
+			return nil
+		},
+	}
+	cmd.Flags().Bool("no-header", false, "CSV 没有 header 行（输出 array of arrays）")
+	cmd.Flags().String("delim", ",", "field 分隔符（\\t 表 tab）")
+	cmd.Flags().Bool("pretty", true, "pretty-print 输出（默认开；--pretty=false 拿紧凑 JSON）")
+	return cmd
+}
+
+func newJSONToCSVCommand(deps jsonCmdDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:           "to-csv [file]",
+		Short:         "JSON array of objects → CSV",
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			headerCSV, _ := cmd.Flags().GetString("header")
+			delimStr, _ := cmd.Flags().GetString("delim")
+			data, err := readJSONInput(args, deps.in)
+			if err != nil {
+				return err
+			}
+			var headerOrder []string
+			if headerCSV != "" {
+				headerOrder = strings.Split(headerCSV, ",")
+				for i := range headerOrder {
+					headerOrder[i] = strings.TrimSpace(headerOrder[i])
+				}
+			}
+			delim, err := pickCSVDelim(delimStr)
+			if err != nil {
+				return err
+			}
+			out, err := jsonx.JSONToCSV(data, headerOrder, delim)
+			if err != nil {
+				return err
+			}
+			fmt.Fprint(deps.out, string(out))
+			return nil
+		},
+	}
+	cmd.Flags().String("header", "", "指定列序（csv，例：\"name,age,email\"；默认按字母顺序）")
+	cmd.Flags().String("delim", ",", "field 分隔符（\\t 表 tab）")
+	return cmd
+}
+
+func pickCSVDelim(s string) (rune, error) {
+	switch s {
+	case "":
+		return ',', nil
+	case "\\t":
+		return '\t', nil
+	}
+	rs := []rune(s)
+	if len(rs) != 1 {
+		return 0, fmt.Errorf("delimiter must be 1 char (or \\t), got %q", s)
+	}
+	return rs[0], nil
 }
 
 func newJSONFromYAMLCommand(deps jsonCmdDeps) *cobra.Command {

@@ -353,6 +353,86 @@ func TestJSONToYAML_Stdin(t *testing.T) {
 	}
 }
 
+func TestJSONFromCSV_Stdin(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader("name,age\nalice,30\n"),
+	})
+	cmd.SetArgs([]string{"from-csv", "--pretty=false"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(buf.String())
+	if got != `[{"age":"30","name":"alice"}]` {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestJSONFromCSV_NoHeader(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader("alice,30\nbob,25\n"),
+	})
+	cmd.SetArgs([]string{"from-csv", "--no-header", "--pretty=false"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(buf.String())
+	if got != `[["alice","30"],["bob","25"]]` {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestJSONFromCSV_TabDelim(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader("a\tb\n1\t2\n"),
+	})
+	cmd.SetArgs([]string{"from-csv", "--delim", "\\t", "--pretty=false"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := strings.TrimSpace(buf.String())
+	if got != `[{"a":"1","b":"2"}]` {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestJSONToCSV_HeaderInferred(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader(`[{"name":"alice","age":30}]`),
+	})
+	cmd.SetArgs([]string{"to-csv"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if got != "age,name\n30,alice\n" {
+		t.Errorf("got %q", got)
+	}
+}
+
+func TestJSONToCSV_ExplicitHeader(t *testing.T) {
+	var buf bytes.Buffer
+	cmd := newJSONCommand(jsonCmdDeps{
+		out: &buf,
+		in:  strings.NewReader(`[{"name":"alice","age":30}]`),
+	})
+	cmd.SetArgs([]string{"to-csv", "--header", "name,age"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	got := buf.String()
+	if got != "name,age\nalice,30\n" {
+		t.Errorf("got %q", got)
+	}
+}
+
 func TestJSONLines_ModesAreMutuallyExclusive(t *testing.T) {
 	cmd := newJSONCommand(jsonCmdDeps{
 		out: &bytes.Buffer{},
