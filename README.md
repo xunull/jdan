@@ -60,6 +60,7 @@ go build -o jdan .
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
 - [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
 - [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
+- [`jdan ssl pin`](#jdan-ssl-pin) — 生成 cert pinning 用的 SPKI hash（6 种格式）
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -715,6 +716,127 @@ Strong points:
 - Certificate Transparency log 查询
 - Client cert / mTLS 测试
 - HTTP/3 (QUIC) 支持（QUIC 走 UDP 不在 TCP+TLS 范围）
+
+### `jdan ssl pin`
+
+生成 cert pinning 用的 SPKI hash，配合主流 cert pinning 格式：**OkHttp (Android)** / **iOS NSAppTransportSecurity** / **HPKP HTTP header** / **Mozilla NSS** / **curl `--pinnedpubkey`** / 原始 base64。
+
+#### ⚠ 重要：SPKI hash ≠ cert fingerprint
+
+cert pinning **不能用 cert fingerprint**（即 `jdan ssl cert` 显示的 SHA256），必须用 **SPKI hash**：
+
+| 概念 | 公式 | 用途 |
+|------|------|------|
+| Certificate fingerprint | `SHA256(cert.Raw)` | cert 完整内容 hash |
+| **SPKI hash** | `SHA256(cert.RawSubjectPublicKeyInfo)` | **cert pinning 用这个** |
+
+cert 经常 renew（同 key），renew 后 cert fingerprint 变了，**pinning 就坏**；SPKI hash 在 key 不变时 **stable**。HPKP RFC 7469 / Chrome static pins / iOS Apple Doc / Android Network Security Config 全部统一用 SPKI hash。
+
+#### 默认 pin leaf + 第一个 intermediate
+
+Apple / Android / Chromium static pins 推荐 best practice：
+- **leaf hash** 让 pin 精准
+- **intermediate hash** 让 cert renew 仍能匹配（renew 通常 issuer 不变）
+
+`--leaf-only` 选退到只 leaf；`--full` chain 里所有 cert 都算。
+
+#### 输出样例
+
+```
+$ jdan ssl pin github.com
+
+╭─ Leaf ─────────────────────────────────────────────────────
+│ Subject:    CN=github.com
+│ Issuer:     CN=Sectigo Public Server Authentication CA DV E36
+│ SPKI hash:  Ry0vLQcAM0ZpwjfCIday3P4budz0fLwe34EWXN1ZWdk=
+╰──────────────────────────────────────────────────────────
+
+╭─ Intermediate ─────────────────────────────────────────────
+│ Subject:    CN=Sectigo Public Server Authentication CA DV E36
+│ Issuer:     CN=Sectigo Public Server Authentication Root E46
+│ SPKI hash:  ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=
+╰──────────────────────────────────────────────────────────
+
+─── Pin formats ─────────────────────────────────────────────
+
+▸ okhttp:
+    CertificatePinner.Builder()
+      .add("github.com", "sha256/Ry0vLQcAM0ZpwjfCIday3P4budz0fLwe34EWXN1ZWdk=")
+      .add("github.com", "sha256/ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=")
+      .build()
+
+▸ ios:
+    <key>NSAppTransportSecurity</key>
+    <dict>
+      <key>NSPinnedDomains</key>
+      <dict>
+        <key>github.com</key>
+        <dict>
+          <key>NSIncludesSubdomains</key>
+          <true/>
+          <key>NSPinnedCAIdentities</key>
+          <array>
+            <dict>
+              <key>SPKI-SHA256-BASE64</key>
+              <string>Ry0vLQcAM0ZpwjfCIday3P4budz0fLwe34EWXN1ZWdk=</string>
+            </dict>
+            ...
+
+▸ hpkp:
+    Public-Key-Pins: pin-sha256="Ry0vLQc..."; pin-sha256="ZSagvDz..."; max-age=5184000; includeSubDomains
+
+▸ nss:
+    pin-sha256:Ry0vLQcAM0ZpwjfCIday3P4budz0fLwe34EWXN1ZWdk=
+    pin-sha256:ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=
+
+▸ curl:
+    curl --pinnedpubkey 'sha256//Ry0vLQc...=;sha256//ZSagvDz...=' https://github.com/
+
+▸ raw:
+    Ry0vLQcAM0ZpwjfCIday3P4budz0fLwe34EWXN1ZWdk=
+    ZSagvDzjltLkewXEBuDxIzpW/dpVw1Juvvmd0hhkzdY=
+```
+
+#### CLI 用法
+
+```bash
+jdan ssl pin github.com                        # 默认所有 6 种格式
+jdan ssl pin example.com:8443 --format okhttp  # 只 OkHttp，给管道用
+jdan ssl pin example.com --leaf-only           # 只 leaf SPKI
+jdan ssl pin example.com --full                # chain 里所有 cert
+jdan ssl pin -f cert.pem                       # 本地 PEM 文件
+jdan ssl pin example.com --json                # 结构化输出
+```
+
+#### flags
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `-f` / `--file` | 无 | 本地 PEM 文件 |
+| `--sni` | host | TLS SNI |
+| `--format` | 全部 6 个 | 单一格式：`okhttp` / `ios` / `hpkp` / `nss` / `curl` / `raw` |
+| `--leaf-only` | false | 只算 leaf SPKI |
+| `--full` | false | chain 所有 cert |
+| `--json` | false | 结构化输出含 `entries` + `formats` 两段 |
+| `--timeout` | 5s | TLS 握手超时 |
+
+`--leaf-only` 和 `--full` 互斥；其他 flag 可组合。
+
+#### 验证算法正确性
+
+我们的 SPKI hash 跟 OpenSSL 算的等价：
+
+```bash
+# OpenSSL 算 SPKI hash 的标准 pipeline
+openssl x509 -in cert.pem -pubkey -noout |
+  openssl pkey -pubin -outform DER |
+  openssl dgst -sha256 -binary | base64
+
+# jdan 输出应当 byte-equal
+jdan ssl pin -f cert.pem --format raw --leaf-only
+```
+
+测试用 `crypto/x509.MarshalPKIXPublicKey` 独立计算等价 SPKI hash，确保两者 byte 相同（覆盖 RSA / EC / Ed25519 三种 key 类型）。
 
 ### `jdan dns lookup`
 
