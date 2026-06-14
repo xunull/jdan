@@ -9,11 +9,12 @@ package whois
 
 // Result 一次 WHOIS 查询的完整结果。
 type Result struct {
-	Target  string `json:"target"`         // 用户输入（domain or IP）
-	Kind    Kind   `json:"kind"`           // domain / ipv4 / ipv6
-	Server  string `json:"server"`         // 最终查询用的 server（跟 referral 后）
-	Hops    []Hop  `json:"hops,omitempty"` // referral 链（IP 跨 RIR / IANA root → TLD server）
-	RawText string `json:"raw"`            // 最终 server 的原始响应文本
+	Target  string   `json:"target"`            // 用户输入（domain or IP）
+	Kind    Kind     `json:"kind"`              // domain / ipv4 / ipv6
+	Server  string   `json:"server"`            // 最终查询用的 server（跟 referral 后）
+	Hops    []Hop    `json:"hops,omitempty"`    // referral 链（IP 跨 RIR / IANA root → TLD server）
+	RawText string   `json:"raw"`               // 最终 server 的原始响应文本
+	Parsed  *Parsed  `json:"parsed,omitempty"`  // best-effort 解析字段（schema 不一致时可能为零）
 }
 
 // Hop 是 referral 链中的一跳。中间跳的 raw 一般不展示（避免吵），

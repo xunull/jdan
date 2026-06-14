@@ -65,7 +65,20 @@ func LookupWithServer(ctx context.Context, target, server string, timeout time.D
 	if err != nil {
 		return nil, err
 	}
-	return &Result{Target: target, Kind: kind, Server: server, RawText: raw}, nil
+	res := &Result{Target: target, Kind: kind, Server: server, RawText: raw}
+	res.Parsed = parseForKind(kind, raw)
+	return res, nil
+}
+
+// parseForKind 按 target 类型分派到 ParseDomain / ParseIP。
+func parseForKind(kind Kind, raw string) *Parsed {
+	switch kind {
+	case KindDomain:
+		return ParseDomain(raw)
+	case KindIPv4, KindIPv6:
+		return ParseIP(raw)
+	}
+	return nil
 }
 
 // lookupChain 跟随 referral 链。
@@ -90,6 +103,7 @@ func lookupChain(ctx context.Context, target string, kind Kind, server string, t
 			// IANA 没给 referral（罕见）：返回 IANA 的响应
 			res.Server = cur
 			res.RawText = raw
+			res.Parsed = parseForKind(kind, raw)
 			return res, nil
 		}
 		// IP 跨 RIR referral（ARIN → RIPE 等）
@@ -104,6 +118,7 @@ func lookupChain(ctx context.Context, target string, kind Kind, server string, t
 		// 终态
 		res.Server = cur
 		res.RawText = raw
+		res.Parsed = parseForKind(kind, raw)
 		return res, nil
 	}
 	return nil, fmt.Errorf("too many WHOIS referrals (>%d) starting from %s", maxReferralHops, server)

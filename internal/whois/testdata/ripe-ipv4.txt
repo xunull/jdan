@@ -1,0 +1,21 @@
+% This is the RIPE Database query service.
+% The objects are in RPSL format.
+
+inetnum:        193.0.0.0 - 193.0.7.255
+netname:        RIPE-NCC
+descr:          RIPE Network Coordination Centre
+country:        NL
+org:            ORG-RIEN1-RIPE
+admin-c:        BRD-RIPE
+tech-c:         OPS4-RIPE
+status:         ASSIGNED PA
+mnt-by:         RIPE-NCC-MNT
+created:        2003-03-17T12:19:25Z
+last-modified:  2017-12-04T14:55:54Z
+source:         RIPE
+
+organisation:   ORG-RIEN1-RIPE
+org-name:       Reseaux IP Europeens Network Coordination Centre (RIPE NCC)
+country:        NL
+abuse-c:        OPS4-RIPE
+abuse-mailbox:  abuse@ripe.net

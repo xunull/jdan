@@ -97,6 +97,9 @@ go build -o jdan .
 **JSON / YAML / CSV**
 - [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines + yaml ↔ json + csv ↔ json
 
+**网络 / 查询**
+- [`jdan whois`](#jdan-whois) — 域名/IP WHOIS（自动路由 + IANA/ARIN referral 跟随 + parsed 表）
+
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
@@ -429,6 +432,59 @@ $ jdan json from-yaml config.yaml | jq '.servers[].port'
 # CSV → JSON 后取第一行的 name 字段
 $ jdan json from-csv users.csv --pretty=false | jdan json path "0.name" -r
 ```
+
+### `jdan whois`
+
+WHOIS 查询命令（RFC 3912）。自动检测 domain vs IP，自动路由到正确的 server，跟随 IANA / ARIN referral 到最终响应，**默认输出解析后的字段表**。
+
+详细技术文档：[docs/jdan-whois.md](docs/jdan-whois.md)
+
+**为什么单独做一个**：macOS 自带的 BSD `whois` TLD 映射表过时（很多新 gTLD 不识别）；Linux 要 `apt install whois`；Windows 没有原生支持；各平台输出原始文本要靠人脑 grep。`jdan whois` 跨平台 0 配置 + 53 个内置 TLD 映射 + IANA fallback + parsed 表，关键字段（expiry/registrar/nameservers）一眼可见。
+
+```bash
+$ jdan whois example.com
+Target:    example.com (domain)
+Server:    whois.verisign-grs.com
+
+  Domain:         EXAMPLE.COM
+  Registrar:      RESERVED-Internet Assigned Numbers Authority
+  Created:        1995-08-14 04:00 UTC  (31 years ago)
+  Expires:        2026-08-13 04:00 UTC  (in 2 months)
+  DNSSEC:         signedDelegation
+  Status:         clientDeleteProhibited
+                  clientTransferProhibited
+                  clientUpdateProhibited
+  Nameservers:    elliott.ns.cloudflare.com
+                  hera.ns.cloudflare.com
+
+$ jdan whois 193.0.0.1                        # IPv4 → ARIN → 跟到 RIPE
+Target:    193.0.0.1 (ipv4)
+Server:    whois.ripe.net
+Chain:     whois.arin.net -> whois.ripe.net
+
+  Range:          193.0.0.0 - 193.0.7.255
+  Org:            Reseaux IP Europeens Network Coordination Centre (RIPE NCC)
+  Country:        NL
+  Abuse email:    abuse@ripe.net
+
+$ jdan whois example.com --raw                # 原始 WHOIS 文本
+$ jdan whois example.com --full               # parsed 表 + 原文
+$ jdan whois example.com --json               # 结构化 JSON（含 parsed）
+$ jdan whois example.com --server custom.whois.com  # 覆盖默认 server
+```
+
+**跟 jdan ssl cert 配套**：cert 看 TLS 过期，whois 看 domain 注册过期，两个都要监控：
+
+```bash
+# 监控 pipeline 示例
+jdan whois example.com --json | jdan json path "parsed.expiry_date" -r
+# → 2026-08-13T04:00:00Z
+
+jdan ssl cert example.com --json | jdan json path "not_after" -r
+# → 2026-XX-XX (cert 过期)
+```
+
+**parser 兜底**：parser 失败（schema 不识别如 `.br`）→ **自动回退到 raw**，永远有内容；`--raw` 永远拿原文，是 1st-class citizen。
 
 ### `jdan version`
 

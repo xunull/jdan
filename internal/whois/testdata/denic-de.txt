@@ -1,0 +1,8 @@
+% Copyright (c) 2010 by DENIC
+% Version: 2.0
+
+domain:         example.de
+nserver:        ns1.example.de
+nserver:        ns2.example.de
+status:         connect
+changed:        2024-05-23T08:15:00+02:00
