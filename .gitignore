@@ -37,3 +37,4 @@ local-docs/
 
 # goreleaser
 dist/
+local-design-docs/
