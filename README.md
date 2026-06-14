@@ -58,6 +58,7 @@ go build -o jdan .
 - [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
+- [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -543,6 +544,78 @@ jdan net selfcheck 8080 --json     # 结构化输出
 
 - macOS / 主流 Linux 默认带 `lsof`。Alpine 等极简环境可能没，selfcheck 会优雅降级提示 `install lsof`
 - 只 macOS 有真正的应用层防火墙检测；Linux/Windows 暂不实现（iptables/ufw/Defender 语义差异大）
+
+### `jdan ssl cert`
+
+看一个 HTTPS host 的证书详情：完整 chain + trust/hostname/expiry 三项验证 + OCSP 吊销状态查询。**用途**：
+
+- 看 cert 还有多久过期（带进度条）
+- 看 cert 包了哪些域名（SAN）
+- 看完整 chain 排查 missing intermediate
+- 看 fingerprint 给 cert pinning 用
+- 看本地 PEM 文件（不联网）
+- 监控脚本：`--expires-in 30d` 触发 exit 1
+
+```
+$ jdan ssl cert github.com
+
+╭─ leaf ──────────────────────────────────────────────────────────────╮
+│ Subject:    CN=github.com                                          │
+│ Issuer:     CN=Sectigo Public Server Authentication CA DV E36,...  │
+│ Valid:      2026-05-05 → 2026-08-02  (89d total)                   │
+│ Days left:  █████░░░░░  50 days                                    │
+│ SAN:        github.com, www.github.com                             │
+│ Key:        EC P-256                                               │
+│ Signed:     ECDSA-SHA256                                           │
+│ Serial:     e7:ce:cc:3b:13:fb:3b:7b:8a:46:ea:8c:d0:ae:b7:1c        │
+│ SHA256:     a7:b8:10:34:cd:43:95:51:c...9e:12:85:6c:85:5b:64:b6:5f │
+╰────────────────────────────────────────────────────────────────────╯
+
+Chain:
+  ▸ leaf:        CN=github.com  (exp in 50d)
+  ▸ intermediate: CN=Sectigo Public Server Authentication CA DV E36  (exp in 3569d)
+  ▸ root:        CN=Sectigo Public Server Authentication Root E46  (exp in 7221d, self-signed)
+
+Verification:
+  ✓ chain trusted (system trust store)
+  ✓ hostname matches SAN
+  ✓ not expired
+
+OCSP:
+  ✓ CN=github.com  OCSP good
+  ✓ CN=Sectigo Public Server Authentication CA DV E36  OCSP good
+```
+
+**flags**：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `-f` / `--file` | 无 | 从本地 PEM 文件读，不联网 |
+| `--sni` | host | TLS 握手发的 SNI（虚拟主机场景） |
+| `--full` | false | 展开 extensions / KeyUsage / OCSP URL 等 |
+| `--json` | false | 结构化输出（含 Verification + OCSP 字段） |
+| `--pem` | false | 输出标准 PEM 给管道 |
+| `--no-ocsp` | false | 跳过 OCSP（节省 ~300-500ms） |
+| `--timeout` | 5s | 整体超时 |
+| `--expires-in` | 无 | 如 `30d` / `720h`，leaf 在此期内过期则 exit 1 |
+
+**关键设计**：
+
+- **`InsecureSkipVerify` 取 cert，但单独 verify**：要"看证书"就不能因为 cert 不可信直接拒绝。fetch 阶段无视信任拿到完整 chain，verify 阶段单独跑系统 trust store + hostname + expiry，结果当 report 显示给用户
+- **errno-based OCSP**：用 `golang.org/x/crypto/ocsp`（quasi-stdlib）；cert 没 OCSP responder URL 时静默跳过（root cert 常见情况）；网络失败带 `⚠` 警告但不拒绝命令
+- **过期倒计时进度条**：`█████░░░░░  50 days`——一眼看出"这 cert 还活着多久"，比 `openssl x509 -text -noout` 那一坨 ASCII 友好
+- **过期检测脚本场景**：`--expires-in 30d` 让监控脚本能 `if ! jdan ssl cert host --expires-in 30d; then alert; fi`
+- **复用 internal/sslcert/ package**：`internal/netprobe/tls.go` 未来可升级用同一套 Describe 出 SAN，零额外工作量
+- **不做 OCSP stapling**（从 TLS 握手抓 stapled response）：复杂、覆盖率低，直查 OCSP responder 更稳；**CRL 不做**：大文件、场景窄
+- **DSA 算法识别**：现代 cert 几乎不用 DSA，落到 `PublicKeyAlgorithm.String()` fallback 即可
+
+**有意不做**：
+
+- `jdan ssl diff a b` 对比两个 host 的 cert
+- `jdan ssl watch` 持续监控
+- `jdan ssl ct` 查 Certificate Transparency log
+- CRL revocation 检查（用 OCSP 就够）
+- OCSP stapling 解析
 
 ### `jdan dns lookup`
 
