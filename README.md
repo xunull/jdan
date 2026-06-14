@@ -92,8 +92,9 @@ go build -o jdan .
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
 
-**文件 hash**
+**文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
+- [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
 
 **元命令**
 - [`jdan version`](#jdan-version) — 显示版本、commit、构建时间
@@ -247,6 +248,66 @@ file2.tar: OK
 - xxh3（非加密但 4 GB/s 的 hash）—— 引第三方 dep（`github.com/zeebo/xxh3`），等用户真要再加
 - BLAKE2 / BLAKE3 —— 同上
 - `--binary` flag（跟 GNU `sha256sum -b` 对齐）—— 文本 / binary 模式在 Unix 上没区别
+
+### `jdan extract`
+
+通用解压。识别 8 种格式（按文件扩展名），拒绝 directory traversal（`..` 跳出 root）。
+
+**为什么单独做一个**：`tar xzvf` vs `unzip` vs `bzip2 -d` 各自语法不同，命令选错就报错。`jdan extract <anything>` 自动按扩展名识别格式。
+
+```bash
+$ jdan extract release.tar.gz
+✓ extracted 42 entry(ies) to release
+
+$ jdan extract data.zip -o /tmp/out
+✓ extracted 7 entry(ies) to /tmp/out
+
+$ jdan extract docs.zip --here          # 不创建子目录，解压到 cwd
+✓ extracted 12 entry(ies) to .
+
+$ jdan extract data.zip --list          # 只列内容不解压
+archive: data.zip  (5 entries, 1.2MB total)
+
+           1.2KB  README.md
+           300KB  bin/foo
+  d            -  bin/
+           950KB  data.json
+```
+
+**默认行为**：解压到当前目录的 `<archive-name>/` 子目录。`.tar.gz` / `.tar.bz2` / `.tgz` 去掉**双后缀**（`release.tar.gz` → `release/`）。
+
+**支持的格式**：
+
+| 格式 | 检测后缀 |
+|------|---------|
+| zip | `.zip` |
+| tar | `.tar` |
+| tar.gz | `.tar.gz` / `.tgz` |
+| tar.bz2 | `.tar.bz2` / `.tbz2` / `.tbz` |
+| gz（单文件）| `.gz`（输出去掉 `.gz` 后缀的文件） |
+| bz2（单文件）| `.bz2` |
+
+**flags**：
+
+| flag | 默认 | 作用 |
+|------|------|------|
+| `-o` / `--output` | `<archive-name>/` 子目录 | 解压目标目录 |
+| `--here` | false | 解压到 cwd（不创建子目录） |
+| `--list` | false | 只列内容，不实际解压 |
+| `--json` | false | 结构化输出 |
+
+**安全**：
+
+- **拒绝 directory traversal**：entry 名含 `..` 段直接 reject（不静默 sanitize）—— zip slip 攻击的标准防护
+- **拒绝绝对路径 entry**：`/etc/passwd` 这类名也 reject
+- **拒绝 symlink entry**：tar 里的 symlink 跳过（防 symlink-then-write 攻击）
+- **4 GiB 单 entry 上限**：防 zip bomb
+
+**有意不做**：
+
+- `.7z` —— 外部 lib（`github.com/saracen/go7z` 或调用 7zz 二进制）复杂
+- `.tar.xz` —— Go stdlib 无 lzma；引 `github.com/ulikunitz/xz` 是新 dep，等用户真要再加
+- `.rar` —— 专利问题
 
 ### `jdan version`
 
