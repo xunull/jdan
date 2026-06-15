@@ -61,6 +61,7 @@ go build -o jdan .
 - [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
 - [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
 - [`jdan ssl pin`](#jdan-ssl-pin) — 生成 cert pinning 用的 SPKI hash（6 种格式）
+- [`jdan ssh-key`](#jdan-ssh-key) — SSH 密钥解析（info / fingerprint / pubkey，对齐 ssh-keygen）
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
@@ -555,6 +556,55 @@ jdan whois 8.8.8.8 --json | jdan json path "parsed.netrange" -r
 # DNS A 记录拿 IP → 判断是否内部
 ip=$(jdan dns lookup myserver.com -t A | tail -1)
 jdan ip contains 10.0.0.0/8 "$ip" && deploy-internal
+```
+
+### `jdan ssh-key`
+
+SSH 公钥/私钥解析工具。3 个子命令覆盖 **综合信息 / fingerprint / 公钥提取**。跟 `jdan ssl` 套件并列成"密钥/证书检查"工具。
+
+详细技术文档：[docs/jdan-ssh-key.md](docs/jdan-ssh-key.md)
+
+**为什么单独做一个**：`ssh-keygen` 语法零碎（`-lf` 看指纹、`-lf -E md5` 看 MD5、`-y` 提公钥），且没有单命令一次看"类型 + 位数 + fingerprint + comment"。`jdan ssh-key` 提供统一接口，自动识别公钥 vs 私钥，fingerprint 跟 ssh-keygen **byte-equal** 能交叉验证。0 新依赖（`golang.org/x/crypto/ssh` 已是 direct dep）。
+
+```bash
+# info：公钥/私钥都吃，一键全字段
+$ jdan ssh-key info ~/.ssh/id_ed25519.pub
+Type:         ssh-ed25519
+Algorithm:    Ed25519
+Bits:         256
+Comment:      quincy@macbook
+Fingerprint:  SHA256:Hk8x...
+MD5:          MD5:43:51:43:a1:...
+
+$ jdan ssh-key info ~/.ssh/id_rsa.pub     # RSA 显示真实位数（从 modulus 算）
+Type:         ssh-rsa
+Algorithm:    RSA
+Bits:         4096
+...
+
+# 加密私钥：不解密只识别，不泄露 key material
+$ jdan ssh-key info ~/.ssh/id_ed25519     # passphrase 保护的
+Type:         OpenSSH private key
+Encrypted:    yes (passphrase-protected; cannot derive public key without it)
+
+# fingerprint：byte-equal 对齐 ssh-keygen -lf
+$ jdan ssh-key fingerprint ~/.ssh/id_ed25519.pub
+256 SHA256:Hk8x... quincy@macbook (ED25519)
+$ jdan ssh-key fingerprint ~/.ssh/id_rsa.pub --md5
+4096 MD5:43:51:... quincy@macbook (RSA)
+
+# pubkey：私钥重建公钥（= ssh-keygen -y），丢了 .pub 文件时用
+$ jdan ssh-key pubkey ~/.ssh/id_ed25519
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... quincy@macbook
+```
+
+**支持** Ed25519 / RSA / ECDSA (p256/384/521) + FIDO/U2F 硬件密钥（`sk-*`）。输入吃文件路径 / `-` stdin / 直接粘贴公钥字符串。
+
+**典型用途**：验证本地 key 跟 GitHub / GitLab / server 上注册的是同一把：
+
+```bash
+jdan ssh-key fingerprint ~/.ssh/id_ed25519.pub
+# → 256 SHA256:Hk8x...  ← 跟 GitHub Settings → SSH keys 显示的对比
 ```
 
 ### `jdan version`
