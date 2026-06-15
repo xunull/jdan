@@ -92,6 +92,7 @@ go build -o jdan .
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
+- [`jdan totp`](#jdan-totp) — TOTP 2FA 验证码（RFC 6238，兼容 Google Authenticator）
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
 
@@ -320,6 +321,47 @@ archive: data.zip  (5 entries, 1.2MB total)
 - `.7z` —— 外部 lib（`github.com/saracen/go7z` 或调用 7zz 二进制）复杂
 - `.tar.xz` —— Go stdlib 无 lzma；引 `github.com/ulikunitz/xz` 是新 dep，等用户真要再加
 - `.rar` —— 专利问题
+
+### `jdan totp`
+
+TOTP 2FA 验证码工具（RFC 6238）。3 个子命令覆盖 **生成 / 解析 otpauth URI / 验证**。兼容 Google Authenticator / Authy / 1Password。
+
+详细技术文档：[docs/jdan-totp.md](docs/jdan-totp.md)
+
+**为什么单独做一个**：secret 已经在本机时（dotfiles / 密码管理器导出 / CI secret），CLI 直接出码秒杀"掏手机 → 开 app → 找条目 → 念数字"的流程；脚本里还能自动填 2FA。0 新依赖（`crypto/hmac` + `encoding/base32` 都是 stdlib）。
+
+> ⚠️ **secret 是长期凭证**。直接传 arg 会进 shell history + 进程列表(`ps`)，只适合临时/测试。长期用走 stdin 或环境变量。
+
+```bash
+# 生成当前码（默认对齐 Google Authenticator：SHA1/6位/30s）
+$ jdan totp code JBSWY3DPEHPK3PXP
+283461   (expires in 17s)
+
+# 更安全的 secret 来源（不进 history）
+$ echo "$SECRET" | jdan totp code -
+$ JDAN_TOTP_SECRET="$SECRET" jdan totp code
+
+# 解析扫码得到的 otpauth URI（参数自动用上）
+$ jdan totp uri "otpauth://totp/GitHub:quincy?secret=JBSWY3DP&issuer=GitHub&digits=6&period=30"
+Issuer:    GitHub
+Account:   quincy
+Algorithm: SHA1
+Digits:    6
+Period:    30s
+Code:      283461   (expires in 17s)
+
+# 验证一个码（退出码 0/1，--window 容时钟漂移）
+$ jdan totp verify JBSWY3DPEHPK3PXP 283461
+✓ valid
+
+# JSON 给脚本消费
+$ jdan totp code JBSWY3DPEHPK3PXP --json
+{"code":"283461","expires_in":17,"period":30,"digits":6}
+```
+
+**base32 secret 容错**：小写 / 空格分组（Google 显示格式）/ 缺 padding 全部自动处理。少数用 SHA256 或 8 位码的服务用 `--algo` / `--digits` 覆盖，或直接走 `uri`（参数在 URI 里）。
+
+实现跟 **RFC 6238 / RFC 4226 官方测试向量 byte-equal**（TOTP 实现的金标准）。
 
 ### `jdan b64`
 
