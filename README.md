@@ -95,6 +95,7 @@ go build -o jdan .
 - [`jdan totp`](#jdan-totp) — TOTP 2FA 验证码（RFC 6238，兼容 Google Authenticator）
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
+- [`jdan num`](#jdan-num) — 进制转换（dec/hex/bin/oct）+ 位运算
 
 **JSON / YAML / CSV**
 - [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines + yaml ↔ json + csv ↔ json
@@ -417,6 +418,48 @@ a b
 |------|-----------|------|
 | 默认 / `--path` | `%20` | URL path 段 / 大多数场景 |
 | `--query` | `+` | URL query string（兼容 application/x-www-form-urlencoded）|
+
+### `jdan num`
+
+进制转换 + 位运算工具。主命令自动检测输入进制，一次性输出 dec/hex/bin/oct + 位信息；`bit` 子命令做位运算。uint64 范围，0 新依赖（纯 `strconv` + `math/bits`）。
+
+详细技术文档：[docs/jdan-num.md](docs/jdan-num.md)
+
+**为什么单独做一个**：看寄存器值、Unix 权限位、flag mask、子网掩码时要在进制间转换，掏计算器/开 python 都慢。`jdan num` 一行出全部进制 + 位展示，`bit` 子命令直接算位运算。
+
+```bash
+# 自动检测进制（0x/0b/0o/前导0/十进制），一次出全部
+$ jdan num 0xDEADBEEF
+Decimal:  3735928559
+Hex:      0xDEADBEEF
+Binary:   0b11011110101011011011111011101111
+Octal:    0o33653337357
+Bits:     24 set (...), width 32
+
+# 位展示（看 flag / mask）
+$ jdan num 0b10110 --bits
+...
+          bit:  4 3 2 1 0
+          val:  1 0 1 1 0
+
+# 二进制零填充对齐寄存器
+$ jdan num 0xFF --width 16
+Binary:   0b0000000011111111
+
+# 位运算（AND/OR/XOR/NOT/<</>>，符号别名 & | ^ ~）
+$ jdan num bit "0xFF AND 0x0F"
+0x0F  (15, 0b1111)
+$ jdan num bit "1 << 8"
+0x100  (256, 0b100000000)
+$ jdan num bit "NOT 0xFF" --width 8
+0x0  (0, 0b0)
+
+# JSON 给脚本消费
+$ jdan num 255 --json
+{"decimal":255,"hex":"0xFF","binary":"0b11111111","octal":"0o377","bits_set":8,"bit_width":8}
+```
+
+**uint64 范围**，负数 / 超 64 位清晰报错不静默 wrap。跟 `jdan hash` / `jdan b64` 同属"编码/进制"工具。
 
 ### `jdan json`
 
