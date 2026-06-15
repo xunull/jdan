@@ -96,6 +96,7 @@ go build -o jdan .
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
 - [`jdan num`](#jdan-num) — 进制转换（dec/hex/bin/oct）+ 位运算
+- [`jdan env`](#jdan-env) — .env 文件工具（lint / diff / redact / get）
 
 **JSON / YAML / CSV**
 - [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines + yaml ↔ json + csv ↔ json
@@ -460,6 +461,42 @@ $ jdan num 255 --json
 ```
 
 **uint64 范围**，负数 / 超 64 位清晰报错不静默 wrap。跟 `jdan hash` / `jdan b64` 同属"编码/进制"工具。
+
+### `jdan env`
+
+`.env` 文件检查工具。4 个子命令覆盖 **lint / diff / redact / get**。偏"检查 / 对比 / 脱敏"，不做加载（那是 `direnv` / `dotenv-cli`）。0 新依赖。
+
+详细技术文档：[docs/jdan-env.md](docs/jdan-env.md)
+
+**为什么单独做一个**：`.env` 出问题很隐蔽——prod 少个 key 部署才发现、未引号空格被 shell 截断、重复 key 悄悄覆盖、贴 issue 泄露 secret。`jdan env` 把这些变成一行命令。
+
+```bash
+# lint：6 类检查，error → 退出码 1（CI gate）
+$ jdan env lint .env
+.env:3   warning  duplicate key DATABASE_URL (first at line 1)
+.env:5   warning  unquoted value with spaces: KEY=hello world
+.env:6   error    invalid key name "2FOO" (must match [A-Za-z_][A-Za-z0-9_]*)
+
+# diff：部署前查漏 key（默认只比 key 不泄露 value）
+$ jdan env diff .env.example .env
+Only in .env.example (3):
+  + STRIPE_SECRET_KEY
+  + REDIS_URL
+  + SMTP_HOST
+Common keys: 12
+$ jdan env diff .env.example .env.prod --exit-code && echo "all keys present"
+
+# redact：脱敏后安全贴 issue
+$ jdan env redact .env | pbcopy
+DATABASE_URL=po**************************db
+export API_KEY=sk***********56
+
+# get：比 grep+cut 可靠（处理引号 / export / 行内注释）
+$ jdan env get .env DATABASE_URL
+postgres://localhost:5432/mydb
+```
+
+支持引号 / `export` 前缀 / 行内注释 / 重复 key 取最后（shell 语义）。`--strict`（warning 也拦）/ `--values`（diff 比 value）/ `--full` / `--keep-short`（redact 策略）。
 
 ### `jdan json`
 
