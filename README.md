@@ -61,6 +61,7 @@ go build -o jdan .
 - [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
 - [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
 - [`jdan ssl pin`](#jdan-ssl-pin) — 生成 cert pinning 用的 SPKI hash（6 种格式）
+- [`jdan cert`](#jdan-cert) — 生成本地开发用自签名 TLS 证书（造 → 看闭环）
 - [`jdan ssh-key`](#jdan-ssh-key) — SSH 密钥解析（info / fingerprint / pubkey，对齐 ssh-keygen）
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
@@ -705,6 +706,42 @@ jdan whois 8.8.8.8 --json | jdan json path "parsed.netrange" -r
 ip=$(jdan dns lookup myserver.com -t A | tail -1)
 jdan ip contains 10.0.0.0/8 "$ip" && deploy-internal
 ```
+
+### `jdan cert`
+
+生成本地开发 / 测试用的自签名 TLS 证书。跟 `jdan ssl cert`（检查证书）互补：一个造，一个看。0 新依赖（纯 `crypto/x509` + `crypto/tls`）。
+
+详细技术文档：[docs/jdan-cert.md](docs/jdan-cert.md)
+
+**为什么单独做一个**：本地 HTTPS 调试要自签证书，`openssl req` 的 flag 谁都记不住、还容易漏 SAN（现代浏览器光 CN 不认）。`jdan cert localhost` 一行搞定，默认就带正确 SAN。
+
+> ⚠ 仅限本地开发 / 测试，不要用于生产（生产证书走 ACME / certbot）。
+
+```bash
+$ jdan cert localhost
+Generated self-signed certificate:
+  Cert:        cert.pem
+  Key:         cert-key.pem
+  Subject:     CN=localhost
+  SAN:         DNS:localhost
+  Key type:    EC (P-256)
+  Valid:       2026-06-16 → 2028-09-18 (825 days)
+  Fingerprint: SHA256:...
+
+# SAN 自动推断（IP 字面量进 IP SAN，否则 DNS）
+$ jdan cert myapp --ip 127.0.0.1,::1 --san "*.myapp.local"
+  SAN:         DNS:myapp, DNS:*.myapp.local, IP:127.0.0.1, IP:::1
+
+# --ca：生成 CA + leaf，信任 CA 一次之后所有它签的都被信任
+$ jdan cert localhost --ca
+  CA cert:     ca.pem        ← 加这个到信任库（一次）
+  ...
+
+# 造 → 看闭环
+$ jdan cert localhost && jdan ssl cert -f cert.pem
+```
+
+`--key-type ec/rsa/ed25519`，key 文件权限 **0600**，`--stdout` / `--json` 输出。leaf 带 ServerAuth EKU，可直接喂给本地 HTTPS server。
 
 ### `jdan ssh-key`
 
