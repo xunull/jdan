@@ -87,6 +87,9 @@ go build -o jdan .
 - [`jdan rand int`](#jdan-rand-int) — 闭区间随机整数
 - [`jdan rand word`](#jdan-rand-word) — EFF diceware passphrase
 
+**测试数据**
+- [`jdan fake`](#jdan-fake) — 生成像真实数据的假值（name/email/uuid/date/ip…），`--seed` 可复现
+
 **集成**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
 
@@ -1837,6 +1840,41 @@ jdan rand word -w 8 -c 5 --json        # 5 个 8 词 passphrase → JSON 数组
 ```
 
 > 当前仅 macOS + Linux（沿用 jdan 现状）。
+
+### `jdan fake`
+
+生成像真实数据的结构化假值，供造测试 fixture、填库、写示例。0 新依赖（内置词库）。跟 `jdan rand`（无意义随机串）互补——`fake` 给的是像真实数据的结构化假值。
+
+详细技术文档：[docs/jdan-fake.md](docs/jdan-fake.md)
+
+**类型**：name / email / uuid / sentence / word / int / date / ip
+
+```bash
+$ jdan fake name
+Alice Chen
+
+$ jdan fake email -n 3
+bob.patel@example.net
+amy.wong@test.org
+leo.kim@demo.net
+
+# --seed 可复现（造稳定 fixture）
+$ jdan fake name --seed 42 -n 2
+Zack Walker
+Cleo King
+
+$ jdan fake int --min 1 --max 6      # 骰子
+$ jdan fake uuid --json -n 5         # JSON 数组
+
+# 无 type + --json → 复合记录
+$ jdan fake --json -n 2
+[
+  {"name":"Bob Patel","email":"bob.patel@example.net","age":74,"ip":"198.51.100.134"},
+  {"name":"Zack Thomas","email":"zack.thomas@example.org","age":33,"ip":"203.0.113.175"}
+]
+```
+
+`--seed N` 切到确定性序列（同 seed 同输出，`date` 用固定窗口不依赖当前日期）；不设则用 `crypto/rand` 真随机。IP 只用 RFC 5737 文档保留段、邮箱用 RFC 2606 示例域名，安全不撞真实资源。`--list` 列出类型。
 
 ### `jdan obsidian install-claudian`
 
