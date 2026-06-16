@@ -96,6 +96,7 @@ go build -o jdan .
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
 - [`jdan num`](#jdan-num) — 进制转换（dec/hex/bin/oct）+ 位运算
+- [`jdan calc`](#jdan-calc) — 算术表达式计算器（+ - * / % ^ + 函数）
 - [`jdan env`](#jdan-env) — .env 文件工具（lint / diff / redact / get）
 
 **JSON / YAML / CSV**
@@ -461,6 +462,31 @@ $ jdan num 255 --json
 ```
 
 **uint64 范围**，负数 / 超 64 位清晰报错不静默 wrap。跟 `jdan hash` / `jdan b64` 同属"编码/进制"工具。
+
+### `jdan calc`
+
+命令行算术表达式计算器。手写递归下降解析器，支持四则 / 幂 / 取模 / 括号 / 一元负号 / 函数 / 常量 / 进制操作数。0 新依赖（纯 `math` + `strconv`）。
+
+详细技术文档：[docs/jdan-calc.md](docs/jdan-calc.md)
+
+**为什么单独做一个**：命令行快算别扭——`python3 -c` 启动慢、`bc` 报错难懂没 `^` 幂、shell `$((...))` 只有整数没函数。`jdan calc` 一行搞定。
+
+```bash
+$ jdan calc "3 * (4 + 5) / 2"     # 13.5
+$ jdan calc "2 ^ 10"              # 1024（^ 右结合，也接受 **）
+$ jdan calc "-5 + 3"              # -2（表达式可以负号开头）
+$ jdan calc "sqrt(2)"            # 1.4142135623730951
+$ jdan calc "max(3, 7, 2)"       # 7
+$ jdan calc "pi * 2"             # 6.283185307179586
+$ jdan calc "0xFF + 1"           # 256（进制操作数）
+$ jdan calc "255 + 1" --hex      # 0x100
+$ jdan calc "10 / 3" --precision 2  # 3.33
+$ echo "1 + 2 * 3" | jdan calc   # stdin → 7
+```
+
+**函数**：sqrt/abs/floor/ceil/round/ln/log10/sin/cos/tan/min/max；**常量**：pi/e/tau（大小写不敏感，可嵌套）。错误带位置信息，比 bc 友好。
+
+**边界**：算术 + 函数归 `jdan calc`；位运算（AND/OR/XOR/shift）归 `jdan num bit`，不重叠。
 
 ### `jdan env`
 
