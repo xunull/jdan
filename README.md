@@ -96,6 +96,7 @@ go build -o jdan .
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
+- [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
 - [`jdan totp`](#jdan-totp) — TOTP 2FA 验证码（RFC 6238，兼容 Google Authenticator）
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
@@ -188,6 +189,33 @@ $ jdan figlet --list               # 列出字体
 ```
 
 字体 `standard`（`#` 描边）/ `block`（实心块 `█`）；覆盖 A-Z / a-z / 0-9 / 标点，小写折叠大写，不支持字符空白占位。`--width` 超长自动换行，`--center` 居中。
+
+### `jdan img`
+
+只读图片**文件头**报出尺寸/格式/颜色模型/大小，不解码整张图（`image.DecodeConfig`，对大图也是常数级开销）。0 新依赖（纯 stdlib）。
+
+详细技术文档：[docs/jdan-img.md](docs/jdan-img.md)
+
+**支持**：PNG / JPEG / GIF（stdlib 解码器；WEBP/BMP/TIFF 需外部依赖，故不做）
+
+```bash
+$ jdan img logo.png
+logo.png
+  格式: PNG
+  尺寸: 512 x 512
+  颜色: NRGBA (含 alpha)
+  大小: 24.3 KiB
+
+# 多文件 → 对齐表格
+$ jdan img hero.jpg thumb.jpg
+hero.jpg   1920x1080  JPEG  340.0 KiB
+thumb.jpg  320x180    JPEG   18.0 KiB
+
+$ jdan img < logo.png         # stdin
+$ jdan img *.png --json       # JSON 数组
+```
+
+批量里某个文件坏/不支持时打一行错误、继续处理其余文件，最后整体 exit 1（不让一个坏文件中断整批）。`--json` 即使全失败也输出合法空数组。
 
 ### `jdan jwt decode`
 
