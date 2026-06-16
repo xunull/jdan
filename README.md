@@ -92,6 +92,7 @@ go build -o jdan .
 
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
+- [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
 - [`jdan totp`](#jdan-totp) — TOTP 2FA 验证码（RFC 6238，兼容 Google Authenticator）
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
@@ -152,6 +153,38 @@ cat secret.txt | jdan qr --output secret.png --ecc H
 ```
 
 不支持的扩展名（如 `.jpg`）会报错；要 JPEG 自行用 `sips`/`ffmpeg` 从 PNG 转。
+
+### `jdan figlet`
+
+把文字渲染成 ASCII art 大横幅（figlet 风格）。0 新依赖（内置字体）。跟 `jdan qr` 同属"把文字变成视觉输出"的家族。
+
+详细技术文档：[docs/jdan-figlet.md](docs/jdan-figlet.md)
+
+**用途**：给 CLI 输出加标题、section 分隔、README banner、终端 MOTD、脚本步骤提示。
+
+```bash
+$ jdan figlet "jdan"
+  ### ####   ###  #   #
+   #  #   # #   # ##  #
+   #  #   # ##### # # #
+#  #  #   # #   # #  ##
+ ##   ####  #   # #   #
+
+# 实心块字体
+$ jdan figlet "OK" --font block
+ ███  █   █
+█   █ █  █
+█   █ ███
+█   █ █  █
+ ███  █   █
+
+$ jdan figlet Deploy OK            # 多 arg 拼接
+$ jdan figlet "Title" --center --width 60
+$ echo "Build Done" | jdan figlet  # stdin
+$ jdan figlet --list               # 列出字体
+```
+
+字体 `standard`（`#` 描边）/ `block`（实心块 `█`）；覆盖 A-Z / a-z / 0-9 / 标点，小写折叠大写，不支持字符空白占位。`--width` 超长自动换行，`--center` 居中。
 
 ### `jdan jwt decode`
 
