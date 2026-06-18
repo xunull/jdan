@@ -90,6 +90,9 @@ go build -o jdan .
 **测试数据**
 - [`jdan fake`](#jdan-fake) — 生成像真实数据的假值（name/email/uuid/date/ip…），`--seed` 可复现
 
+**Git**
+- [`jdan git summary`](#jdan-git-summary) — 仓库一眼看（commit/分支/tag/年龄/贡献者/hotspots）
+
 **集成**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
 
@@ -1903,6 +1906,34 @@ $ jdan fake --json -n 2
 ```
 
 `--seed N` 切到确定性序列（同 seed 同输出，`date` 用固定窗口不依赖当前日期）；不设则用 `crypto/rand` 真随机。IP 只用 RFC 5737 文档保留段、邮箱用 RFC 2606 示例域名，安全不撞真实资源。`--list` 列出类型。
+
+### `jdan git summary`
+
+仓库一眼看：总 commit 数、分支、tag、年龄、贡献者榜、改动最多的文件（hotspots）。纯只读。jdan 第一个 git 命令，底层 shell out 到 `git`（**0 新 Go 依赖**，只要环境里有 git）。
+
+详细技术文档：[docs/jdan-git-summary.md](docs/jdan-git-summary.md)
+
+```bash
+$ jdan git summary
+仓库: jdan
+commit: 77   分支: 5   tag: 2
+年龄: 2026-03-21 起 (约 2 个月)
+
+贡献者 Top 5:
+  xunull  77 (100.0%)
+
+改动最多的文件 (hotspots) Top 5:
+  README.md            40 次
+  go.mod                9 次
+  internal/cli/dns.go   4 次
+
+# 指定仓库 / 控制榜单条数 / 结构化输出
+$ jdan git summary /path/repo
+$ jdan git summary --top 10
+$ jdan git summary --json
+```
+
+年龄用「首 commit → 末 commit」跨度（不依赖系统时间，可复现）。非 git 仓库 / 空仓库 / 缺 git 都有清晰报错。`jdan git` 父命令已留好位置给 changelog / clean / standup 等后续子命令。
 
 ### `jdan obsidian install-claudian`
 
