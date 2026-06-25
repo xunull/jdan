@@ -102,6 +102,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan qr`](#jdan-qr) — generate a QR code (terminal / PNG / SVG)
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
+- [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
 - [`jdan jwt decode`](#jdan-jwt-decode) — purely local JWT decoding (no signature verification, no network)
 - [`jdan totp`](#jdan-totp) — TOTP 2FA codes (RFC 6238, compatible with Google Authenticator)
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 encode/decode (standard / URL-safe / no-pad)
@@ -221,6 +222,35 @@ $ jdan img *.png --json       # JSON array
 ```
 
 When a file in a batch is corrupt/unsupported, it prints a one-line error and continues with the rest, then exits 1 overall (one bad file won't abort the whole batch). `--json` still outputs a valid empty array even if everything fails.
+
+### `jdan mime`
+
+Detect a file's real MIME / content-type by its **content** (magic bytes), **ignoring the extension** — it recognizes the type even if the file was renamed. Zero new dependencies (pure stdlib).
+
+Detailed technical docs: [docs/jdan-mime.md](docs/jdan-mime.md)
+
+The base is stdlib `http.DetectContentType` (~60 types), plus a curated magic table that fills in dev formats stdlib misses (ELF / 7z / xz / zstd / bzip2 / tar / SQLite).
+
+```bash
+$ jdan mime logo.png
+image/png
+
+# multiple files → aligned table
+$ jdan mime a.bin b.bin c.bin
+a.bin   application/pdf
+b.bin   application/zip
+c.bin   text/plain; charset=utf-8
+
+# recognizes a renamed file, and flags the extension mismatch
+$ mv photo.png weird.txt
+$ jdan mime weird.txt
+image/png   (扩展名 .txt 不符)
+
+$ jdan mime < file.bin        # stdin
+$ jdan mime *.bin --json      # JSON array
+```
+
+Extension-mismatch detection uses a built-in extension→type table (OS-independent, reproducible) and deliberately does not fall back to the stdlib lookup that depends on the system's mime.types. Empty file → `inode/x-empty`. A bad file in a batch won't abort the rest; it exits 1 overall. Complements `jdan img` (which focuses on image dimensions).
 
 ### `jdan jwt decode`
 
