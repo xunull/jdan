@@ -95,6 +95,9 @@ go build -o jdan .
 **Git**
 - [`jdan git summary`](#jdan-git-summary) — 仓库一眼看（commit/分支/tag/年龄/贡献者/hotspots）
 
+**文档 / Markdown**
+- [`jdan toc`](#jdan-toc) — 从 Markdown 标题生成目录（GitHub 风格 anchor，可回填）
+
 **集成**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — 装 Claudian Obsidian 插件
 
@@ -1966,6 +1969,27 @@ $ jdan git summary --json
 ```
 
 年龄用「首 commit → 末 commit」跨度（不依赖系统时间，可复现）。非 git 仓库 / 空仓库 / 缺 git 都有清晰报错。`jdan git` 父命令已留好位置给 changelog / clean / standup 等后续子命令。
+
+### `jdan toc`
+
+从 Markdown 标题生成目录（TOC），anchor 跟 **GitHub 渲染规则一致**，可直接贴回 README。0 新依赖（纯 stdlib）。
+
+详细技术文档：[docs/jdan-toc.md](docs/jdan-toc.md)
+
+```bash
+$ jdan toc README.md
+- [安装](#安装)
+  - [方式 1：下载预编译二进制（推荐）](#方式-1下载预编译二进制推荐)
+- [命令](#命令)
+  - [`jdan qr`](#jdan-qr)
+  - [`jdan figlet`](#jdan-figlet)
+
+# 只要某几级 / 回填到文件
+$ jdan toc README.md --min 2 --max 3
+$ jdan toc README.md --inplace   # 替换 <!-- toc --> 标记之间
+```
+
+anchor 算法 lowercase + 删标点（反引号、`#`）+ 空格转连字符 + 重复标题加 `-1`/`-2`，跟 GitHub 一致（已用本 README 验证逐一吻合）。默认从 h2 起（跳过文档大标题）。代码围栏内的 `#` 不会被误当标题。`--inplace` 缺标记会报错、可重复运行（幂等）。
 
 ### `jdan obsidian install-claudian`
 

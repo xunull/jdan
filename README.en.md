@@ -95,6 +95,9 @@ Index grouped by topic (the actual section order follows when each command was a
 **Git**
 - [`jdan git summary`](#jdan-git-summary) — repo at a glance (commits/branches/tags/age/contributors/hotspots)
 
+**Docs / Markdown**
+- [`jdan toc`](#jdan-toc) — generate a table of contents from Markdown headings (GitHub-style anchors, can write back in place)
+
 **Integrations**
 - [`jdan obsidian install-claudian`](#jdan-obsidian-install-claudian) — install the Claudian Obsidian plugin
 
@@ -1955,6 +1958,27 @@ $ jdan git summary --json
 ```
 
 Age uses the span "first commit → last commit" (independent of the system clock, reproducible). Non-git repos / empty repos / a missing git all get a clear error. The `jdan git` parent command has already reserved a place for follow-on subcommands like changelog / clean / standup.
+
+### `jdan toc`
+
+Generate a table of contents from Markdown headings, with anchors that match **GitHub's rendering rules**, so you can paste it straight back into a README. Zero new dependencies (pure stdlib).
+
+Detailed technical docs: [docs/jdan-toc.md](docs/jdan-toc.md)
+
+```bash
+$ jdan toc README.md
+- [安装](#安装)
+  - [方式 1：下载预编译二进制（推荐）](#方式-1下载预编译二进制推荐)
+- [命令](#命令)
+  - [`jdan qr`](#jdan-qr)
+  - [`jdan figlet`](#jdan-figlet)
+
+# limit levels / write back in place
+$ jdan toc README.md --min 2 --max 3
+$ jdan toc README.md --inplace   # replaces between the <!-- toc --> markers
+```
+
+The anchor algorithm (lowercase + strip punctuation like backticks and `#` + spaces to hyphens + `-1`/`-2` suffix on duplicate headings) matches GitHub (verified against this very README, anchor for anchor). Defaults to starting at h2 (skips the document title). A `#` inside a code fence is never mistaken for a heading. `--inplace` errors if the markers are missing and is idempotent (safe to re-run).
 
 ### `jdan obsidian install-claudian`
 
