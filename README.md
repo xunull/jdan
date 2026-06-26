@@ -57,6 +57,7 @@ go build -o jdan .
 
 **网络 & DNS**
 - [`jdan http timing`](#jdan-http-timing) — 测 HTTP 请求各阶段耗时
+- [`jdan http headers`](#jdan-http-headers) — 看响应头 + 完整重定向链（逐跳）
 - [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
@@ -966,6 +967,30 @@ jdan http timing https://example.com -k          # 跳过 TLS 证书验证
 | `-n` | 请求次数（默认 1；大于 1 时追加平均值） |
 | `--json` | 以 JSON 格式输出（Duration 以毫秒浮点数表示） |
 | `-k` / `--insecure` | 跳过 TLS 证书验证 |
+
+### `jdan http headers`
+
+拉一个 URL，打印**状态行 + 响应头 + 完整重定向链**（逐跳显示）。比 `curl -I` 好读。0 新依赖（纯 stdlib）。跟 `http timing`（测阶段耗时）互补。
+
+详细技术文档：[docs/jdan-http-headers.md](docs/jdan-http-headers.md)
+
+```bash
+$ jdan http headers http://github.com
+301 Moved Permanently
+  Location: https://github.com/
+→ 200 OK
+  Content-Type: text/html; charset=utf-8
+  Server: github.com
+  Strict-Transport-Security: max-age=31536000; includeSubdomains; preload
+  ...
+
+$ jdan http headers github.com               # 无 scheme 自动补 https://
+$ jdan http headers <url> --max-redirects 0  # 不跟转
+$ jdan http headers <url> -H "Authorization: Bearer x"
+$ jdan http headers <url> --json
+```
+
+**手动跟重定向**（不靠 client 自动跟），逐跳展示每一跳的 status/Location/响应头——自动跟转做不到。默认 GET 但只读响应头、不下载 body（避开 HEAD 的怪行为）。相对 Location 正确解析；重定向循环被 `--max-redirects` 截断；连接失败时已成功的跳照常列出。重定向跳默认只显 Location，`-a` 每跳显全部头。
 
 ### `jdan http serve`
 

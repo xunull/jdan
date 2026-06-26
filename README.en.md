@@ -57,6 +57,7 @@ Index grouped by topic (the actual section order follows when each command was a
 
 **Network & DNS**
 - [`jdan http timing`](#jdan-http-timing) — measure the time spent in each phase of an HTTP request
+- [`jdan http headers`](#jdan-http-headers) — show response headers + the full redirect chain (hop by hop)
 - [`jdan http serve`](#jdan-http-serve) — temporary static file server + LAN URL + terminal QR code
 - [`jdan net probe`](#jdan-net-probe) — client-side phase-by-phase probe (DNS/TCP/TLS/HTTP)
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — server-side self-check + external reachability prediction
@@ -966,6 +967,30 @@ jdan http timing https://example.com -k          # skip TLS certificate verifica
 | `-n` | number of requests (default 1; appends an average when greater than 1) |
 | `--json` | output as JSON (Duration is a float in milliseconds) |
 | `-k` / `--insecure` | skip TLS certificate verification |
+
+### `jdan http headers`
+
+Fetch a URL and print the **status line + response headers + the full redirect chain** (hop by hop). More readable than `curl -I`. Zero new dependencies (pure stdlib). Complements `http timing` (which times the phases).
+
+Detailed technical docs: [docs/jdan-http-headers.md](docs/jdan-http-headers.md)
+
+```bash
+$ jdan http headers http://github.com
+301 Moved Permanently
+  Location: https://github.com/
+→ 200 OK
+  Content-Type: text/html; charset=utf-8
+  Server: github.com
+  Strict-Transport-Security: max-age=31536000; includeSubdomains; preload
+  ...
+
+$ jdan http headers github.com               # no scheme → https:// added
+$ jdan http headers <url> --max-redirects 0  # don't follow redirects
+$ jdan http headers <url> -H "Authorization: Bearer x"
+$ jdan http headers <url> --json
+```
+
+It **follows redirects manually** (not via the client's auto-follow), showing each hop's status/Location/headers — something auto-follow can't do. Defaults to GET but only reads the response headers, never downloading the body (sidestepping HEAD's quirks). Relative `Location` is resolved correctly; redirect loops are capped by `--max-redirects`; on a connection failure the hops that did succeed are still listed. Redirect hops show only `Location` by default; `-a` shows all headers on every hop.
 
 ### `jdan http serve`
 
