@@ -96,6 +96,7 @@ go build -o jdan .
 
 **Git**
 - [`jdan git summary`](#jdan-git-summary) — 仓库一眼看（commit/分支/tag/年龄/贡献者/hotspots）
+- [`jdan git changelog`](#jdan-git-changelog) — 从最近 tag 到 HEAD 生成 changelog（Conventional Commits 分组）
 
 **文档 / Markdown**
 - [`jdan toc`](#jdan-toc) — 从 Markdown 标题生成目录（GitHub 风格 anchor，可回填）
@@ -2030,7 +2031,35 @@ $ jdan git summary --top 10
 $ jdan git summary --json
 ```
 
-年龄用「首 commit → 末 commit」跨度（不依赖系统时间，可复现）。非 git 仓库 / 空仓库 / 缺 git 都有清晰报错。`jdan git` 父命令已留好位置给 changelog / clean / standup 等后续子命令。
+年龄用「首 commit → 末 commit」跨度（不依赖系统时间，可复现）。非 git 仓库 / 空仓库 / 缺 git 都有清晰报错。
+
+### `jdan git changelog`
+
+从最近 tag 到 HEAD 生成 changelog，按 Conventional Commits 分组（feat→Features / fix→Bug Fixes / …，breaking 单独拎出）。跟 `feat()/fix()` 提交风格契合，发版前一键出发布说明。默认输出 markdown，可直接重定向。底层 shell out `git`（**0 新依赖**）。
+
+详细技术文档：[docs/jdan-git-changelog.md](docs/jdan-git-changelog.md)
+
+```bash
+$ jdan git changelog
+## 未发布 (自 v0.5.2)
+
+### ⚠ Breaking Changes
+- (api) drop the v1 endpoint
+
+### Features
+- (json) add json merge for deep-merging
+- (ping) add jdan ping with --dns
+
+### Bug Fixes
+- (figlet) block font UTF-8 panic
+
+# 指定范围 / 结构化输出
+$ jdan git changelog --from v0.4.0 --to v0.5.0
+$ jdan git changelog > RELEASE.md
+$ jdan git changelog --json
+```
+
+范围默认「最近 tag → HEAD」（无 tag 取全部历史）；merge commit 默认跳过；不符合规范的 subject 归到 Other（不丢）。非 git 仓库 / 非法 ref 有清晰报错。
 
 ### `jdan toc`
 

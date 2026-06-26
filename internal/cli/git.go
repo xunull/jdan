@@ -8,10 +8,11 @@ import (
 func newGitCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "git",
-		Short: "git 辅助工具（summary…）",
+		Short: "git 辅助工具（summary/changelog…）",
 		Long:  "git 辅助工具。底层调用 git，0 新依赖（只要环境里有 git）。",
 	}
 	cmd.AddCommand(newGitSummaryCommand(gitSummaryDeps{}))
+	cmd.AddCommand(newGitChangelogCommand(gitChangelogDeps{}))
 	return cmd
 }
 

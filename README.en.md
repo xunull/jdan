@@ -96,6 +96,7 @@ Index grouped by topic (the actual section order follows when each command was a
 
 **Git**
 - [`jdan git summary`](#jdan-git-summary) — repo at a glance (commits/branches/tags/age/contributors/hotspots)
+- [`jdan git changelog`](#jdan-git-changelog) — generate a changelog from the latest tag to HEAD (grouped by Conventional Commits)
 
 **Docs / Markdown**
 - [`jdan toc`](#jdan-toc) — generate a table of contents from Markdown headings (GitHub-style anchors, can write back in place)
@@ -2019,7 +2020,35 @@ $ jdan git summary --top 10
 $ jdan git summary --json
 ```
 
-Age uses the span "first commit → last commit" (independent of the system clock, reproducible). Non-git repos / empty repos / a missing git all get a clear error. The `jdan git` parent command has already reserved a place for follow-on subcommands like changelog / clean / standup.
+Age uses the span "first commit → last commit" (independent of the system clock, reproducible). Non-git repos / empty repos / a missing git all get a clear error.
+
+### `jdan git changelog`
+
+Generate a changelog from the latest tag to HEAD, grouped by Conventional Commits (feat→Features / fix→Bug Fixes / …, breaking changes pulled out on their own). Fits the `feat()/fix()` commit style, one command for release notes before a version bump. Outputs markdown by default, ready to redirect. Shells out to `git` underneath (**zero new dependencies**).
+
+Detailed technical docs: [docs/jdan-git-changelog.md](docs/jdan-git-changelog.md)
+
+```bash
+$ jdan git changelog
+## 未发布 (自 v0.5.2)
+
+### ⚠ Breaking Changes
+- (api) drop the v1 endpoint
+
+### Features
+- (json) add json merge for deep-merging
+- (ping) add jdan ping with --dns
+
+### Bug Fixes
+- (figlet) block font UTF-8 panic
+
+# specify a range / structured output
+$ jdan git changelog --from v0.4.0 --to v0.5.0
+$ jdan git changelog > RELEASE.md
+$ jdan git changelog --json
+```
+
+The range defaults to "latest tag → HEAD" (whole history if there are no tags); merge commits are skipped by default; non-conforming subjects land in Other (nothing dropped). Non-git repos / invalid refs get a clear error.
 
 ### `jdan toc`
 
