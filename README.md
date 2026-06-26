@@ -129,6 +129,7 @@ go build -o jdan .
 
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
+- [`jdan entropy`](#jdan-entropy) — 算 Shannon 熵（判断是否加密/压缩/随机；滑窗 sparkline）
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -401,6 +402,35 @@ file2.tar: OK
 - xxh3（非加密但 4 GB/s 的 hash）—— 引第三方 dep（`github.com/zeebo/xxh3`），等用户真要再加
 - BLAKE2 / BLAKE3 —— 同上
 - `--binary` flag（跟 GNU `sha256sum -b` 对齐）—— 文本 / binary 模式在 Unix 上没区别
+
+### `jdan entropy`
+
+算一段字符串/文件/stdin 的 **Shannon 熵**（字节分布的信息量，0–8 bits/byte）。高（≥7.5）≈ 加密/压缩/随机，低 ≈ 重复/结构化文本。用来判断「这段数据是不是加密/压缩过」「文件里藏没藏高熵 secret」「能不能压缩」。0 新依赖（纯 `math`）。
+
+详细技术文档：[docs/jdan-entropy.md](docs/jdan-entropy.md)
+
+```bash
+$ jdan entropy "hello world"
+bytes:    11
+entropy:  2.85 bits/byte   (低：文本/结构化)
+total:    31.3 bits
+distinct: 8 / 256 字节值
+
+$ head -c 4096 /dev/urandom | jdan entropy | head -2
+bytes:    4096
+entropy:  7.96 bits/byte   (极高：疑似加密/压缩/随机)
+
+# 滑窗 sparkline：一眼看出固件/二进制里被压缩/加密的那段
+$ jdan entropy -f firmware.bin --window 512
+▁▁▂▃█████▇▆▂▁
+峰值 7.97 @ 偏移 0x1A00
+
+# --charset：附加「搜索空间 bits」估算（明确非密码强度评分）
+$ jdan entropy "Tr0ub4dour" --charset
+charset:  62 符号集 ≈ 59.5 bits（搜索空间，非强度评分）
+```
+
+输入：位置参数=字符串 / `-f` 文件 / 无参=stdin；`--json` 结构化。**「熵」锚定在严格的 Shannon 定义**（数据随机性），不冒充密码强度评分——真要测强度该用字典/模式检查（zxcvbn 那套，要引库）。
 
 ### `jdan extract`
 

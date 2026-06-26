@@ -129,6 +129,7 @@ Index grouped by topic (the actual section order follows when each command was a
 
 **File Hashing & Archives**
 - [`jdan hash`](#jdan-hash) — cross-platform md5/sha1/sha256/sha512 + `--check` verification
+- [`jdan entropy`](#jdan-entropy) — compute Shannon entropy (tell if data is encrypted/compressed/random; sliding-window sparkline)
 - [`jdan extract`](#jdan-extract) — general-purpose extraction for zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -401,6 +402,35 @@ If anything is FAILED → exit 1, handy for monitoring / CI gates. **The algorit
 - xxh3 (a non-cryptographic but 4 GB/s hash) — pulls in a third-party dep (`github.com/zeebo/xxh3`), will add it when someone actually needs it
 - BLAKE2 / BLAKE3 — same as above
 - `--binary` flag (matching GNU `sha256sum -b`) — text / binary modes are no different on Unix
+
+### `jdan entropy`
+
+Compute the **Shannon entropy** of a string / file / stdin (information content of the byte distribution, 0–8 bits/byte). High (≥7.5) ≈ encrypted/compressed/random, low ≈ repetitive/structured text. Use it to tell whether data is encrypted/compressed, spot high-entropy secrets in a file, or gauge compressibility. Zero new dependencies (pure `math`).
+
+Detailed technical docs: [docs/jdan-entropy.md](docs/jdan-entropy.md)
+
+```bash
+$ jdan entropy "hello world"
+bytes:    11
+entropy:  2.85 bits/byte   (低：文本/结构化)
+total:    31.3 bits
+distinct: 8 / 256 字节值
+
+$ head -c 4096 /dev/urandom | jdan entropy | head -2
+bytes:    4096
+entropy:  7.96 bits/byte   (极高：疑似加密/压缩/随机)
+
+# sliding-window sparkline: spot the compressed/encrypted region in a firmware/binary blob at a glance
+$ jdan entropy -f firmware.bin --window 512
+▁▁▂▃█████▇▆▂▁
+峰值 7.97 @ 偏移 0x1A00
+
+# --charset: an extra "search-space bits" estimate (explicitly NOT a strength score)
+$ jdan entropy "Tr0ub4dour" --charset
+charset:  62 符号集 ≈ 59.5 bits（搜索空间，非强度评分）
+```
+
+Input: positional arg = string / `-f` = file / no arg = stdin; `--json` for structured output. **"Entropy" is anchored to the strict Shannon definition** (data randomness); it does not pretend to be a password strength score — real strength needs dictionary/pattern checks (the zxcvbn approach, which needs a library).
 
 ### `jdan extract`
 
