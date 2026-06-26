@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xunull/jdan/internal/jwtdecode"
+	"github.com/xunull/jdan/internal/jwtverify"
 )
 
 type jwtCmdDeps struct {
@@ -31,12 +32,14 @@ func newJWTCommand(deps jwtCmdDeps) *cobra.Command {
 
 目前提供：
   jdan jwt decode <token>   纯本地解码 JWT header + payload（不验签、不联网）
+  jdan jwt verify <token>   用 HMAC 密钥校验签名（HS256/384/512）
 
 将来可能加：
-  jdan jwt verify           带 key 验签
+  jdan jwt verify --key     RS*/ES* 公钥验签
   jdan jwt encode           构造 JWT`,
 	}
 	cmd.AddCommand(newJWTDecodeCommand(deps))
+	cmd.AddCommand(newJWTVerifyCommand(deps))
 	return cmd
 }
 
@@ -80,6 +83,63 @@ signature 段在文本输出里只显示 "(present, X bytes)"，避免误粘到�
 	cmd.Flags().Bool("header-only", false, "只输出 header")
 	cmd.Flags().Bool("json", false, "结构化 JSON 输出（含 signature）")
 	cmd.Flags().Bool("raw", false, "不 pretty-print，输出原始 JSON")
+	return cmd
+}
+
+func newJWTVerifyCommand(deps jwtCmdDeps) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "verify [token]",
+		Short: "用 HMAC 密钥校验 JWT 签名（HS256/384/512）",
+		Long: `校验 JWT 签名。仅支持 HMAC（HS256/384/512），需要 --secret。
+
+安全：以 header.alg 为准；token 是 RS*/ES* 而你给了 --secret → 报错拒绝
+（防 alg-confusion），绝不把非 HMAC token 当 HMAC 验。
+
+校验通过 exit 0，失败 exit 1（方便脚本 gate）。
+
+例：
+  jdan jwt verify "$TOKEN" --secret mykey
+  echo "$TOKEN" | jdan jwt verify --secret mykey
+  jdan jwt verify "$TOKEN" --secret mykey --json`,
+		Args:          cobra.MaximumNArgs(1),
+		SilenceUsage:  true,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if !cmd.Flags().Changed("secret") {
+				return errors.New("需要 --secret 指定 HMAC 密钥")
+			}
+			secret, _ := cmd.Flags().GetString("secret")
+			asJSON, _ := cmd.Flags().GetBool("json")
+
+			token, err := readJWTToken(deps.in, args)
+			if err != nil {
+				return err
+			}
+			alg, ok, err := jwtverify.Verify(token, []byte(secret))
+			if err != nil {
+				return err
+			}
+
+			if asJSON {
+				enc := json.NewEncoder(deps.out)
+				enc.SetIndent("", "  ")
+				if err := enc.Encode(map[string]any{"alg": alg, "valid": ok}); err != nil {
+					return err
+				}
+			} else if ok {
+				fmt.Fprintf(deps.out, "✓ 签名有效 (%s)\n", alg)
+			} else {
+				fmt.Fprintf(deps.out, "✗ 签名无效 (%s)\n", alg)
+			}
+
+			if !ok {
+				return errors.New("签名校验失败")
+			}
+			return nil
+		},
+	}
+	cmd.Flags().String("secret", "", "HMAC 密钥（HS256/384/512）")
+	cmd.Flags().Bool("json", false, "结构化输出 {alg, valid}")
 	return cmd
 }
 

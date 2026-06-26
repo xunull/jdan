@@ -110,6 +110,7 @@ go build -o jdan .
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
 - [`jdan mime`](#jdan-mime) — 按 magic bytes 判断文件真实类型（不看扩展名）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
+- [`jdan jwt verify`](#jdan-jwt-verify) — HMAC 校验 JWT 签名（HS256/384/512，防 alg-confusion）
 - [`jdan totp`](#jdan-totp) — TOTP 2FA 验证码（RFC 6238，兼容 Google Authenticator）
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
@@ -311,9 +312,37 @@ kubectl get secret my-jwt -o jsonpath='{.data.token}' | base64 -d | jdan jwt dec
 
 **不提供的功能**（设计取舍）：
 
-- 不验签 —— 后续可能加 `jdan jwt verify --key ...` 单独子命令
+- `decode` 不验签 —— 验签是独立的 `jdan jwt verify` 子命令（见下）
 - 不查 issuer 的 jwks_uri —— 任何网络行为都属于 `verify` 而不是 `decode`
 - 不构造 JWT —— 同上
+
+### `jdan jwt verify`
+
+用 HMAC 密钥校验 JWT 签名（HS256/384/512）。`decode` 只看内容、不验签；`verify` 专做验签，需要 `--secret`。
+
+详细技术文档：[docs/jdan-jwt-verify.md](docs/jdan-jwt-verify.md)
+
+```bash
+$ jdan jwt verify "$TOKEN" --secret mykey
+✓ 签名有效 (HS256)            # 通过 → exit 0
+
+$ jdan jwt verify "$TOKEN" --secret wrong
+✗ 签名无效 (HS256)            # 失败 → exit 1（方便脚本 gate）
+
+$ echo "Bearer $TOKEN" | jdan jwt verify --secret mykey   # stdin + 自动剥 Bearer
+$ jdan jwt verify "$TOKEN" --secret mykey --json          # {alg, valid}
+```
+
+**安全要点 —— 防 alg-confusion**：校验**以 header.alg 为准**。如果 token 是 `RS256`/`ES256` 之类而你给了 `--secret`，会直接**报错拒绝**，绝不把非 HMAC token 当 HMAC 验（这正是经典的 alg 混淆攻击面）。HMAC 比对走 `crypto/hmac.Equal`（常量时间）。
+
+flags：
+
+| flag | 作用 |
+|------|------|
+| `--secret` | HMAC 密钥（给了才校签，仅 HS256/384/512） |
+| `--json` | 结构化输出 `{alg, valid}` |
+
+**有意不做**：RS*/ES* 公钥校验（需读 PEM 公钥 + 各曲线，后续可加 `--key`）；签发 JWT（jdan 是 inspector 取向）。
 
 ### `jdan hash`
 

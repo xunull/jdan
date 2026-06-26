@@ -110,6 +110,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
 - [`jdan jwt decode`](#jdan-jwt-decode) — purely local JWT decoding (no signature verification, no network)
+- [`jdan jwt verify`](#jdan-jwt-verify) — HMAC-verify a JWT signature (HS256/384/512, alg-confusion defense)
 - [`jdan totp`](#jdan-totp) — TOTP 2FA codes (RFC 6238, compatible with Google Authenticator)
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 encode/decode (standard / URL-safe / no-pad)
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
@@ -311,9 +312,37 @@ kubectl get secret my-jwt -o jsonpath='{.data.token}' | base64 -d | jdan jwt dec
 
 **Features not provided** (design trade-offs):
 
-- No signature verification — a separate `jdan jwt verify --key ...` subcommand may come later
+- `decode` does no signature verification — verification is the separate `jdan jwt verify` subcommand (below)
 - No fetching the issuer's jwks_uri — any network behavior belongs to `verify`, not `decode`
 - No JWT construction — same as above
+
+### `jdan jwt verify`
+
+Verify a JWT signature with an HMAC secret (HS256/384/512). `decode` only inspects the contents and never verifies; `verify` does just the verification and needs `--secret`.
+
+Detailed technical docs: [docs/jdan-jwt-verify.md](docs/jdan-jwt-verify.md)
+
+```bash
+$ jdan jwt verify "$TOKEN" --secret mykey
+✓ 签名有效 (HS256)            # valid → exit 0
+
+$ jdan jwt verify "$TOKEN" --secret wrong
+✗ 签名无效 (HS256)            # invalid → exit 1 (easy to gate in scripts)
+
+$ echo "Bearer $TOKEN" | jdan jwt verify --secret mykey   # stdin + auto-strips Bearer
+$ jdan jwt verify "$TOKEN" --secret mykey --json          # {alg, valid}
+```
+
+**Security — alg-confusion defense**: verification goes by `header.alg`. If the token is `RS256`/`ES256` and you pass `--secret`, it errors out and refuses, never treating a non-HMAC token as HMAC (this is exactly the classic alg-confusion attack surface). HMAC comparison uses `crypto/hmac.Equal` (constant time).
+
+flags:
+
+| flag | purpose |
+|------|---------|
+| `--secret` | HMAC secret (verifies only when given, HS256/384/512 only) |
+| `--json` | structured output `{alg, valid}` |
+
+**Intentionally not done**: RS*/ES* public-key verification (needs reading a PEM public key + each curve, a later `--key` could add it); issuing JWTs (jdan leans inspector).
 
 ### `jdan hash`
 
