@@ -65,6 +65,7 @@ go build -o jdan .
 - [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
 - [`jdan ssl pin`](#jdan-ssl-pin) — 生成 cert pinning 用的 SPKI hash（6 种格式）
 - [`jdan cert`](#jdan-cert) — 生成本地开发用自签名 TLS 证书（造 → 看闭环）
+- [`jdan pem`](#jdan-pem) — 离线检视 PEM 文件（证书/CSR/私钥/公钥；key↔cert 匹配；不打印私钥）
 - [`jdan ssh-key`](#jdan-ssh-key) — SSH 密钥解析（info / fingerprint / pubkey，对齐 ssh-keygen）
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
@@ -889,6 +890,34 @@ $ jdan cert localhost && jdan ssl cert -f cert.pem
 ```
 
 `--key-type ec/rsa/ed25519`，key 文件权限 **0600**，`--stdout` / `--json` 输出。leaf 带 ServerAuth EKU，可直接喂给本地 HTTPS server。
+
+### `jdan pem`
+
+离线检视一个 PEM 文件：把每个 PEM 块拆出来、认出类型、给摘要。**不联网、绝不打印私钥内容**。跟 `jdan ssl cert`（联网抓 host 证书）/ `jdan cert`（生成自签证书）互补——`pem` 读本地文件。0 新依赖（复用 `internal/sslcert` 的证书描述）。
+
+详细技术文档：[docs/jdan-pem.md](docs/jdan-pem.md)
+
+```bash
+$ jdan pem fullchain.pem
+[1] CERTIFICATE  (1187 bytes)
+    subject:  CN=example.com
+    issuer:   CN=R3, O=Let's Encrypt
+    validity: 2026-01-01 → 2026-04-01  (剩余 64d)
+    SAN:      example.com, www.example.com
+    key:      RSA 2048
+    CA:       false
+    sha256:   ab:cd:ef:...
+
+$ jdan pem server.key
+[1] PRIVATE KEY  (138 bytes)
+    key:      EC P-256   （私钥内容不打印）
+
+# cert + key 合一时，自动比对公钥告诉你是否匹配
+$ cat cert.pem key.pem | jdan pem | tail -1
+✓ 私钥与证书匹配
+```
+
+支持的块型：CERTIFICATE / CERTIFICATE REQUEST(CSR) / 各种 PRIVATE KEY（只给类型+位数）/ PUBLIC KEY / 加密私钥（标记不解密）/ 其它（类型+大小）。多块（fullchain / cert+key）全部列出，单块解析失败行内标注、继续下一块。`--json` 结构化。无 PEM 块 / 文件读不了 → 报错。
 
 ### `jdan ssh-key`
 

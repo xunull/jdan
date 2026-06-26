@@ -65,6 +65,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan ssl scan`](#jdan-ssl-scan) — full TLS configuration audit (ssllabs-style A+/A/B/C/D/F grade)
 - [`jdan ssl pin`](#jdan-ssl-pin) — generate the SPKI hash for cert pinning (6 formats)
 - [`jdan cert`](#jdan-cert) — generate a self-signed TLS certificate for local development (make → inspect loop)
+- [`jdan pem`](#jdan-pem) — inspect a PEM file offline (cert/CSR/private/public key; key↔cert match; never prints keys)
 - [`jdan ssh-key`](#jdan-ssh-key) — SSH key parsing (info / fingerprint / pubkey, matching ssh-keygen)
 - [`jdan dns lookup`](#jdan-dns-lookup) — query 6 record types concurrently, with DoH support
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → hostname (PTR lookup)
@@ -889,6 +890,34 @@ $ jdan cert localhost && jdan ssl cert -f cert.pem
 ```
 
 `--key-type ec/rsa/ed25519`, key file permissions are **0600**, with `--stdout` / `--json` output. The leaf carries a ServerAuth EKU and can be fed directly to a local HTTPS server.
+
+### `jdan pem`
+
+Inspect a PEM file offline: split out every PEM block, identify its type, and summarize each. **No network, never prints private key material**. Complements `jdan ssl cert` (fetches a host's TLS cert over the network) and `jdan cert` (generates a self-signed cert) — `pem` reads a local file. Zero new dependencies (reuses `internal/sslcert` for the cert description).
+
+Detailed technical docs: [docs/jdan-pem.md](docs/jdan-pem.md)
+
+```bash
+$ jdan pem fullchain.pem
+[1] CERTIFICATE  (1187 bytes)
+    subject:  CN=example.com
+    issuer:   CN=R3, O=Let's Encrypt
+    validity: 2026-01-01 → 2026-04-01  (剩余 64d)
+    SAN:      example.com, www.example.com
+    key:      RSA 2048
+    CA:       false
+    sha256:   ab:cd:ef:...
+
+$ jdan pem server.key
+[1] PRIVATE KEY  (138 bytes)
+    key:      EC P-256   （私钥内容不打印）
+
+# when a cert + key are combined, it compares public keys to tell you if they match
+$ cat cert.pem key.pem | jdan pem | tail -1
+✓ 私钥与证书匹配
+```
+
+Supported block types: CERTIFICATE / CERTIFICATE REQUEST (CSR) / private keys (type + size only) / PUBLIC KEY / encrypted private keys (flagged, not decrypted) / others (type + size). Multiple blocks (fullchain / cert+key) are all listed; a block that fails to parse is noted inline and the walk continues. `--json` for structured output. No PEM blocks / unreadable file → error.
 
 ### `jdan ssh-key`
 
