@@ -78,6 +78,7 @@ go build -o jdan .
 - [`jdan file bak`](#jdan-file-bak) — 给文件打带时间戳的备份
 - [`jdan zip`](#jdan-zip) — 把文件或目录打成 `.zip`
 - [`jdan tree2`](#jdan-tree2) — 多列展示两层目录树
+- [`jdan disk`](#jdan-disk) — 磁盘使用一览（各挂载点容量/占用，df 式）
 - [`jdan readme`](#jdan-readme) — 输出指定目录的 README.md（带 bat 高亮）
 
 **系统**
@@ -1921,6 +1922,27 @@ jdan tree2 --limit 0                # 不限制每个一级目录显示的子项
 | `--files` | 包含文件（默认只显示目录） |
 | `--all` | 包含隐藏文件和目录 |
 | `--limit` | 每个一级目录最多显示的子项数量，默认 50；`0` 表示不限制 |
+
+### `jdan disk`
+
+像 `df`：列各挂载点的容量/已用/可用/使用率，带使用率条和高占用染色。给路径则只看该路径所在的文件系统。**0 新依赖**（纯 `syscall`）。仅 darwin / linux。
+
+详细技术文档：[docs/jdan-disk.md](docs/jdan-disk.md)
+
+```bash
+$ jdan disk
+文件系统         容量   已用   可用  使用率          挂载点
+/dev/disk3s1s1  1.8Ti  1.6Ti  269Gi  86% ████████░   /
+/dev/disk9s2    1.8Ti  1.7Ti   95Gi  95% █████████   /Volumes/m1max-tm
+
+$ jdan disk /        # 只看根分区所在文件系统
+$ jdan disk -a       # 含伪文件系统（devfs/tmpfs/map…）
+$ jdan disk -i       # 显示 inode 用量
+$ jdan disk --bytes  # 原始字节
+$ jdan disk --json
+```
+
+使用率算法对齐 `df`（`已用/(已用+可用)` 向上取整）。TTY 下使用率 ≥90% 染红、≥75% 染黄；管道/重定向纯文本不插 ANSI。默认隐藏伪文件系统，`-a` 全显。Windows 暂不支持（报清晰错）。
 
 ### `jdan unix-time`
 

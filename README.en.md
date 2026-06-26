@@ -78,6 +78,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan file bak`](#jdan-file-bak) — make a timestamped backup of a file
 - [`jdan zip`](#jdan-zip) — pack a file or directory into a `.zip`
 - [`jdan tree2`](#jdan-tree2) — show a two-level directory tree in multiple columns
+- [`jdan disk`](#jdan-disk) — disk usage overview (per-mount capacity, df-style)
 - [`jdan readme`](#jdan-readme) — print the README.md of a given directory (with bat highlighting)
 
 **System**
@@ -1920,6 +1921,27 @@ jdan tree2 --limit 0                # don't limit the number of children shown p
 | `--files` | include files (directories only by default) |
 | `--all` | include hidden files and directories |
 | `--limit` | the max number of children shown per top-level directory, default 50; `0` means no limit |
+
+### `jdan disk`
+
+Like `df`: list each mount point's size / used / available / use%, with a usage bar and high-usage coloring. Give a path to see just that path's filesystem. **Zero new dependencies** (pure `syscall`). darwin / linux only.
+
+Detailed technical docs: [docs/jdan-disk.md](docs/jdan-disk.md)
+
+```bash
+$ jdan disk
+文件系统         容量   已用   可用  使用率          挂载点
+/dev/disk3s1s1  1.8Ti  1.6Ti  269Gi  86% ████████░   /
+/dev/disk9s2    1.8Ti  1.7Ti   95Gi  95% █████████   /Volumes/m1max-tm
+
+$ jdan disk /        # just the filesystem holding the root path
+$ jdan disk -a       # include pseudo filesystems (devfs/tmpfs/map…)
+$ jdan disk -i       # show inode usage
+$ jdan disk --bytes  # raw bytes
+$ jdan disk --json
+```
+
+The use% matches `df` (`used/(used+avail)`, rounded up). On a TTY, use% ≥90% is red and ≥75% is yellow; piped/redirected output is plain text with no ANSI. Pseudo filesystems are hidden by default; `-a` shows everything. Windows is not supported yet (clear error).
 
 ### `jdan unix-time`
 
