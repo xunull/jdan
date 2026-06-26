@@ -86,6 +86,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **Random Generation (CSPRNG)**
 - [`jdan rand password`](#jdan-rand-password) — 1Password-style random password
 - [`jdan rand uuid`](#jdan-rand-uuid) — UUID v4 / v7
+- [`jdan uuid`](#jdan-uuid) — inspect a UUID (version/variant/v1·v7 timestamp/bytes)
 - [`jdan rand hex`](#jdan-rand-hex--base64--base64url--base32) / [`base64`](#jdan-rand-hex--base64--base64url--base32) / [`base64url`](#jdan-rand-hex--base64--base64url--base32) / [`base32`](#jdan-rand-hex--base64--base64url--base32) — random bytes + encoding
 - [`jdan rand alnum`](#jdan-rand-alnum) — alphanumeric string (no per-class constraint)
 - [`jdan rand int`](#jdan-rand-int) — random integer in a closed interval
@@ -1987,6 +1988,28 @@ jdan rand word -w 8 -c 5 --json        # 5 8-word passphrases → JSON array
 ```
 
 > Currently macOS + Linux only (following jdan's status quo).
+
+### `jdan uuid`
+
+Inspect a UUID: version, variant, embedded v1/v7 timestamp, bytes, URN form, nil/max. Generation lives in `jdan rand uuid`; this command does the **parsing** (`jdan uuid new` is a thin wrapper reusing the same implementation, zero logic duplication). Zero new dependencies.
+
+Detailed technical docs: [docs/jdan-uuid.md](docs/jdan-uuid.md)
+
+```bash
+$ jdan uuid 0190a1b2-c3d4-7e5f-8a9b-1c2d3e4f5a6b
+canonical: 0190a1b2-c3d4-7e5f-8a9b-1c2d3e4f5a6b
+version:   7 (时间排序)
+variant:   RFC 4122
+time:      2026-06-26 14:00:00.000 UTC
+bytes:     01 90 a1 b2 c3 d4 7e 5f 8a 9b 1c 2d 3e 4f 5a 6b
+urn:       urn:uuid:0190a1b2-c3d4-7e5f-8a9b-1c2d3e4f5a6b
+
+# input-tolerant (urn: prefix / {braces} / no hyphens / case) + stdin + JSON
+$ echo "$U" | jdan uuid --json
+$ jdan uuid new --v7 -n 3      # generate (reuses jdan rand uuid)
+```
+
+v7/v1 timestamps are decoded automatically; nil (all zero) / max (all F) are flagged. Invalid UUIDs get a clear error.
 
 ### `jdan fake`
 

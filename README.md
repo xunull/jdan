@@ -86,6 +86,7 @@ go build -o jdan .
 **随机生成（CSPRNG）**
 - [`jdan rand password`](#jdan-rand-password) — 1Password 风格随机密码
 - [`jdan rand uuid`](#jdan-rand-uuid) — UUID v4 / v7
+- [`jdan uuid`](#jdan-uuid) — 检视 UUID（版本/variant/v1·v7 时间戳/字节）
 - [`jdan rand hex`](#jdan-rand-hex--base64--base64url--base32) / [`base64`](#jdan-rand-hex--base64--base64url--base32) / [`base64url`](#jdan-rand-hex--base64--base64url--base32) / [`base32`](#jdan-rand-hex--base64--base64url--base32) — 字节级随机 + 编码
 - [`jdan rand alnum`](#jdan-rand-alnum) — 字母数字串（无类约束）
 - [`jdan rand int`](#jdan-rand-int) — 闭区间随机整数
@@ -1998,6 +1999,28 @@ jdan rand word -w 8 -c 5 --json        # 5 个 8 词 passphrase → JSON 数组
 ```
 
 > 当前仅 macOS + Linux（沿用 jdan 现状）。
+
+### `jdan uuid`
+
+检视一个 UUID：版本、variant、v1/v7 内嵌时间戳、字节、URN 形式、nil/max。生成在 `jdan rand uuid`，本命令专做**解析**（`jdan uuid new` 是薄封装，复用同一实现，零逻辑重复）。0 新依赖。
+
+详细技术文档：[docs/jdan-uuid.md](docs/jdan-uuid.md)
+
+```bash
+$ jdan uuid 0190a1b2-c3d4-7e5f-8a9b-1c2d3e4f5a6b
+canonical: 0190a1b2-c3d4-7e5f-8a9b-1c2d3e4f5a6b
+version:   7 (时间排序)
+variant:   RFC 4122
+time:      2026-06-26 14:00:00.000 UTC
+bytes:     01 90 a1 b2 c3 d4 7e 5f 8a 9b 1c 2d 3e 4f 5a 6b
+urn:       urn:uuid:0190a1b2-c3d4-7e5f-8a9b-1c2d3e4f5a6b
+
+# 输入容错（urn 前缀 / 花括号 / 无连字符 / 大小写）+ stdin + JSON
+$ echo "$U" | jdan uuid --json
+$ jdan uuid new --v7 -n 3      # 生成（复用 jdan rand uuid）
+```
+
+v7/v1 自动解出内嵌时间戳；nil（全 0）/ max（全 F）特殊标注。非法 UUID 清晰报错。
 
 ### `jdan fake`
 
