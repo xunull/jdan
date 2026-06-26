@@ -117,7 +117,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan env`](#jdan-env) — .env file tools (lint / diff / redact / get)
 
 **JSON / YAML / CSV**
-- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines/flatten + yaml ↔ json + csv ↔ json
+- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines/flatten/merge + yaml ↔ json + csv ↔ json
 
 **Network / Lookup**
 - [`jdan whois`](#jdan-whois) — domain/IP WHOIS (auto routing + IANA/ARIN referral following + parsed table)
@@ -631,7 +631,7 @@ Supports quotes / the `export` prefix / inline comments / last-wins for duplicat
 
 ### `jdan json`
 
-A JSON toolkit (**12 subcommands**). Design goal: zero learning curve for common operations, **not a jq replacement**. Use jq for complex queries; jdan json covers the 80% of everyday high-frequency cases.
+A JSON toolkit (**13 subcommands**). Design goal: zero learning curve for common operations, **not a jq replacement**. Use jq for complex queries; jdan json covers the 80% of everyday high-frequency cases.
 
 Detailed technical docs: [docs/jdan-json.md](docs/jdan-json.md)
 
@@ -682,9 +682,13 @@ $ echo '{"a":{"b":1,"c":[10,20]}}' | jdan json flatten
 {"a.b":1,"a.c[0]":10,"a.c[1]":20}
 $ echo '{"a.b":1,"a.c":2}' | jdan json unflatten
 {"a":{"b":1,"c":2}}
+
+# merge (deep merge, later overrides earlier; objects merge recursively, not wholesale replace)
+$ jdan json merge defaults.json prod.json local.json     # config layering
+$ jdan json merge a.json b.json --arrays append          # concatenate arrays instead of replacing
 ```
 
-`flatten`/`unflatten`: see [docs/jdan-json-flatten.md](docs/jdan-json-flatten.md) — round-trips (empty containers preserved + big-int precision), `--sep` to change the separator, sparse arrays filled with null, object/array conflict detection.
+`flatten`/`unflatten`: see [docs/jdan-json-flatten.md](docs/jdan-json-flatten.md) — round-trips (empty containers preserved + big-int precision), `--sep` to change the separator, sparse arrays filled with null, object/array conflict detection. `merge`: see [docs/jdan-json-merge.md](docs/jdan-json-merge.md) — objects merge recursively, `--arrays replace/append`, `-`=stdin, big-int precision preserved, inputs not mutated.
 
 **Working with jq**:
 
