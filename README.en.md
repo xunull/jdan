@@ -1957,9 +1957,18 @@ $ jdan cal -y 2026      # whole year (3×4 month blocks)
 $ jdan cal -3           # previous / current / next month side by side
 $ jdan cal -w           # show ISO week numbers in a left column
 $ jdan cal 6 2026 -s    # Sunday start
+
+$ jdan cal -l           # lunar overlay: the lunar day under each Gregorian day (1st shows the month name)
+               2026 年 6 月
+  一    二    三    四    五    六    日
+  1     2     3     4     5     6     7
+ 十六  十七  十八  十九  二十  廿一  廿二
+  ...
+  15    16    17    18    19    20    21
+ 五月  初二  初三  初四  初五  初六  初七
 ```
 
-Today is **reverse-highlighted** on a TTY; output is plain text (no ANSI, parseable) when piped/redirected. `--json` gives structured `{year, month, week_start, weeks}` data. The Chinese lunar calendar lives in the separate `jdan lunar`.
+Today is **reverse-highlighted** on a TTY; output is plain text (no ANSI, parseable) when piped/redirected. `--json` gives structured `{year, month, week_start, weeks}` data. `-l/--lunar` overlays the lunar calendar on the month grid (two rows per cell; the lunar month name shows on the 1st, e.g. a leap month renders as 闰六月; single month only; the 1900–2100 lunar table comes from `jdan lunar`). Single-day lunar lookup / conversion / festivals live in the separate `jdan lunar`.
 
 ### `jdan lunar`
 

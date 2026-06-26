@@ -108,6 +108,51 @@ func TestCalCmd_JSON(t *testing.T) {
 	}
 }
 
+func TestCalCmd_Lunar(t *testing.T) {
+	out, err := runCal(t, calNow, "6", "2026", "--lunar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 2026-06-15 是农历五月初一 → 该格显示农历月名「五月」
+	if !strings.Contains(out, "五月") {
+		t.Errorf("lunar grid should show 五月 at the month boundary:\n%s", out)
+	}
+	// 其它日显示农历日名
+	if !strings.Contains(out, "初二") {
+		t.Errorf("lunar grid should show day names like 初二:\n%s", out)
+	}
+}
+
+func TestCalCmd_LunarLeapMonth(t *testing.T) {
+	out, err := runCal(t, calNow, "7", "2025", "--lunar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 2025-07-25 是农历闰六月初一 → 显示「闰六月」
+	if !strings.Contains(out, "闰六月") {
+		t.Errorf("lunar grid should show 闰六月 in 2025-07:\n%s", out)
+	}
+}
+
+func TestCalCmd_LunarNoANSIWhenPiped(t *testing.T) {
+	out, err := runCal(t, calNow, "--lunar")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(out, "\x1b") {
+		t.Error("piped lunar grid must not contain ANSI")
+	}
+}
+
+func TestCalCmd_LunarMutuallyExclusive(t *testing.T) {
+	if _, err := runCal(t, calNow, "--lunar", "--year"); err == nil {
+		t.Error("--lunar with --year should error (mutually exclusive)")
+	}
+	if _, err := runCal(t, calNow, "--lunar", "--three"); err == nil {
+		t.Error("--lunar with --three should error (mutually exclusive)")
+	}
+}
+
 func TestParseMonth(t *testing.T) {
 	if m, _ := parseMonth("6"); m != time.June {
 		t.Error("numeric month")

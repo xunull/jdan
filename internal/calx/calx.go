@@ -5,6 +5,7 @@ package calx
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -190,3 +191,50 @@ func CenterWidth(s string, width int) string { return center(s, width) }
 
 // BlockWidth 返回单个月块的内容宽度（不含周数列）。
 func BlockWidth() int { return blockWidth }
+
+// lunarCellW 是农历月历每个格子的宽度（要容纳「闰六月」这种 6 列宽的农历月名）。
+const lunarCellW = 6
+
+// MonthLinesSub 渲染农历月历：每个公历日占两行（上公历数字、下农历副标签）。
+// sub(day) 返回该公历日的副标签（如农历月名「五月」或日名「初二」）；空串则该格留白。
+// calx 不依赖农历逻辑，副标签全靠调用方的回调注入。
+func MonthLinesSub(year int, month time.Month, opts Options, today int, sub func(day int) string) []string {
+	weeks := MonthGrid(year, month, opts.WeekStart)
+	totalW := lunarCellW * 7
+
+	hdr := make([]string, 7)
+	for i := range 7 {
+		hdr[i] = center(cnWeekday[time.Weekday((int(opts.WeekStart)+i)%7)], lunarCellW)
+	}
+	lines := []string{
+		center(fmt.Sprintf("%d 年 %d 月", year, month), totalW),
+		strings.Join(hdr, ""),
+	}
+
+	for i := range len(weeks) {
+		var dayRow, subRow strings.Builder
+		for _, day := range weeks[i] {
+			if day == 0 {
+				blank := strings.Repeat(" ", lunarCellW)
+				dayRow.WriteString(blank)
+				subRow.WriteString(blank)
+				continue
+			}
+			dayRow.WriteString(lunarDayCell(day, today, opts.Color))
+			subRow.WriteString(center(sub(day), lunarCellW))
+		}
+		lines = append(lines, strings.TrimRight(dayRow.String(), " "), strings.TrimRight(subRow.String(), " "))
+	}
+	return lines
+}
+
+// lunarDayCell 把公历日数字居中到格子宽度；今天可反显（ANSI 不计入可见宽度）。
+func lunarDayCell(day, today int, color bool) string {
+	s := strconv.Itoa(day)
+	left := (lunarCellW - len(s)) / 2
+	right := lunarCellW - len(s) - left
+	if color && day == today {
+		s = "\x1b[7m" + s + "\x1b[0m"
+	}
+	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+}

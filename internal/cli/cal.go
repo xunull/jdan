@@ -13,6 +13,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/xunull/jdan/internal/calx"
+	"github.com/xunull/jdan/internal/lunarx"
 )
 
 type calCmdDeps struct {
@@ -51,6 +52,7 @@ func newCalCommand(deps calCmdDeps) *cobra.Command {
 			noColor, _ := cmd.Flags().GetBool("no-color")
 			yearMode, _ := cmd.Flags().GetBool("year")
 			threeMode, _ := cmd.Flags().GetBool("three")
+			lunarMode, _ := cmd.Flags().GetBool("lunar")
 			asJSON, _ := cmd.Flags().GetBool("json")
 
 			weekStart := time.Monday
@@ -131,6 +133,10 @@ func newCalCommand(deps calCmdDeps) *cobra.Command {
 			if asJSON {
 				return emitMonthJSON(deps.out, year, month, opts.WeekStart)
 			}
+			if lunarMode {
+				fmt.Fprint(deps.out, calx.Render(calx.MonthLinesSub(year, month, opts, todayFor(year, month), lunarSub(year, month))))
+				return nil
+			}
 			fmt.Fprint(deps.out, calx.Render(calx.MonthLines(year, month, opts, todayFor(year, month))))
 			return nil
 		},
@@ -140,8 +146,26 @@ func newCalCommand(deps calCmdDeps) *cobra.Command {
 	cmd.Flags().BoolP("sunday", "s", false, "周日起始（默认周一/ISO）")
 	cmd.Flags().BoolP("week", "w", false, "左栏显示 ISO 周数")
 	cmd.Flags().Bool("no-color", false, "关闭今天高亮")
+	cmd.Flags().BoolP("lunar", "l", false, "在每个公历日下显示农历（每格两行；仅单月）")
 	cmd.Flags().Bool("json", false, "结构化输出")
+	cmd.MarkFlagsMutuallyExclusive("lunar", "year")
+	cmd.MarkFlagsMutuallyExclusive("lunar", "three")
 	return cmd
+}
+
+// lunarSub 返回一个回调：把公历日映射成农历副标签（初一显示农历月名，否则显示日名）。
+// 超出农历表范围（1900–2100）的日期返回空串，整格留白而不报错。
+func lunarSub(year int, month time.Month) func(day int) string {
+	return func(day int) string {
+		l, err := lunarx.SolarToLunar(time.Date(year, month, day, 0, 0, 0, 0, time.UTC))
+		if err != nil {
+			return ""
+		}
+		if l.Day == 1 {
+			return lunarx.MonthName(l.Month, l.IsLeap)
+		}
+		return lunarx.DayName(l.Day)
+	}
 }
 
 func parseMonth(s string) (time.Month, error) {

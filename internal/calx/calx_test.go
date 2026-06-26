@@ -1,6 +1,7 @@
 package calx
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -124,5 +125,44 @@ func TestRenderBlocks_SideBySide(t *testing.T) {
 func TestVisualWidth_IgnoresANSI(t *testing.T) {
 	if w := visualWidth("\x1b[7m15\x1b[0m"); w != 2 {
 		t.Errorf("ANSI-wrapped '15' visual width = %d, want 2", w)
+	}
+}
+
+// ---- 农历月历（MonthLinesSub）----
+
+func TestMonthLinesSub_DayAndSub(t *testing.T) {
+	// 副标签回调：把每天映射成「L<day>」便于断言
+	sub := func(day int) string { return "L" + strconv.Itoa(day) }
+	lines := MonthLinesSub(2026, time.June, Options{WeekStart: time.Monday}, -1, sub)
+	joined := strings.Join(lines, "\n")
+	if !strings.Contains(joined, "2026 年 6 月") {
+		t.Errorf("title missing:\n%s", joined)
+	}
+	if !strings.Contains(joined, "一") || !strings.Contains(joined, "日") {
+		t.Error("weekday header missing")
+	}
+	if !strings.Contains(joined, "15") || !strings.Contains(joined, "L15") {
+		t.Errorf("day 15 and its sub-label should both appear:\n%s", joined)
+	}
+}
+
+func TestMonthLinesSub_TodayHighlight(t *testing.T) {
+	sub := func(int) string { return "" }
+	lines := MonthLinesSub(2026, time.June, Options{WeekStart: time.Monday, Color: true}, 15, sub)
+	if !strings.Contains(strings.Join(lines, "\n"), "\x1b[7m15\x1b[0m") {
+		t.Error("today 15 should be reverse-highlighted in lunar grid")
+	}
+}
+
+func TestMonthLinesSub_NoColorNoANSI(t *testing.T) {
+	sub := func(day int) string {
+		if day == 1 {
+			return "初一"
+		}
+		return "·"
+	}
+	lines := MonthLinesSub(2026, time.June, Options{WeekStart: time.Monday, Color: false}, 15, sub)
+	if strings.Contains(strings.Join(lines, ""), "\x1b") {
+		t.Error("Color=false lunar grid must not emit ANSI")
 	}
 }
