@@ -83,6 +83,7 @@ go build -o jdan .
 **系统**
 - [`jdan macgpu`](#jdan-macgpu) — Apple Silicon GPU TUI 监控
 - [`jdan unix-time`](#jdan-unix-time) — Unix 时间戳 → 本地时间
+- [`jdan cal`](#jdan-cal) — 打印月/年日历（高亮今天，周一起始）
 
 **随机生成（CSPRNG）**
 - [`jdan rand password`](#jdan-rand-password) — 1Password 风格随机密码
@@ -1934,6 +1935,31 @@ echo 1711843200 | jdan unix-time
 | 输入长度 10 | 按秒级时间戳解析 |
 | 输入长度 13 | 按毫秒级时间戳解析 |
 | 输出时区 | 本机本地时区 |
+
+### `jdan cal`
+
+打印公历日历，高亮今天。默认本月、**周一起始（ISO）**、中文表头。0 新依赖（纯 `time`）。
+
+详细技术文档：[docs/jdan-cal.md](docs/jdan-cal.md)
+
+```bash
+$ jdan cal
+    2026 年 6 月
+一 二 三 四 五 六 日
+ 1  2  3  4  5  6  7
+ 8  9 10 11 12 13 14
+15 16 17 18 19 20 21
+22 23 24 25 26 27 28
+29 30
+
+$ jdan cal 12 2025      # 指定月/年（cal 6 = 今年 6 月，避开 Unix cal 把 "6" 当公元 6 年的坑）
+$ jdan cal -y 2026      # 整年（3×4 月块）
+$ jdan cal -3           # 上/本/下月三联排
+$ jdan cal -w           # 左栏显示 ISO 周数
+$ jdan cal 6 2026 -s    # 周日起始
+```
+
+今天在 TTY 下**反显**高亮，管道/重定向时输出纯文本（不插 ANSI，可解析）。`--json` 给 `{year, month, week_start, weeks}` 结构化数据。农历/节假日有意不做（需外部数据，违 0 依赖）。
 
 ### `jdan readme`
 

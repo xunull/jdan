@@ -83,6 +83,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **System**
 - [`jdan macgpu`](#jdan-macgpu) — Apple Silicon GPU TUI monitor
 - [`jdan unix-time`](#jdan-unix-time) — Unix timestamp → local time
+- [`jdan cal`](#jdan-cal) — print a month/year calendar (highlights today, Monday start)
 
 **Random Generation (CSPRNG)**
 - [`jdan rand password`](#jdan-rand-password) — 1Password-style random password
@@ -1934,6 +1935,31 @@ echo 1711843200 | jdan unix-time
 | input length 10 | parsed as a second-level timestamp |
 | input length 13 | parsed as a millisecond-level timestamp |
 | output timezone | the machine's local timezone |
+
+### `jdan cal`
+
+Print a Gregorian calendar and highlight today. Defaults to the current month, **Monday start (ISO)**, Chinese weekday headers. Zero new dependencies (pure `time`).
+
+Detailed technical docs: [docs/jdan-cal.md](docs/jdan-cal.md)
+
+```bash
+$ jdan cal
+    2026 年 6 月
+一 二 三 四 五 六 日
+ 1  2  3  4  5  6  7
+ 8  9 10 11 12 13 14
+15 16 17 18 19 20 21
+22 23 24 25 26 27 28
+29 30
+
+$ jdan cal 12 2025      # specific month/year (cal 6 = June this year — avoids Unix cal's "6 = year 6 AD" footgun)
+$ jdan cal -y 2026      # whole year (3×4 month blocks)
+$ jdan cal -3           # previous / current / next month side by side
+$ jdan cal -w           # show ISO week numbers in a left column
+$ jdan cal 6 2026 -s    # Sunday start
+```
+
+Today is **reverse-highlighted** on a TTY; output is plain text (no ANSI, parseable) when piped/redirected. `--json` gives structured `{year, month, week_start, weeks}` data. Lunar calendar / holidays are intentionally out of scope (need external data, would break the zero-dependency rule).
 
 ### `jdan readme`
 
