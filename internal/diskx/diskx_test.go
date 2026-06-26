@@ -3,6 +3,8 @@ package diskx
 import (
 	"strings"
 	"testing"
+
+	"github.com/mattn/go-runewidth"
 )
 
 func TestHumanBytes(t *testing.T) {
@@ -129,6 +131,39 @@ func TestRender_Bytes(t *testing.T) {
 func TestVisWidth_IgnoresANSI(t *testing.T) {
 	if w := visWidth("\x1b[31m86%\x1b[0m"); w != 3 {
 		t.Errorf("ANSI-wrapped '86%%' visual width = %d, want 3", w)
+	}
+}
+
+// 回归：CJK locale 下 runewidth 默认把 █ 判成 2 列（ambiguous→wide），与终端渲染（1 列）
+// 不符，导致整列错位。diskx 用 narrow 条件锁死按 1 列算；中文宽字符仍按 2 列。
+func TestVisWidth_AmbiguousBlocksNarrowUnderCJK(t *testing.T) {
+	old := runewidth.DefaultCondition.EastAsianWidth
+	runewidth.DefaultCondition.EastAsianWidth = true // 模拟 zh_CN.UTF-8 终端
+	defer func() { runewidth.DefaultCondition.EastAsianWidth = old }()
+
+	if w := visWidth("█"); w != 1 {
+		t.Errorf("█ (U+2588) 应按 1 列测量，得到 %d（CJK locale 回归）", w)
+	}
+	if w := visWidth("░"); w != 1 {
+		t.Errorf("░ (U+2591) 应按 1 列测量，得到 %d", w)
+	}
+	if w := visWidth("容"); w != 2 {
+		t.Errorf("中文宽字符「容」应仍按 2 列，得到 %d", w)
+	}
+}
+
+// 回归：百分比右对齐到固定 4 宽，条形左缘才能成竖列。
+func TestRender_PercentRightAligned(t *testing.T) {
+	mounts := []Mount{
+		{Device: "a", Mountpoint: "/a", BlockSize: 1, Blocks: 100, Bfree: 96, Bavail: 96}, // 4%
+		{Device: "b", Mountpoint: "/b", BlockSize: 1, Blocks: 100, Bfree: 0, Bavail: 0},   // 100%
+	}
+	out := Render(mounts, RenderOptions{})
+	if !strings.Contains(out, "  4%") {
+		t.Errorf("4%% 应右对齐成「  4%%」:\n%s", out)
+	}
+	if !strings.Contains(out, "100%") {
+		t.Errorf("100%% 应出现:\n%s", out)
 	}
 }
 

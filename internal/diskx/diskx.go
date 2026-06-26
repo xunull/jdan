@@ -136,7 +136,8 @@ func Render(mounts []Mount, opt RenderOptions) string {
 			avail = sizeFmt(m.Avail())
 			pct = m.UsePercent()
 		}
-		usecol := colorize(fmt.Sprintf("%d%%", pct), pct, opt.Color) + " " +
+		// 百分比右对齐到固定 4 宽（"  4%" / " 86%" / "100%"），条形左缘才能对齐成竖列。
+		usecol := colorize(fmt.Sprintf("%3d%%", pct), pct, opt.Color) + " " +
 			colorize(bar(pct, width), pct, opt.Color)
 		rows = append(rows, []string{m.Device, size, used, avail, usecol, m.Mountpoint})
 	}
@@ -206,7 +207,12 @@ func pad(s string, width int, right bool) string {
 
 var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
 
-func visWidth(s string) int { return runewidth.StringWidth(ansiRe.ReplaceAllString(s, "")) }
+// narrowWidth 强制 East-Asian-ambiguous 字符按 1 列算（使用率条的 █ U+2588 在 CJK
+// locale 下会被默认判成 2 列，但终端实际渲染成 1 列，不锁死就会整列错位）。
+// 真正的宽字符（中文表头「容量」等是 East_Asian_Width=W）不受影响，仍按 2 列算。
+var narrowWidth = &runewidth.Condition{EastAsianWidth: false}
+
+func visWidth(s string) int { return narrowWidth.StringWidth(ansiRe.ReplaceAllString(s, "")) }
 
 // JSONData 返回适合 JSON 序列化的结构。
 func JSONData(mounts []Mount) []map[string]any {
