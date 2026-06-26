@@ -1678,12 +1678,14 @@ PING 93.184.216.34 (93.184.216.34): 56 data bytes   # 系统 ping 原样输出
 64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=12.1 ms
 
 $ jdan ping example.com                       # 无 --dns → 系统 ping 默认行为
-$ jdan ping --dns https://dns.google/dns-query example.com   # DoH 解析
+$ jdan ping --doh google example.com          # DoH 别名（自带 bootstrap IP，更防劫持）
 $ jdan ping --dns 8.8.8.8 -c 3 example.com --json
 $ jdan ping --dns 8.8.8.8 example.com -- -i 0.2 -s 64   # -- 后透传给系统 ping
 ```
 
-**设计**：实际 ICMP 由系统 ping 完成（shell out，像 `jdan git`），jdan 只负责「用指定 DNS 解析成 IP + 构造 argv + 尽力解析汇总行供 `--json`」。关键：有 `--dns` 时一定 ping 解析出的 IP 而非域名，否则 ping 会用系统 resolver 再解析一次绕过你指定的 DNS。`-c` 内置（Linux/macOS 通用），其余高级 flag 用 `--` 透传不翻译。仅 macOS + Linux（IPv6 时 Linux 用 `ping -6`、macOS 用 `ping6`）。
+**两种指定解析的方式**：`--dns`（`8.8.8.8` / `host:port` / 完整 DoH URL）和 `--doh`（别名 `google`/`cloudflare`/… / 主机名 / URL），**互斥**。`--doh <别名>` 强在自带 **bootstrap IP**——连解析 DoH endpoint 主机名都绕过本地 DNS，是防劫持首选（实测在 fake-ip 劫持的网络里 `--dns 8.8.8.8` 拿到伪造 IP，`--doh google` 靠 bootstrap 拿到真实 IP）。
+
+**设计**：实际 ICMP 由系统 ping 完成（shell out，像 `jdan git`），jdan 只负责「用指定 DNS 解析成 IP + 构造 argv + 尽力解析汇总行供 `--json`」。关键：指定了解析时一定 ping 解析出的 IP 而非域名，否则 ping 会用系统 resolver 再解析一次绕过你指定的 DNS。`-c` 内置（Linux/macOS 通用），其余高级 flag 用 `--` 透传不翻译。仅 macOS + Linux（IPv6 时 Linux 用 `ping -6`、macOS 用 `ping6`）。
 
 ### `jdan pubip4` / `jdan pubip6`
 

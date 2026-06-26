@@ -93,6 +93,43 @@ func TestPingCmd_WithDNSResolves(t *testing.T) {
 	}
 }
 
+func TestPingCmd_DoHResolves(t *testing.T) {
+	fr := &fakePingRunner{stdout: "PING ...\n"}
+	res := &fakePingResolver{ip: "104.20.23.154"}
+	out, err := runPingTest(t, fr, res, "linux", "--doh", "google", "example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// 走 DoH 解析路径，ping 解析出的 IP
+	if fr.args[len(fr.args)-1] != "104.20.23.154" {
+		t.Errorf("should ping DoH-resolved IP, got %v", fr.args)
+	}
+	if !strings.Contains(out, "example.com → 104.20.23.154 (via google)") {
+		t.Errorf("DoH resolution header missing:\n%s", out)
+	}
+}
+
+func TestPingCmd_DNSDoHConflict(t *testing.T) {
+	fr := &fakePingRunner{}
+	if _, err := runPingTest(t, fr, nil, "linux", "--dns", "8.8.8.8", "--doh", "google", "example.com"); err == nil {
+		t.Error("--dns and --doh together should error")
+	}
+	if fr.calls != 0 {
+		t.Error("should not run ping on mutual-exclusion error")
+	}
+}
+
+func TestPingCmd_DoHInvalid(t *testing.T) {
+	// 非注入路径：非法 --doh（含空格的主机名）应在构造 resolver 前就报错，不发包/不联网
+	fr := &fakePingRunner{}
+	if _, err := runPingTest(t, fr, nil, "linux", "--doh", "bad host", "example.com"); err == nil {
+		t.Error("invalid --doh should error")
+	}
+	if fr.calls != 0 {
+		t.Error("should not run ping when DoH target is invalid")
+	}
+}
+
 func TestPingCmd_Count(t *testing.T) {
 	fr := &fakePingRunner{stdout: "x"}
 	_, err := runPingTest(t, fr, nil, "linux", "-c", "3", "example.com")

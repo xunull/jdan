@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -63,10 +64,11 @@ func newPingCommand(deps pingCmdDeps) *cobra.Command {
 例：
   jdan ping example.com                       # 普通 ping（系统解析）
   jdan ping --dns 8.8.8.8 example.com         # 用 8.8.8.8 解析再 ping IP
-  jdan ping --dns https://dns.google/dns-query example.com   # DoH 解析
+  jdan ping --doh google example.com          # 用 DoH（别名，自带 bootstrap IP）
+  jdan ping --doh https://dns.google/dns-query example.com   # DoH 完整 URL
   jdan ping --dns 8.8.8.8 -c 3 example.com    # 发 3 个包
   jdan ping --dns 8.8.8.8 example.com -- -i 0.2 -s 64   # -- 后透传给系统 ping
-  jdan ping --dns 8.8.8.8 -c 3 example.com --json`,
+  jdan ping --doh cloudflare -c 3 example.com --json`,
 		Args:          cobra.ArbitraryArgs,
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -75,6 +77,7 @@ func newPingCommand(deps pingCmdDeps) *cobra.Command {
 		},
 	}
 	cmd.Flags().String("dns", "", "解析域名用的 DNS server（8.8.8.8 / 8.8.8.8:5353 / DoH URL）")
+	cmd.Flags().String("doh", "", "用 DoH 解析：别名("+strings.Join(dnslookup.ProviderAliases(), "/")+")、主机名或完整 https:// URL；与 --dns 互斥")
 	cmd.Flags().IntP("count", "c", 0, "发送的包数（-c，Linux/macOS 通用）")
 	cmd.Flags().BoolP("ipv4", "4", false, "解析 A / ping IPv4（默认）")
 	cmd.Flags().BoolP("ipv6", "6", false, "解析 AAAA / ping IPv6")
@@ -85,6 +88,7 @@ func newPingCommand(deps pingCmdDeps) *cobra.Command {
 
 func runPing(cmd *cobra.Command, deps pingCmdDeps, args []string) error {
 	dnsServer, _ := cmd.Flags().GetString("dns")
+	doh, _ := cmd.Flags().GetString("doh")
 	count, _ := cmd.Flags().GetInt("count")
 	v4, _ := cmd.Flags().GetBool("ipv4")
 	v6, _ := cmd.Flags().GetBool("ipv6")
@@ -93,6 +97,9 @@ func runPing(cmd *cobra.Command, deps pingCmdDeps, args []string) error {
 
 	if v4 && v6 {
 		return fmt.Errorf("-4 和 -6 不能同时用")
+	}
+	if dnsServer != "" && doh != "" {
+		return fmt.Errorf("--dns 与 --doh 不能同时使用")
 	}
 
 	// 分离 host 与 -- 之后的透传参数
@@ -106,8 +113,9 @@ func runPing(cmd *cobra.Command, deps pingCmdDeps, args []string) error {
 
 	target := host
 	resolvedIP := ""
-	if dnsServer != "" && !hostIsIP {
-		resolver, queryServer, err := buildPingResolver(deps, dnsServer, dnsTimeout)
+	displayServer := ""
+	if (dnsServer != "" || doh != "") && !hostIsIP {
+		resolver, queryServer, disp, err := buildPingResolver(deps, dnsServer, doh, dnsTimeout)
 		if err != nil {
 			return err
 		}
@@ -117,8 +125,9 @@ func runPing(cmd *cobra.Command, deps pingCmdDeps, args []string) error {
 		}
 		resolvedIP = ip
 		target = ip
+		displayServer = disp
 		if !asJSON {
-			fmt.Fprintf(deps.out, "%s → %s (via %s)\n", host, ip, dnsServer)
+			fmt.Fprintf(deps.out, "%s → %s (via %s)\n", host, ip, disp)
 		}
 	}
 
@@ -144,7 +153,7 @@ func runPing(cmd *cobra.Command, deps pingCmdDeps, args []string) error {
 		if err != nil {
 			return err
 		}
-		rec := buildPingJSON(host, resolvedIP, dnsServer, ipVersion, code, hostIsIP, pingx.ParseSummary(buf.String()))
+		rec := buildPingJSON(host, resolvedIP, displayServer, ipVersion, code, pingx.ParseSummary(buf.String()))
 		data, err := json.MarshalIndent(rec, "", "  ")
 		if err != nil {
 			return err
@@ -180,11 +189,9 @@ func splitPingArgs(cmd *cobra.Command, args []string) (host string, extra []stri
 	return pre[0], extra, nil
 }
 
-func buildPingJSON(host, resolvedIP, dnsServer string, ipVersion, code int, hostIsIP bool, sum pingx.Summary) pingJSON {
-	rec := pingJSON{Host: host, ResolvedIP: resolvedIP, IPVersion: ipVersion, ExitCode: code}
-	if dnsServer != "" && !hostIsIP {
-		rec.DNSServer = dnsServer
-	}
+func buildPingJSON(host, resolvedIP, dnsServer string, ipVersion, code int, sum pingx.Summary) pingJSON {
+	// dnsServer / resolvedIP 仅在发生了解析时非空，omitempty 自动处理 host 是 IP 的情况
+	rec := pingJSON{Host: host, ResolvedIP: resolvedIP, DNSServer: dnsServer, IPVersion: ipVersion, ExitCode: code}
 	if sum.HasStats {
 		rec.Transmitted = &sum.Transmitted
 		rec.Received = &sum.Received
@@ -198,18 +205,36 @@ func buildPingJSON(host, resolvedIP, dnsServer string, ipVersion, code int, host
 	return rec
 }
 
-func buildPingResolver(deps pingCmdDeps, dnsServer string, timeout time.Duration) (dnslookup.Resolver, string, error) {
-	if deps.resolver != nil {
-		return deps.resolver, dnsServer, nil
+// buildPingResolver 根据 --dns / --doh 构造解析器。
+// 返回 (resolver, queryServer, displayServer, err)：
+//   - queryServer 传给 Resolver.Query（DoH 时为空，DoH resolver 自带 target）
+//   - displayServer 用于 "host → ip (via X)" 头和 --json 的 dns_server 字段
+func buildPingResolver(deps pingCmdDeps, dnsServer, doh string, timeout time.Duration) (dnslookup.Resolver, string, string, error) {
+	disp := dnsServer
+	if doh != "" {
+		disp = doh
 	}
+	if deps.resolver != nil {
+		return deps.resolver, dnsServer, disp, nil
+	}
+	// --doh：别名（自带 bootstrap IP）/ 主机名 / 完整 https URL
+	if doh != "" {
+		tgt, err := dnslookup.ResolveDoHTarget(doh)
+		if err != nil {
+			return nil, "", "", err
+		}
+		return dnslookup.NewDoHResolver(tgt, timeout), "", tgt.URL, nil
+	}
+	// --dns 是完整 DoH URL（无 bootstrap）
 	if dnslookup.IsDoHURL(dnsServer) {
 		tgt, err := dnslookup.ResolveDoHTarget(dnsServer)
 		if err != nil {
-			return nil, "", err
+			return nil, "", "", err
 		}
-		return dnslookup.NewDoHResolver(tgt, timeout), "", nil
+		return dnslookup.NewDoHResolver(tgt, timeout), "", dnsServer, nil
 	}
-	return dnslookup.NewResolver(timeout), dnsServer, nil
+	// 普通 UDP/TCP DNS
+	return dnslookup.NewResolver(timeout), dnsServer, dnsServer, nil
 }
 
 func init() {

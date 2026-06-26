@@ -33,17 +33,32 @@ PING 93.184.216.34 (93.184.216.34): 56 data bytes   ← 系统 ping 原样输出
 jdan ping example.com                       # 普通 ping（系统解析）
 jdan ping --dns 8.8.8.8 example.com         # 用 8.8.8.8 解析再 ping IP
 jdan ping --dns 8.8.8.8:5353 example.com    # 自定义端口
-jdan ping --dns https://dns.google/dns-query example.com   # DoH 解析
+jdan ping --doh google example.com          # DoH 别名（自带 bootstrap IP）
+jdan ping --doh https://dns.google/dns-query example.com   # DoH 完整 URL
 jdan ping --dns 8.8.8.8 -c 3 example.com    # 发 3 个包
 jdan ping --dns 8.8.8.8 example.com -- -i 0.2 -s 64   # -- 后透传给系统 ping
-jdan ping --dns 8.8.8.8 -c 3 example.com --json
+jdan ping --doh cloudflare -c 3 example.com --json
 ```
+
+## `--dns` vs `--doh`：两种指定解析的方式
+
+| flag | 接受 | 加密 | bootstrap | 适合 |
+|------|------|------|-----------|------|
+| `--dns` | `8.8.8.8` / `8.8.8.8:5353` / 完整 `https://` URL | 仅 URL 形式加密 | 无 | 明文 UDP DNS，或已知 DoH endpoint IP |
+| `--doh` | **别名**（`google`/`cloudflare`/`quad9`/`opendns`/`ali`/`360`）/ 主机名 / 完整 URL | 始终 DoH | **别名自带** | 防 DNS 劫持的首选 |
+
+**两者互斥**（同时给报错）。
+
+`--doh <别名>` 比 `--dns https://...` 强在 **bootstrap IP**：别名内置了提供商的直连 IP（如 `google` → `8.8.8.8`），连「解析 DoH endpoint 主机名」这一步都绕过本地 DNS。而 `--dns https://dns.google/dns-query` 仍要先用系统 DNS 解析 `dns.google` —— 这一步本身就可能被劫持。
+
+> 实例：在被 Clash/代理 fake-ip 劫持 DNS 的网络里，`--dns 8.8.8.8` 可能拿到伪造的 `198.18.0.x`，而 `--doh google` 靠 bootstrap IP 直连，拿到真实 IP。
 
 ## flags
 
 | flag | 默认 | 用途 |
 |------|------|------|
 | `--dns` | 无 | 解析域名用的 DNS server：`8.8.8.8` / `8.8.8.8:5353` / DoH URL。不给则退化成系统 ping |
+| `--doh` | 无 | 用 DoH 解析：别名（`google`/`cloudflare`/`quad9`/`opendns`/`ali`/`360`）/ 主机名 / 完整 https URL；**与 `--dns` 互斥** |
 | `-c, --count` | 0 | 发送的包数（`-c`，Linux/macOS 通用；JSON 模式无此值时自动补 4） |
 | `-4` | true | 解析 A / ping IPv4（默认） |
 | `-6` | false | 解析 AAAA / ping IPv6 |

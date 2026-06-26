@@ -1678,12 +1678,14 @@ PING 93.184.216.34 (93.184.216.34): 56 data bytes   # system ping output, verbat
 64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=12.1 ms
 
 $ jdan ping example.com                       # no --dns → system ping's default behavior
-$ jdan ping --dns https://dns.google/dns-query example.com   # DoH resolution
+$ jdan ping --doh google example.com          # DoH alias (carries bootstrap IPs, stronger against hijacking)
 $ jdan ping --dns 8.8.8.8 -c 3 example.com --json
 $ jdan ping --dns 8.8.8.8 example.com -- -i 0.2 -s 64   # args after -- pass through to system ping
 ```
 
-**Design**: the actual ICMP is done by the system ping (shelling out, like `jdan git`); jdan only handles "resolve to an IP via the chosen DNS + build the argv + best-effort parse of the summary line for `--json`". Key point: when `--dns` is given it always pings the resolved IP, not the hostname, otherwise ping would re-resolve via the system resolver and bypass your chosen DNS. `-c` is built in (common to Linux/macOS); other advanced flags pass through after `--` without translation. macOS + Linux only (for IPv6, Linux uses `ping -6`, macOS uses `ping6`).
+**Two ways to pick the resolver**: `--dns` (`8.8.8.8` / `host:port` / full DoH URL) and `--doh` (alias `google`/`cloudflare`/… / hostname / URL), which are **mutually exclusive**. `--doh <alias>` is stronger because it carries **bootstrap IPs** — it bypasses local DNS even for resolving the DoH endpoint's hostname, making it the preferred choice against hijacking (in a fake-ip-hijacked network, `--dns 8.8.8.8` got a forged IP while `--doh google` got the real one via its bootstrap IPs).
+
+**Design**: the actual ICMP is done by the system ping (shelling out, like `jdan git`); jdan only handles "resolve to an IP via the chosen DNS + build the argv + best-effort parse of the summary line for `--json`". Key point: when a resolver is specified it always pings the resolved IP, not the hostname, otherwise ping would re-resolve via the system resolver and bypass your chosen DNS. `-c` is built in (common to Linux/macOS); other advanced flags pass through after `--` without translation. macOS + Linux only (for IPv6, Linux uses `ping -6`, macOS uses `ping6`).
 
 ### `jdan pubip4` / `jdan pubip6`
 
