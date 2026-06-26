@@ -1959,7 +1959,32 @@ $ jdan cal -w           # show ISO week numbers in a left column
 $ jdan cal 6 2026 -s    # Sunday start
 ```
 
-Today is **reverse-highlighted** on a TTY; output is plain text (no ANSI, parseable) when piped/redirected. `--json` gives structured `{year, month, week_start, weeks}` data. Lunar calendar / holidays are intentionally out of scope (need external data, would break the zero-dependency rule).
+Today is **reverse-highlighted** on a TTY; output is plain text (no ANSI, parseable) when piped/redirected. `--json` gives structured `{year, month, week_start, weeks}` data. The Chinese lunar calendar lives in the separate `jdan lunar`.
+
+### `jdan lunar`
+
+Convert between the Gregorian and Chinese lunar calendars, with **sexagenary (ganzhi) year, zodiac, and lunar festivals**. Uses an embedded 1900–2100 lunar table (public algorithm, ~200 constants), **zero new dependencies**.
+
+Detailed technical docs: [docs/jdan-lunar.md](docs/jdan-lunar.md)
+
+```bash
+$ jdan lunar
+公历: 2026-06-26 (周五)
+农历: 丙午年 五月十二  (生肖 马)
+
+$ jdan lunar 2024-02-10              # a Gregorian date → lunar
+公历: 2024-02-10 (周六)
+农历: 甲辰年 正月初一  (生肖 龙)
+
+$ jdan lunar --to-solar 2026 1 1     # lunar → Gregorian (when is this year's Spring Festival)
+公历: 2026-02-17 (周二)
+
+$ jdan lunar --to-solar 2025 6 1 --leap   # leap month (2025 has a leap 6th month)
+$ jdan lunar 2026 --festivals        # list a year's lunar festivals (Spring Festival / Lantern / Dragon Boat / Qixi / Mid-Autumn / Double Ninth / New Year's Eve)
+$ jdan lunar 2026-06-26 --json
+```
+
+**Correctness is guarded by real anchors + a full round-trip test**: the 2024/2025/2026 Spring Festivals, Mid-Autumn, Dragon Boat, and leap months (2025 leap-6, 2023 leap-2, 2020 leap-4) are each asserted, plus a `Gregorian → lunar → Gregorian` round-trip across the entire 1900–2100 range. Range is 1900–2100; out-of-range dates error. The ganzhi year boundary is the lunar new year (zodiac year). **Intentionally out of scope**: huangli almanac auspicious/inauspicious advice (no authoritative algorithm), the 24 solar terms (solar, a different computation), and any third-party lunar library (the embedded table suffices).
 
 ### `jdan readme`
 

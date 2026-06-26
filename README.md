@@ -84,6 +84,7 @@ go build -o jdan .
 - [`jdan macgpu`](#jdan-macgpu) — Apple Silicon GPU TUI 监控
 - [`jdan unix-time`](#jdan-unix-time) — Unix 时间戳 → 本地时间
 - [`jdan cal`](#jdan-cal) — 打印月/年日历（高亮今天，周一起始）
+- [`jdan lunar`](#jdan-lunar) — 公历 ↔ 农历（干支/生肖/农历节日）
 
 **随机生成（CSPRNG）**
 - [`jdan rand password`](#jdan-rand-password) — 1Password 风格随机密码
@@ -1959,7 +1960,34 @@ $ jdan cal -w           # 左栏显示 ISO 周数
 $ jdan cal 6 2026 -s    # 周日起始
 ```
 
-今天在 TTY 下**反显**高亮，管道/重定向时输出纯文本（不插 ANSI，可解析）。`--json` 给 `{year, month, week_start, weeks}` 结构化数据。农历/节假日有意不做（需外部数据，违 0 依赖）。
+今天在 TTY 下**反显**高亮，管道/重定向时输出纯文本（不插 ANSI，可解析）。`--json` 给 `{year, month, week_start, weeks}` 结构化数据。农历见独立的 `jdan lunar`。
+
+### `jdan lunar`
+
+公历 ↔ 农历（中国阴历）转换，含**干支纪年、生肖、农历节日**。内嵌 1900–2100 农历表（公开算法、~200 个常量），**0 新依赖**。
+
+详细技术文档：[docs/jdan-lunar.md](docs/jdan-lunar.md)
+
+```bash
+$ jdan lunar
+公历: 2026-06-26 (周五)
+农历: 丙午年 五月十二  (生肖 马)
+
+$ jdan lunar 2024-02-10              # 指定公历日 → 农历
+公历: 2024-02-10 (周六)
+农历: 甲辰年 正月初一  (生肖 龙)
+
+$ jdan lunar --to-solar 2026 1 1     # 农历 → 公历（今年春节几号）
+公历: 2026-02-17 (周二)
+
+$ jdan lunar --to-solar 2025 6 1 --leap   # 闰月（2025 闰六月初一）
+$ jdan lunar 2026 --festivals        # 列某年农历节日（春节/元宵/端午/七夕/中秋/重阳/除夕）
+$ jdan lunar 2026-06-26 --json
+```
+
+**正确性靠真实锚点 + 全程 round-trip 守护**：2024/2025/2026 春节、中秋、端午、闰月（2025 闰六月 / 2023 闰二月 / 2020 闰四月）逐一断言，再对 1900–2100 全程 `公历→农历→公历` 往返自检。范围 1900–2100，越界报错。
+
+干支以正月初一为界（生肖年）。**有意不做**：黄历宜忌（无权威算法）、24 节气（属太阳历，另一套）、第三方农历库（内嵌表足矣）。
 
 ### `jdan readme`
 
