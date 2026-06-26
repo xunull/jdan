@@ -68,6 +68,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan dns lookup`](#jdan-dns-lookup) — query 6 record types concurrently, with DoH support
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → hostname (PTR lookup)
 - [`jdan dns trace`](#jdan-dns-trace) — iterative resolution from the root servers, showing the delegation path
+- [`jdan ping`](#jdan-ping) — ping, with `--dns` to pick the DNS server that resolves the hostname
 - [`jdan pubip4`](#jdan-pubip4--jdan-pubip6) / [`jdan pubip6`](#jdan-pubip4--jdan-pubip6) — look up your machine's public IP
 - [`jdan ports`](#jdan-ports) — show the ports your machine is listening on (macOS)
 
@@ -1661,6 +1662,28 @@ jdan dns trace example.com --hop-timeout 2s --timeout 15s
 **The semantics of `--strict` in trace**: by default, getting the final answer is `exit 0` (even if some root server timed out mid-way and was fallen back from). `--strict` switches to "any hop erroring → `exit 1`" — for diagnosing "which hop is unstable".
 
 > Only macOS and Linux are supported; consistent with `dns lookup` / `reverse`.
+
+### `jdan ping`
+
+ping a host, but with `--dns` you can **pick which DNS server resolves the hostname**: if given, it first resolves the name to an IP via that DNS, then pings the IP; if not, it falls back to the system ping's default behavior. Zero new dependencies.
+
+Detailed technical docs: [docs/jdan-ping.md](docs/jdan-ping.md)
+
+The system `ping <hostname>` only uses the system resolver and has no `--dns` option. `jdan ping` folds "resolve via a chosen DNS + ping" into one step, so when chasing DNS hijacking / different DNS resolving to different IPs you can see the result directly.
+
+```bash
+$ jdan ping --dns 8.8.8.8 example.com
+example.com → 93.184.216.34 (via 8.8.8.8)     # resolution header jdan adds
+PING 93.184.216.34 (93.184.216.34): 56 data bytes   # system ping output, verbatim
+64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=12.1 ms
+
+$ jdan ping example.com                       # no --dns → system ping's default behavior
+$ jdan ping --dns https://dns.google/dns-query example.com   # DoH resolution
+$ jdan ping --dns 8.8.8.8 -c 3 example.com --json
+$ jdan ping --dns 8.8.8.8 example.com -- -i 0.2 -s 64   # args after -- pass through to system ping
+```
+
+**Design**: the actual ICMP is done by the system ping (shelling out, like `jdan git`); jdan only handles "resolve to an IP via the chosen DNS + build the argv + best-effort parse of the summary line for `--json`". Key point: when `--dns` is given it always pings the resolved IP, not the hostname, otherwise ping would re-resolve via the system resolver and bypass your chosen DNS. `-c` is built in (common to Linux/macOS); other advanced flags pass through after `--` without translation. macOS + Linux only (for IPv6, Linux uses `ping -6`, macOS uses `ping6`).
 
 ### `jdan pubip4` / `jdan pubip6`
 

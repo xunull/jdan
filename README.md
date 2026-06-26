@@ -68,6 +68,7 @@ go build -o jdan .
 - [`jdan dns lookup`](#jdan-dns-lookup) — 并发查询 6 个 record type，含 DoH 支持
 - [`jdan dns reverse`](#jdan-dns-reverse) — IP → 域名（PTR 查询）
 - [`jdan dns trace`](#jdan-dns-trace) — 从根服务器迭代解析，看委派路径
+- [`jdan ping`](#jdan-ping) — ping，可用 `--dns` 指定解析域名用的 DNS server
 - [`jdan pubip4`](#jdan-pubip4--jdan-pubip6) / [`jdan pubip6`](#jdan-pubip4--jdan-pubip6) — 查本机公网 IP
 - [`jdan ports`](#jdan-ports) — 显示本机正在监听的端口（macOS）
 
@@ -1661,6 +1662,28 @@ jdan dns trace example.com --hop-timeout 2s --timeout 15s
 **`--strict` 在 trace 中的语义**：默认拿到 final answer 即 `exit 0`（即使中途某个 root server 超时被 fallback）。`--strict` 切换为"任一 hop 出错即 `exit 1`"——用于诊断"哪一跳不稳"。
 
 > 仅支持 macOS 和 Linux；与 `dns lookup` / `reverse` 一致。
+
+### `jdan ping`
+
+ping 一个主机，但**可用 `--dns` 指定解析域名用的 DNS server**：给了就先用指定 DNS 把域名解析成 IP 再 ping 这个 IP；不给则退化成系统 ping 默认行为。0 新依赖。
+
+详细技术文档：[docs/jdan-ping.md](docs/jdan-ping.md)
+
+系统 `ping <域名>` 只走系统解析器、没有 `--dns` 参数。`jdan ping` 把「指定 DNS 解析 + ping」合一，排查 DNS 劫持/不同 DNS 解析到不同 IP 时能直观看到结果。
+
+```bash
+$ jdan ping --dns 8.8.8.8 example.com
+example.com → 93.184.216.34 (via 8.8.8.8)     # jdan 加的解析头
+PING 93.184.216.34 (93.184.216.34): 56 data bytes   # 系统 ping 原样输出
+64 bytes from 93.184.216.34: icmp_seq=0 ttl=56 time=12.1 ms
+
+$ jdan ping example.com                       # 无 --dns → 系统 ping 默认行为
+$ jdan ping --dns https://dns.google/dns-query example.com   # DoH 解析
+$ jdan ping --dns 8.8.8.8 -c 3 example.com --json
+$ jdan ping --dns 8.8.8.8 example.com -- -i 0.2 -s 64   # -- 后透传给系统 ping
+```
+
+**设计**：实际 ICMP 由系统 ping 完成（shell out，像 `jdan git`），jdan 只负责「用指定 DNS 解析成 IP + 构造 argv + 尽力解析汇总行供 `--json`」。关键：有 `--dns` 时一定 ping 解析出的 IP 而非域名，否则 ping 会用系统 resolver 再解析一次绕过你指定的 DNS。`-c` 内置（Linux/macOS 通用），其余高级 flag 用 `--` 透传不翻译。仅 macOS + Linux（IPv6 时 Linux 用 `ping -6`、macOS 用 `ping6`）。
 
 ### `jdan pubip4` / `jdan pubip6`
 
