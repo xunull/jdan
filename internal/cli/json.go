@@ -57,6 +57,8 @@ func newJSONCommand(deps jsonCmdDeps) *cobra.Command {
 	cmd.AddCommand(newJSONToYAMLCommand(deps))
 	cmd.AddCommand(newJSONFromCSVCommand(deps))
 	cmd.AddCommand(newJSONToCSVCommand(deps))
+	cmd.AddCommand(newJSONFlattenCommand(deps))
+	cmd.AddCommand(newJSONUnflattenCommand(deps))
 	return cmd
 }
 

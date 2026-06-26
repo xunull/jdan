@@ -117,7 +117,7 @@ go build -o jdan .
 - [`jdan env`](#jdan-env) — .env 文件工具（lint / diff / redact / get）
 
 **JSON / YAML / CSV**
-- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines + yaml ↔ json + csv ↔ json
+- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines/flatten + yaml ↔ json + csv ↔ json
 
 **网络 / 查询**
 - [`jdan whois`](#jdan-whois) — 域名/IP WHOIS（自动路由 + IANA/ARIN referral 跟随 + parsed 表）
@@ -631,7 +631,7 @@ postgres://localhost:5432/mydb
 
 ### `jdan json`
 
-JSON 工具集（**10 个子命令**）。设计目标：常见操作 0 学习曲线，**不替代 jq**。复杂查询请用 jq；jdan json 覆盖日常 80% 高频场景。
+JSON 工具集（**12 个子命令**）。设计目标：常见操作 0 学习曲线，**不替代 jq**。复杂查询请用 jq；jdan json 覆盖日常 80% 高频场景。
 
 详细技术文档：[docs/jdan-json.md](docs/jdan-json.md)
 
@@ -676,7 +676,15 @@ $ jdan json to-yaml config.json > config.yaml
 $ jdan json from-csv users.csv               # → array of objects
 $ jdan json from-csv data.tsv --delim '\t'
 $ jdan json to-csv users.json --header "name,age"
+
+# flatten ↔ unflatten（嵌套 ↔ 点分键；键格式 = json path 表达式）
+$ echo '{"a":{"b":1,"c":[10,20]}}' | jdan json flatten
+{"a.b":1,"a.c[0]":10,"a.c[1]":20}
+$ echo '{"a.b":1,"a.c":2}' | jdan json unflatten
+{"a":{"b":1,"c":2}}
 ```
+
+`flatten`/`unflatten` 详见 [docs/jdan-json-flatten.md](docs/jdan-json-flatten.md)：round-trip 还原（空容器保留 + 大整数精度）、`--sep` 改分隔符、稀疏数组补 null、对象/数组冲突检测。
 
 **与 jq 配合**：
 

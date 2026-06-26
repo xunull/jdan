@@ -117,7 +117,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan env`](#jdan-env) — .env file tools (lint / diff / redact / get)
 
 **JSON / YAML / CSV**
-- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines + yaml ↔ json + csv ↔ json
+- [`jdan json`](#jdan-json) — pretty/minify/path/keys/diff/lines/flatten + yaml ↔ json + csv ↔ json
 
 **Network / Lookup**
 - [`jdan whois`](#jdan-whois) — domain/IP WHOIS (auto routing + IANA/ARIN referral following + parsed table)
@@ -631,7 +631,7 @@ Supports quotes / the `export` prefix / inline comments / last-wins for duplicat
 
 ### `jdan json`
 
-A JSON toolkit (**10 subcommands**). Design goal: zero learning curve for common operations, **not a jq replacement**. Use jq for complex queries; jdan json covers the 80% of everyday high-frequency cases.
+A JSON toolkit (**12 subcommands**). Design goal: zero learning curve for common operations, **not a jq replacement**. Use jq for complex queries; jdan json covers the 80% of everyday high-frequency cases.
 
 Detailed technical docs: [docs/jdan-json.md](docs/jdan-json.md)
 
@@ -676,7 +676,15 @@ $ jdan json to-yaml config.json > config.yaml
 $ jdan json from-csv users.csv               # → array of objects
 $ jdan json from-csv data.tsv --delim '\t'
 $ jdan json to-csv users.json --header "name,age"
+
+# flatten ↔ unflatten (nested ↔ dotted keys; key format = json path expressions)
+$ echo '{"a":{"b":1,"c":[10,20]}}' | jdan json flatten
+{"a.b":1,"a.c[0]":10,"a.c[1]":20}
+$ echo '{"a.b":1,"a.c":2}' | jdan json unflatten
+{"a":{"b":1,"c":2}}
 ```
+
+`flatten`/`unflatten`: see [docs/jdan-json-flatten.md](docs/jdan-json-flatten.md) — round-trips (empty containers preserved + big-int precision), `--sep` to change the separator, sparse arrays filled with null, object/array conflict detection.
 
 **Working with jq**:
 
