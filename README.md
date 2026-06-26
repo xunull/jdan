@@ -109,6 +109,7 @@ go build -o jdan .
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
+- [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
 - [`jdan mime`](#jdan-mime) — 按 magic bytes 判断文件真实类型（不看扩展名）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
@@ -205,6 +206,27 @@ $ jdan figlet --list               # 列出字体
 ```
 
 字体 `standard`（`#` 描边）/ `block`（实心块 `█`）；覆盖 A-Z / a-z / 0-9 / 标点，小写折叠大写，不支持字符空白占位。`--width` 超长自动换行，`--center` 居中。
+
+### `jdan morse`
+
+文本 ↔ 国际摩斯电码（ITU）互转。**自动判方向**：输入只含 `.`/`-`/`/`/空格 → 解码，否则编码。学习/解谜/玩。0 新依赖（一张查表）。
+
+详细技术文档：[docs/jdan-morse.md](docs/jdan-morse.md)
+
+```bash
+$ jdan morse "SOS"
+... --- ...
+
+$ jdan morse "... --- ..."          # 自动认出是摩斯码 → 解码
+SOS
+
+$ jdan morse "Hello World"
+.... . .-.. .-.. --- / .-- --- .-. .-.. -..
+
+$ jdan morse "E" --encode            # 极短/有歧义时强制方向（-d 强制解码）
+```
+
+字母间单空格、单词间 ` / `；大小写无关，解码输出大写。覆盖 A–Z / 0–9 + 标准标点。无法编码的字符（中文/emoji）跳过、无法识别的码出 `#`，计数走 stderr（stdout 保持干净可管道）。`--json` 给 `{direction, output}`。
 
 ### `jdan img`
 

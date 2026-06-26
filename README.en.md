@@ -109,6 +109,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **Encoding & QR**
 - [`jdan qr`](#jdan-qr) — generate a QR code (terminal / PNG / SVG)
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
+- [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
 - [`jdan jwt decode`](#jdan-jwt-decode) — purely local JWT decoding (no signature verification, no network)
@@ -205,6 +206,27 @@ $ jdan figlet --list               # list fonts
 ```
 
 Fonts: `standard` (outlined with `#`) / `block` (solid `█` blocks); covers A-Z / a-z / 0-9 / punctuation, lowercase folds to uppercase, no whitespace placeholder for unsupported characters. `--width` wraps automatically when a line is too long, `--center` centers it.
+
+### `jdan morse`
+
+Convert text ↔ International Morse code (ITU). **Auto-detects direction**: input containing only `.`/`-`/`/`/space → decode, otherwise encode. For learning / puzzles / fun. Zero new dependencies (one lookup table).
+
+Detailed technical docs: [docs/jdan-morse.md](docs/jdan-morse.md)
+
+```bash
+$ jdan morse "SOS"
+... --- ...
+
+$ jdan morse "... --- ..."          # recognized as Morse → decode
+SOS
+
+$ jdan morse "Hello World"
+.... . .-.. .-.. --- / .-- --- .-. .-.. -..
+
+$ jdan morse "E" --encode            # force direction for short/ambiguous input (-d forces decode)
+```
+
+Letters separated by a single space, words by ` / `; case-insensitive, decode output is uppercase. Covers A–Z / 0–9 + standard punctuation. Unencodable characters (CJK/emoji) are skipped and unrecognized codes become `#`, with counts sent to stderr (stdout stays clean for pipes). `--json` gives `{direction, output}`.
 
 ### `jdan img`
 
