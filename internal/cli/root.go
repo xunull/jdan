@@ -9,6 +9,7 @@ import (
 
 // Execute runs the root command.
 func Execute() error {
+	registerCompletions() // 给枚举 flag / 位置参数挂值补全（命令名/flag 名补全 cobra 自带）
 	return rootCmd.Execute()
 }
 

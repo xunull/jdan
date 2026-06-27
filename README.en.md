@@ -51,6 +51,26 @@ go build -o jdan .
 # Windows PowerShell: $env:GOWORK="off"; go build -o jdan.exe .
 ```
 
+## Shell completion
+
+With this many commands, completion makes `<Tab>` pay off: it completes subcommand names, flag names, and for some flags the **values** too (`hash --algo <Tab>` → md5/sha1/sha256/sha512, `ascii-art --ramp <Tab>` → standard/detailed/blocks, `dns lookup --type`, `cal` months, `--doh` dynamic provider aliases, etc.). Powered by cobra; `jdan completion <shell>` generates the script:
+
+```bash
+# zsh (make sure compinit runs in ~/.zshrc)
+jdan completion zsh > "${fpath[1]}/_jdan"   # then restart the shell or run compinit
+
+# bash (needs bash-completion)
+jdan completion bash | sudo tee /etc/bash_completion.d/jdan >/dev/null
+
+# fish
+jdan completion fish > ~/.config/fish/completions/jdan.fish
+
+# powershell (add to $PROFILE)
+jdan completion powershell | Out-String | Invoke-Expression
+```
+
+Try it in the current zsh session: `source <(jdan completion zsh)`.
+
 ## Commands
 
 Index grouped by topic (the actual section order follows when each command was added, so the network and file categories aren't contiguous):

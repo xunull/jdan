@@ -51,6 +51,26 @@ go build -o jdan .
 # Windows PowerShell: $env:GOWORK="off"; go build -o jdan.exe .
 ```
 
+## Shell 自动补全
+
+命令多了，装上补全 `<Tab>` 起来很省事：补子命令名、flag 名，部分 flag 还能补**值**（`hash --algo <Tab>` → md5/sha1/sha256/sha512、`ascii-art --ramp <Tab>` → standard/detailed/blocks、`dns lookup --type`、`cal` 月份、`--doh` 动态 provider 别名等）。基于 cobra,`jdan completion <shell>` 直接生成:
+
+```bash
+# zsh（确保 ~/.zshrc 里有 compinit）
+jdan completion zsh > "${fpath[1]}/_jdan"   # 然后重开终端或跑 compinit
+
+# bash（需 bash-completion）
+jdan completion bash | sudo tee /etc/bash_completion.d/jdan >/dev/null
+
+# fish
+jdan completion fish > ~/.config/fish/completions/jdan.fish
+
+# powershell（写进 $PROFILE）
+jdan completion powershell | Out-String | Invoke-Expression
+```
+
+试一把当前 session（zsh）：`source <(jdan completion zsh)`。
+
 ## 命令
 
 按主题分组的目录（实际章节顺序按命令引入时间排列，所以网络类和文件类不连续）：
