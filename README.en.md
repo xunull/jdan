@@ -133,6 +133,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **File Hashing & Archives**
 - [`jdan hash`](#jdan-hash) — cross-platform md5/sha1/sha256/sha512 + `--check` verification
 - [`jdan entropy`](#jdan-entropy) — compute Shannon entropy (tell if data is encrypted/compressed/random; sliding-window sparkline)
+- [`jdan secrets-scan`](#jdan-secrets-scan) — scan for hardcoded secrets/tokens (regex + entropy; redacted output)
 - [`jdan extract`](#jdan-extract) — general-purpose extraction for zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -455,6 +456,23 @@ charset:  62 符号集 ≈ 59.5 bits（搜索空间，非强度评分）
 ```
 
 Input: positional arg = string / `-f` = file / no arg = stdin; `--json` for structured output. **"Entropy" is anchored to the strict Shannon definition** (data randomness); it does not pretend to be a password strength score — real strength needs dictionary/pattern checks (the zxcvbn approach, which needs a library).
+
+### `jdan secrets-scan`
+
+Scan files / directories / stdin for **hardcoded secrets / tokens**: a regex engine (known formats, high precision) + an entropy engine (unknown tokens, reusing `entropy`). A lean gitleaks/trufflehog. Zero new dependencies.
+
+Detailed technical docs: [docs/jdan-secrets-scan.md](docs/jdan-secrets-scan.md)
+
+```bash
+$ jdan secrets-scan .
+config/prod.env:7   [aws-access-key]  AKIA…J7QF  (high)
+src/client.go:42    [generic-assign]  Xy9K…P6dC  (medium)
+deploy.sh:3         [high-entropy]    dGhp…YWVo  (low, entropy 4.6)
+
+共 3 处疑似密钥（已脱敏；exit 1）
+```
+
+**Security rule: the output never contains the full secret** — only a redacted preview (first 4…last 4). A scanner must not become a leak itself (same principle as `jdan pem`, pinned by a security test). Noise control: an embedded allowlist (UUID / example placeholders), inline `# pragma: allowlist secret` exemption, a tunable `--min-entropy`, and low confidence on entropy hits. `.git`/`node_modules`/binary/lock files are skipped by default (`-a` scans everything). Exit codes: 0 nothing found / 1 found (CI gate) / 2 error. `--json` is also secret-free. Git-history scanning is intentionally out of scope (v1).
 
 ### `jdan extract`
 

@@ -134,6 +134,7 @@ go build -o jdan .
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
 - [`jdan entropy`](#jdan-entropy) — 算 Shannon 熵（判断是否加密/压缩/随机；滑窗 sparkline）
+- [`jdan secrets-scan`](#jdan-secrets-scan) — 扫硬编码密钥/token（正则 + 高熵；输出脱敏）
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -456,6 +457,23 @@ charset:  62 符号集 ≈ 59.5 bits（搜索空间，非强度评分）
 ```
 
 输入：位置参数=字符串 / `-f` 文件 / 无参=stdin；`--json` 结构化。**「熵」锚定在严格的 Shannon 定义**（数据随机性），不冒充密码强度评分——真要测强度该用字典/模式检查（zxcvbn 那套，要引库）。
+
+### `jdan secrets-scan`
+
+扫文件/目录/stdin 里**疑似硬编码的密钥/token**：正则引擎（已知格式，高精度）+ 高熵引擎（未知 token，复用 `entropy`）。像 gitleaks/trufflehog 的精简版。0 新依赖。
+
+详细技术文档：[docs/jdan-secrets-scan.md](docs/jdan-secrets-scan.md)
+
+```bash
+$ jdan secrets-scan .
+config/prod.env:7   [aws-access-key]  AKIA…J7QF  (high)
+src/client.go:42    [generic-assign]  Xy9K…P6dC  (medium)
+deploy.sh:3         [high-entropy]    dGhp…YWVo  (low, entropy 4.6)
+
+共 3 处疑似密钥（已脱敏；exit 1）
+```
+
+**安全铁律：输出永不含完整 secret**，只给脱敏预览（前 4…后 4）——扫描器自己不能变成一次泄露（跟 `jdan pem` 同原则，有安全测试钉死）。降噪：内嵌 allowlist（UUID/示例占位）、行内 `# pragma: allowlist secret` 豁免、`--min-entropy` 可调、高熵命中标低置信。默认跳过 `.git`/`node_modules`/二进制/lock 文件（`-a` 全扫）。退出码 0 无发现 / 1 有发现（CI 卡门）/ 2 出错。`--json` 也不含完整 secret。git 历史扫描有意未做（v1）。
 
 ### `jdan extract`
 
