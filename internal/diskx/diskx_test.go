@@ -69,6 +69,23 @@ func TestFilter(t *testing.T) {
 	}
 }
 
+func TestFilter_HidesLocalSnapshots(t *testing.T) {
+	mounts := []Mount{
+		{Device: "/dev/disk1", Fstype: "apfs", BlockSize: 1, Blocks: 100, Mountpoint: "/"},
+		// 按设备名前缀识别的 TM 本地快照
+		{Device: "com.apple.TimeMachine.2026-06-27-064158.local@/dev/disk3s5", Fstype: "apfs", BlockSize: 1, Blocks: 100, Mountpoint: "/Volumes/x"},
+		// 按挂载点前缀识别的 TM 本地快照
+		{Device: "/dev/disk3s5", Fstype: "apfs", BlockSize: 1, Blocks: 100, Mountpoint: "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/m1max/2026-06-27-064158/Data"},
+	}
+	got := Filter(mounts, false)
+	if len(got) != 1 || got[0].Device != "/dev/disk1" {
+		t.Errorf("默认应隐藏 TM 本地快照（设备名/挂载点两种识别），得到 %+v", got)
+	}
+	if len(Filter(mounts, true)) != 3 {
+		t.Error("-a 应显示快照")
+	}
+}
+
 func TestBar(t *testing.T) {
 	if b := bar(0, 9); b != strings.Repeat("░", 9) {
 		t.Errorf("bar(0) = %q", b)
@@ -149,6 +166,49 @@ func TestVisWidth_AmbiguousBlocksNarrowUnderCJK(t *testing.T) {
 	}
 	if w := visWidth("容"); w != 2 {
 		t.Errorf("中文宽字符「容」应仍按 2 列，得到 %d", w)
+	}
+}
+
+func TestTruncMiddle(t *testing.T) {
+	s := "com.apple.TimeMachine.2026-06-27-064158.local@/dev/disk3s5"
+	out := truncMiddle(s, 20)
+	if visWidth(out) > 20 {
+		t.Errorf("截断后宽度 %d > 20: %q", visWidth(out), out)
+	}
+	if !strings.Contains(out, "…") {
+		t.Errorf("应含省略号: %q", out)
+	}
+	if !strings.HasPrefix(out, "com") {
+		t.Errorf("应保留头部: %q", out)
+	}
+	if !strings.HasSuffix(out, "disk3s5") {
+		t.Errorf("应保留尾部: %q", out)
+	}
+	if truncMiddle("short", 20) != "short" {
+		t.Error("未超宽应原样返回")
+	}
+}
+
+// 长设备名/挂载点在窄终端按终端宽度中间省略号截断；MaxWidth=0（管道/--json/--no-trunc）全显。
+func TestRender_TruncatesWhenNarrow(t *testing.T) {
+	ms := []Mount{
+		{Device: "com.apple.TimeMachine.2026-06-27-064158.local@/dev/disk3s5", Mountpoint: "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb/m1max/2026-06-27-064158/Data", BlockSize: 1, Blocks: 100, Bfree: 14, Bavail: 14},
+	}
+	narrow := Render(ms, RenderOptions{MaxWidth: 70})
+	if !strings.Contains(narrow, "…") {
+		t.Errorf("窄终端应截断:\n%s", narrow)
+	}
+	for ln := range strings.SplitSeq(strings.TrimRight(narrow, "\n"), "\n") {
+		if visWidth(ln) > 70 {
+			t.Errorf("行可见宽度 %d > MaxWidth 70: %q", visWidth(ln), ln)
+		}
+	}
+	full := Render(ms, RenderOptions{MaxWidth: 0})
+	if strings.Contains(full, "…") {
+		t.Errorf("MaxWidth=0 不应截断:\n%s", full)
+	}
+	if !strings.Contains(full, "/dev/disk3s5") {
+		t.Errorf("MaxWidth=0 应保留完整设备名:\n%s", full)
 	}
 }
 

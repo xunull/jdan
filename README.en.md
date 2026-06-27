@@ -1941,7 +1941,7 @@ $ jdan disk --bytes  # raw bytes
 $ jdan disk --json
 ```
 
-The use% matches `df` (`used/(used+avail)`, rounded up). On a TTY, use% ≥90% is red and ≥75% is yellow; piped/redirected output is plain text with no ANSI. Pseudo filesystems are hidden by default; `-a` shows everything. Windows is not supported yet (clear error).
+The use% matches `df` (`used/(used+avail)`, rounded up). On a TTY, use% ≥90% is red and ≥75% is yellow; piped/redirected output is plain text with no ANSI. Pseudo filesystems **and TimeMachine local snapshots** are hidden by default; `-a` shows everything. Over-long device names / mount points are **middle-ellipsis truncated** to the terminal width (TTY only; piped / `--json` / `--no-trunc` show full text). Windows is not supported yet (clear error).
 
 ### `jdan unix-time`
 

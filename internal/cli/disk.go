@@ -7,6 +7,7 @@ import (
 	"sort"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/xunull/jdan/internal/diskx"
 )
@@ -49,6 +50,7 @@ func newDiskCommand(deps diskCmdDeps) *cobra.Command {
 			asBytes, _ := cmd.Flags().GetBool("bytes")
 			asJSON, _ := cmd.Flags().GetBool("json")
 			noColor, _ := cmd.Flags().GetBool("no-color")
+			noTrunc, _ := cmd.Flags().GetBool("no-trunc")
 
 			var mounts []diskx.Mount
 			if len(args) == 1 {
@@ -69,10 +71,16 @@ func newDiskCommand(deps diskCmdDeps) *cobra.Command {
 			if asJSON {
 				return writeIndentJSON(deps.out, diskx.JSONData(mounts))
 			}
+			// 截断只在 TTY：管道/重定向（termWidth=0）或 --no-trunc 时全显。
+			maxWidth := 0
+			if !noTrunc {
+				maxWidth = termWidth(deps.out)
+			}
 			fmt.Fprint(deps.out, diskx.Render(mounts, diskx.RenderOptions{
-				Inodes: inodes,
-				Bytes:  asBytes,
-				Color:  !noColor && isTTY(deps.out),
+				Inodes:   inodes,
+				Bytes:    asBytes,
+				Color:    !noColor && isTTY(deps.out),
+				MaxWidth: maxWidth,
 			}))
 			return nil
 		},
@@ -81,8 +89,22 @@ func newDiskCommand(deps diskCmdDeps) *cobra.Command {
 	cmd.Flags().BoolP("inodes", "i", false, "显示 inode 用量")
 	cmd.Flags().Bool("bytes", false, "原始字节而非人类可读")
 	cmd.Flags().Bool("no-color", false, "关闭高占用染色")
+	cmd.Flags().Bool("no-trunc", false, "不截断长设备名/挂载点（默认按终端宽度中间省略）")
 	cmd.Flags().Bool("json", false, "结构化输出")
 	return cmd
+}
+
+// termWidth 返回输出终端的列数；非 TTY 返回 0（→ 不截断）。
+func termWidth(w io.Writer) int {
+	f, ok := w.(*os.File)
+	if !ok {
+		return 0
+	}
+	width, _, err := term.GetSize(int(f.Fd()))
+	if err != nil {
+		return 0
+	}
+	return width
 }
 
 func init() {

@@ -14,6 +14,7 @@ func fakeMounts() []diskx.Mount {
 	return []diskx.Mount{
 		{Device: "/dev/disk1", Mountpoint: "/", Fstype: "apfs", BlockSize: 1024, Blocks: 1000, Bfree: 200, Bavail: 150, Files: 100, Ffree: 40},
 		{Device: "devfs", Mountpoint: "/dev", Fstype: "devfs", BlockSize: 1024, Blocks: 50, Bfree: 0, Bavail: 0},
+		{Device: "com.apple.TimeMachine.2026-06-27-064158.local@/dev/disk3s5", Mountpoint: "/Volumes/com.apple.TimeMachine.localsnapshots/x/Data", Fstype: "apfs", BlockSize: 1024, Blocks: 1000, Bfree: 200, Bavail: 150},
 	}
 }
 
@@ -42,6 +43,10 @@ func TestDiskCmd_Default(t *testing.T) {
 	if strings.Contains(out, "devfs") {
 		t.Errorf("默认应隐藏伪文件系统 devfs:\n%s", out)
 	}
+	// 默认隐藏 TimeMachine 本地快照
+	if strings.Contains(out, "com.apple.TimeMachine") {
+		t.Errorf("默认应隐藏 TM 本地快照:\n%s", out)
+	}
 }
 
 func TestDiskCmd_All(t *testing.T) {
@@ -51,6 +56,9 @@ func TestDiskCmd_All(t *testing.T) {
 	}
 	if !strings.Contains(out, "devfs") {
 		t.Errorf("-a 应显示 devfs:\n%s", out)
+	}
+	if !strings.Contains(out, "com.apple.TimeMachine") {
+		t.Errorf("-a 应显示 TM 本地快照:\n%s", out)
 	}
 }
 
