@@ -151,6 +151,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 **网络 / 查询**
 - [`jdan whois`](#jdan-whois) — 域名/IP WHOIS（自动路由 + IANA/ARIN referral 跟随 + parsed 表）
 - [`jdan ip`](#jdan-ip) — IP / CIDR 计算（info / contains / range / split / normalize）
+- [`jdan meta`](#jdan-meta) — 抓网页 meta / Open Graph / Twitter Card（分享卡片体检）
 
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
@@ -324,6 +325,21 @@ $ jdan mime *.bin --json      # JSON 数组
 ```
 
 扩展名不符检测用内置的扩展名→类型表（OS 无关、可复现），故意不回退依赖系统 mime.types 的 stdlib。空文件 → `inode/x-empty`。批量里坏文件不中断整批，最后整体 exit 1。跟 `jdan img`（专看图片尺寸）互补。
+
+### `jdan meta`
+
+抓网页的 `<meta>` / **Open Graph** / **Twitter Card** / canonical / favicon，回答「这链接分享到微信/Twitter/Slack 时长啥样」，顺手做分享/SEO **体检**。复用 `x/net/html`（已在依赖图）+ 现有 http 栈，**0 新依赖**。
+
+详细技术文档：[docs/jdan-meta.md](docs/jdan-meta.md)
+
+```bash
+$ jdan meta https://example.com/article
+$ jdan meta example.com --json
+$ cat page.html | jdan meta          # 离线解析本地 HTML
+$ jdan meta page.html                # 解析本地文件
+```
+
+抓取约束：跟随重定向报最终 URL；非 `text/html` 拒绝；只读 `<head>` 区（封顶 512 KiB，不下整个大页面）；默认 10s 超时（`--timeout`）。默认伪装常见浏览器 UA（不少站对非浏览器 UA 返回阉割页），`--ua` 可改成模拟某平台爬虫。体检会指出缺 `og:image`/`og:title`/`description`/`canonical` 等关键标签。**只读静态 HTML、不跑 JS**：靠 JS 注入标签的 SPA 抓不到（如实反映，非 bug）。解析用 `x/net/html` 正经 tokenizer，畸形 HTML 也稳。
 
 ### `jdan jwt decode`
 

@@ -150,6 +150,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **Network / Lookup**
 - [`jdan whois`](#jdan-whois) — domain/IP WHOIS (auto routing + IANA/ARIN referral following + parsed table)
 - [`jdan ip`](#jdan-ip) — IP / CIDR calculation (info / contains / range / split / normalize)
+- [`jdan meta`](#jdan-meta) — fetch page meta / Open Graph / Twitter Card (share-card audit)
 
 **File Hashing & Archives**
 - [`jdan hash`](#jdan-hash) — cross-platform md5/sha1/sha256/sha512 + `--check` verification
@@ -323,6 +324,21 @@ $ jdan mime *.bin --json      # JSON array
 ```
 
 Extension-mismatch detection uses a built-in extension→type table (OS-independent, reproducible) and deliberately does not fall back to the stdlib lookup that depends on the system's mime.types. Empty file → `inode/x-empty`. A bad file in a batch won't abort the rest; it exits 1 overall. Complements `jdan img` (which focuses on image dimensions).
+
+### `jdan meta`
+
+Fetch a page's `<meta>` / **Open Graph** / **Twitter Card** / canonical / favicon — answers "what will this link look like when shared on WeChat/Twitter/Slack" plus a share/SEO **audit**. Reuses `x/net/html` (already in the dep graph) + the existing HTTP stack, **zero new deps**.
+
+Full technical doc: [docs/jdan-meta.md](docs/jdan-meta.md)
+
+```bash
+$ jdan meta https://example.com/article
+$ jdan meta example.com --json
+$ cat page.html | jdan meta          # parse local HTML offline
+$ jdan meta page.html                # parse a local file
+```
+
+Fetch constraints: follows redirects and reports the final URL; rejects non-`text/html`; reads only the `<head>` region (capped at 512 KiB, no whole-page download); 10s timeout by default (`--timeout`). Sends a common browser User-Agent by default (many sites serve a stripped page to non-browser UAs); `--ua` lets you impersonate a specific platform crawler. The audit flags missing key tags like `og:image`/`og:title`/`description`/`canonical`. **Reads static HTML only, no JS**: SPAs that inject tags via JS won't be picked up (reflected honestly, not a bug). Parsing uses the proper `x/net/html` tokenizer, so malformed HTML is handled robustly.
 
 ### `jdan jwt decode`
 
