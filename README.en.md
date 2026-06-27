@@ -113,6 +113,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
+- [`jdan ascii-art`](#jdan-ascii-art) — render an image as ASCII art (optional truecolor)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
 - [`jdan jwt decode`](#jdan-jwt-decode) — purely local JWT decoding (no signature verification, no network)
 - [`jdan jwt verify`](#jdan-jwt-verify) — HMAC-verify a JWT signature (HS256/384/512, alg-confusion defense)
@@ -257,6 +258,22 @@ $ jdan img *.png --json       # JSON array
 ```
 
 When a file in a batch is corrupt/unsupported, it prints a one-line error and continues with the rest, then exits 1 overall (one bad file won't abort the whole batch). `--json` still outputs a valid empty array even if everything fails.
+
+### `jdan ascii-art`
+
+Render an image as **ASCII art** (like jp2a). Reuses the already-wired stdlib image decoders, **zero new dependencies**. The "draw it" counterpart to `img` (which only reads dimensions).
+
+Detailed technical docs: [docs/jdan-ascii-art.md](docs/jdan-ascii-art.md)
+
+```bash
+$ jdan ascii-art logo.png            # auto-scale to terminal width
+$ jdan ascii-art photo.jpg -w 60     # explicit column width
+$ jdan ascii-art logo.png --color    # 24-bit truecolor (TTY only)
+$ jdan ascii-art logo.png --invert   # invert (light-background terminals)
+$ cat x.png | jdan ascii-art         # stdin
+```
+
+Algorithm: decode → slice into a grid by column width with **box-average** sampling per cell → map luminance to a character ramp, optionally coloring each char with truecolor. Ramp (dark→light): `standard` (default 10-level, width-1 safe) / `detailed` (70-level) / `blocks` (`░▒▓█`, but these are East-Asian-ambiguous and render 2-wide in CJK terminals — it warns) / a custom string. Default is **monochrome** (pasteable into READMEs/comments, pipeable); `--color` adds truecolor on a TTY (stripped when piped). Character aspect is corrected by 0.5 by default (terminal cells are ~2x tall) to avoid vertical stretch. Formats: PNG/JPEG/GIF (first frame); WebP/HEIC unsupported (would need a new dependency).
 
 ### `jdan mime`
 

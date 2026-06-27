@@ -114,6 +114,7 @@ go build -o jdan .
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
+- [`jdan ascii-art`](#jdan-ascii-art) — 图片 → ASCII 字符画（可选真彩）
 - [`jdan mime`](#jdan-mime) — 按 magic bytes 判断文件真实类型（不看扩展名）
 - [`jdan jwt decode`](#jdan-jwt-decode) — 纯本地 JWT 解码（不验签、不联网）
 - [`jdan jwt verify`](#jdan-jwt-verify) — HMAC 校验 JWT 签名（HS256/384/512，防 alg-confusion）
@@ -258,6 +259,22 @@ $ jdan img *.png --json       # JSON 数组
 ```
 
 批量里某个文件坏/不支持时打一行错误、继续处理其余文件，最后整体 exit 1（不让一个坏文件中断整批）。`--json` 即使全失败也输出合法空数组。
+
+### `jdan ascii-art`
+
+把图片渲染成 **ASCII 字符画**（像 jp2a）。复用已接好的 stdlib 图片解码，**0 新依赖**。是 `img`（只读尺寸）的「画出来」补充。
+
+详细技术文档：[docs/jdan-ascii-art.md](docs/jdan-ascii-art.md)
+
+```bash
+$ jdan ascii-art logo.png            # 按终端宽度自动缩放
+$ jdan ascii-art photo.jpg -w 60     # 指定列宽
+$ jdan ascii-art logo.png --color    # 24-bit 真彩（仅 TTY）
+$ jdan ascii-art logo.png --invert   # 反明暗（浅底终端）
+$ cat x.png | jdan ascii-art         # stdin
+```
+
+算法：解码 → 按列宽切网格、每格**块平均**采样 → 亮度映射到字符 ramp，可选每字符 truecolor 染色。ramp（暗→亮）：`standard`（默认 10 级，width-1 安全）/ `detailed`（70 级）/ `blocks`（`░▒▓█`，但这些是 East-Asian-ambiguous，CJK 终端会按 2 列宽渲染、横向拉伸，会警告）/ 自定义串。默认**单色**（可粘进 README/注释、可管道）；`--color` 加真彩，仅 TTY、管道自动剥离。字符长宽比默认按 0.5 校正（终端字符约 2 倍高），避免纵向拉伸。格式 PNG/JPEG/GIF（GIF 取第一帧）；WebP/HEIC 不支持（需新依赖）。
 
 ### `jdan mime`
 
