@@ -63,24 +63,7 @@ func newQRCommand(deps qrCmdDeps) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if asJSON {
-				info, err := qrcode.Describe(data, opts)
-				if err != nil {
-					return err
-				}
-				enc := json.NewEncoder(deps.out)
-				enc.SetIndent("", "  ")
-				return enc.Encode(info)
-			}
-			if output != "" {
-				return writeQRFile(output, data, opts, pngSize, svgModule)
-			}
-			s, err := qrcode.RenderTerminal(data, opts)
-			if err != nil {
-				return err
-			}
-			fmt.Fprint(deps.out, s)
-			return nil
+			return emitQR(deps.out, data, opts, output, pngSize, svgModule, asJSON)
 		},
 	}
 	cmd.Flags().String("ecc", "M", "纠错级别 L/M/Q/H")
@@ -106,6 +89,29 @@ func readQRData(r io.Reader, args []string) (string, error) {
 		return "", errors.New("no input: pass text as argument or via stdin")
 	}
 	return s, nil
+}
+
+// emitQR 把一段数据按选项渲染输出：--json 给元信息、--output 写文件、否则画到终端。
+// qr 和 qrwifi 共用，避免重复 output-dispatch。
+func emitQR(out io.Writer, data string, opts qrcode.Options, output string, pngSize, svgModule int, asJSON bool) error {
+	if asJSON {
+		info, err := qrcode.Describe(data, opts)
+		if err != nil {
+			return err
+		}
+		enc := json.NewEncoder(out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(info)
+	}
+	if output != "" {
+		return writeQRFile(output, data, opts, pngSize, svgModule)
+	}
+	s, err := qrcode.RenderTerminal(data, opts)
+	if err != nil {
+		return err
+	}
+	fmt.Fprint(out, s)
+	return nil
 }
 
 func writeQRFile(path, data string, opts qrcode.Options, pngSize, svgModule int) error {

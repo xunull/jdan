@@ -10,7 +10,7 @@ import (
 // 钉死：注册补全的命令路径必须仍然存在（以后改命令名会让这里失败，而不是静默丢补全）。
 func TestCompletionPathsResolve(t *testing.T) {
 	paths := [][]string{
-		{"hash"}, {"totp"}, {"qr"}, {"figlet"}, {"cert"}, {"ascii-art"},
+		{"hash"}, {"totp"}, {"qr"}, {"qrwifi"}, {"figlet"}, {"cert"}, {"ascii-art"},
 		{"ssl", "pin"}, {"http", "headers"}, {"net", "probe"}, {"json", "merge"},
 		{"dns", "lookup"}, {"dns", "trace"}, {"dns", "reverse"}, {"ping"}, {"cal"},
 	}
@@ -35,6 +35,7 @@ func TestFlagCompletion_Values(t *testing.T) {
 		want string
 	}{
 		{[]string{"ascii-art"}, "ramp", "blocks"},
+		{[]string{"qrwifi"}, "auth", "nopass"},
 		{[]string{"hash"}, "algo", "sha256"},
 		{[]string{"qr"}, "ecc", "H"},
 		{[]string{"ssl", "pin"}, "format", "okhttp"},

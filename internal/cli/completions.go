@@ -27,6 +27,8 @@ func registerCompletions() {
 	reg([]string{"hash"}, "algo", "md5", "sha1", "sha256", "sha512")
 	reg([]string{"totp"}, "algo", "sha1", "sha256", "sha512")
 	reg([]string{"qr"}, "ecc", "L", "M", "Q", "H")
+	reg([]string{"qrwifi"}, "ecc", "L", "M", "Q", "H")
+	reg([]string{"qrwifi"}, "auth", "wpa", "wep", "nopass")
 	reg([]string{"figlet"}, "font", "standard", "block")
 	reg([]string{"cert"}, "key-type", "ec", "rsa", "ed25519")
 	reg([]string{"ascii-art"}, "ramp", "standard", "detailed", "blocks")

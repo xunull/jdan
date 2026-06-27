@@ -130,6 +130,7 @@ Index grouped by topic (the actual section order follows when each command was a
 
 **Encoding & QR**
 - [`jdan qr`](#jdan-qr) — generate a QR code (terminal / PNG / SVG)
+- [`jdan qrwifi`](#jdan-qrwifi) — generate a WiFi join QR code (scan to connect, auto-escaped)
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
@@ -199,6 +200,23 @@ cat secret.txt | jdan qr --output secret.png --ecc H
 ```
 
 Unsupported extensions (like `.jpg`) raise an error; for JPEG, convert from PNG yourself with `sips`/`ffmpeg`.
+
+### `jdan qrwifi`
+
+Generate a **WiFi join QR code**: point a phone camera at it and connect, no password to read aloud. A "typed payload" wrapper over `jdan qr` — it **escapes `\ ; , " :` in the SSID/password automatically** (the step that's easy to miss when hand-rolling a `WIFI:` string; miss it and the code is wrong and silently fails to join), and reuses the whole `qr` render pipeline, **zero new deps**.
+
+Full technical doc: [docs/jdan-qrwifi.md](docs/jdan-qrwifi.md)
+
+```bash
+$ jdan qrwifi MyNetwork -p 's3cr3t'              # terminal QR
+$ jdan qrwifi --ssid "Cafe Guest" --auth nopass  # open network, no password
+$ jdan qrwifi Home -p pw --hidden                # hidden network
+$ jdan qrwifi Home -p pw -o wifi.png             # save PNG (stick it on the wall)
+$ jdan qrwifi Home --password-stdin <<< 'pw'     # password via stdin, off shell history
+$ jdan qrwifi Home -p pw --json                  # {ssid,auth,hidden,payload,...}
+```
+
+The payload follows the `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` standard. Auth type `wpa` (default, covers WPA2/WPA3) / `wep` / `nopass` (open network, omits `P:`). SSID via positional arg or `--ssid`. Password via `-p` (convenient) or `--password-stdin` (keeps it off shell history; the QR itself reveals the password by design, so this only guards the history/`ps` layer). Render flags (`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`) are all inherited from `qr`. **Deliberately out of scope**: enterprise 802.1X / EAP (complex payload, poor scanner support) and reading the system's saved WiFi password (would require digging into each platform's keychain).
 
 ### `jdan figlet`
 

@@ -131,6 +131,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
+- [`jdan qrwifi`](#jdan-qrwifi) — 生成 WiFi 入网二维码（扫码即连，自动转义）
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
@@ -200,6 +201,23 @@ cat secret.txt | jdan qr --output secret.png --ecc H
 ```
 
 不支持的扩展名（如 `.jpg`）会报错；要 JPEG 自行用 `sips`/`ffmpeg` 从 PNG 转。
+
+### `jdan qrwifi`
+
+生成 **WiFi 入网二维码**：手机相机 / 微信扫一下直接连网，不用念密码。是 `jdan qr` 的「特定 payload」封装——**自动转义 SSID/密码里的 `\ ; , " :`**（手搓 `WIFI:` 串最容易漏的一步，漏了码就是错的、扫了静默连不上），渲染完全复用 `qr` 管线，**0 新依赖**。
+
+详细技术文档：[docs/jdan-qrwifi.md](docs/jdan-qrwifi.md)
+
+```bash
+$ jdan qrwifi MyNetwork -p 's3cr3t'              # 终端二维码
+$ jdan qrwifi --ssid "Cafe Guest" --auth nopass  # 开放网络，无密码
+$ jdan qrwifi Home -p pw --hidden                # 隐藏网络
+$ jdan qrwifi Home -p pw -o wifi.png             # 存 PNG（贴墙上）
+$ jdan qrwifi Home --password-stdin <<< 'pw'     # 密码走 stdin，不进 shell history
+$ jdan qrwifi Home -p pw --json                  # {ssid,auth,hidden,payload,...}
+```
+
+payload 按 `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` 标准拼。认证类型 `wpa`（默认，含 WPA2/WPA3）/ `wep` / `nopass`（开放网络，省略 `P:`）。SSID 可用位置参数或 `--ssid`。密码 `-p` 方便、`--password-stdin` 避免进 shell history（二维码本身会暴露密码,故只防 history/`ps` 这层）。渲染 flag（`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`）全继承 `qr`。**有意不做**企业级 802.1X / EAP（payload 复杂、扫码端支持差）和「读系统已存 WiFi 密码」（要抠各平台钥匙串，越权）。
 
 ### `jdan figlet`
 
