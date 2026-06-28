@@ -158,6 +158,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
 - [`jdan entropy`](#jdan-entropy) — 算 Shannon 熵（判断是否加密/压缩/随机；滑窗 sparkline）
 - [`jdan secrets-scan`](#jdan-secrets-scan) — 扫硬编码密钥/token（正则 + 高熵；输出脱敏）
+- [`jdan pwned`](#jdan-pwned) — 查密码是否已泄露（HIBP k-匿名，密码不出本机）
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -545,6 +546,25 @@ deploy.sh:3         [high-entropy]    dGhp…YWVo  (low, entropy 4.6)
 ```
 
 **安全铁律：输出永不含完整 secret**，只给脱敏预览（前 4…后 4）——扫描器自己不能变成一次泄露（跟 `jdan pem` 同原则，有安全测试钉死）。降噪：内嵌 allowlist（UUID/示例占位）、行内 `# pragma: allowlist secret` 豁免、`--min-entropy` 可调、高熵命中标低置信。默认跳过 `.git`/`node_modules`/二进制/lock 文件（`-a` 全扫）。退出码 0 无发现 / 1 有发现（CI 卡门）/ 2 出错。`--json` 也不含完整 secret。git 历史扫描有意未做（v1）。
+
+### `jdan pwned`
+
+查一个密码是否出现在已知数据泄露中（基于 Have I Been Pwned 的 Pwned Passwords），**密码不出本机**。复用 stdlib `crypto/sha1` + `net/http` + `x/term`，**0 新依赖**。
+
+详细技术文档：[docs/jdan-pwned.md](docs/jdan-pwned.md)
+
+**原理（k-匿名）**：本地算 `SHA1(密码)`，只把哈希**前 5 位**发给 `api.pwnedpasswords.com/range/<前缀>`，服务器返回一批同前缀的哈希后缀 + 出现次数，本地再比对后 35 位。服务器只看到 5 位前缀（对应几十万个可能密码），你的明文和完整哈希**从不上网**。
+
+```bash
+$ jdan pwned                       # 无回显提示输入（不显示、不进 history）
+$ echo -n 'password' | jdan pwned
+⚠ 这个密码在已知泄露中出现过 52,372,427 次 —— 强烈建议别再用
+
+$ cat passwords.txt | jdan pwned --batch   # 逐行批量审计
+$ echo -n 'pw' | jdan pwned --json
+```
+
+输入只走**无回显交互提示**或 stdin（**故意不提供 `-p`**：查泄露的工具不该把密码留进 shell history）。默认带 `Add-Padding: true`（返回定长，连响应大小都不泄露）。退出码 0 干净 / 1 泄露 / 2 出错——可进 CI / pre-commit 当 gate。**有意不做**按邮箱查账号泄露（那个 API 要付费 key 且会把真实邮箱发出去，没有 k-匿名保护）。
 
 ### `jdan extract`
 

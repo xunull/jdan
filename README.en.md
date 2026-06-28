@@ -157,6 +157,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan hash`](#jdan-hash) — cross-platform md5/sha1/sha256/sha512 + `--check` verification
 - [`jdan entropy`](#jdan-entropy) — compute Shannon entropy (tell if data is encrypted/compressed/random; sliding-window sparkline)
 - [`jdan secrets-scan`](#jdan-secrets-scan) — scan for hardcoded secrets/tokens (regex + entropy; redacted output)
+- [`jdan pwned`](#jdan-pwned) — check if a password is breached (HIBP k-anonymity, password never leaves your machine)
 - [`jdan extract`](#jdan-extract) — general-purpose extraction for zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -544,6 +545,25 @@ deploy.sh:3         [high-entropy]    dGhp…YWVo  (low, entropy 4.6)
 ```
 
 **Security rule: the output never contains the full secret** — only a redacted preview (first 4…last 4). A scanner must not become a leak itself (same principle as `jdan pem`, pinned by a security test). Noise control: an embedded allowlist (UUID / example placeholders), inline `# pragma: allowlist secret` exemption, a tunable `--min-entropy`, and low confidence on entropy hits. `.git`/`node_modules`/binary/lock files are skipped by default (`-a` scans everything). Exit codes: 0 nothing found / 1 found (CI gate) / 2 error. `--json` is also secret-free. Git-history scanning is intentionally out of scope (v1).
+
+### `jdan pwned`
+
+Check whether a password appears in known data breaches (via Have I Been Pwned's Pwned Passwords), **without the password ever leaving your machine**. Reuses stdlib `crypto/sha1` + `net/http` + `x/term`, **zero new deps**.
+
+Full technical doc: [docs/jdan-pwned.md](docs/jdan-pwned.md)
+
+**How it works (k-anonymity)**: compute `SHA1(password)` locally, send only the **first 5 hex chars** to `api.pwnedpasswords.com/range/<prefix>`; the server returns all hash suffixes sharing that prefix plus their breach counts, and you compare the remaining 35 chars locally. The server only ever sees a 5-char prefix (which matches hundreds of thousands of possible passwords); your plaintext and full hash never go over the wire.
+
+```bash
+$ jdan pwned                       # no-echo prompt (hidden, off shell history)
+$ echo -n 'password' | jdan pwned
+⚠ this password has appeared in known breaches 52,372,427 times — stop using it
+
+$ cat passwords.txt | jdan pwned --batch   # line-by-line audit
+$ echo -n 'pw' | jdan pwned --json
+```
+
+Input comes only from a **no-echo prompt** or stdin (there is **deliberately no `-p` flag** — a leak-checking tool shouldn't leave your password in shell history). `Add-Padding: true` is on by default (fixed-length response, so even the size leaks nothing). Exit codes: 0 clean / 1 pwned / 2 error — usable as a CI / pre-commit gate. **Deliberately out of scope**: looking up breached accounts by email (that API needs a paid key and sends your real email, with no k-anonymity protection).
 
 ### `jdan extract`
 
