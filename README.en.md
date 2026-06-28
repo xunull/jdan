@@ -131,6 +131,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **Encoding & QR**
 - [`jdan qr`](#jdan-qr) — generate a QR code (terminal / PNG / SVG)
 - [`jdan qrwifi`](#jdan-qrwifi) — generate a WiFi join QR code (scan to connect, auto-escaped)
+- [`jdan barcode`](#jdan-barcode) — generate a Code128 1D barcode (terminal / PNG / SVG)
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
@@ -218,6 +219,22 @@ $ jdan qrwifi Home -p pw --json                  # {ssid,auth,hidden,payload,...
 ```
 
 The payload follows the `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` standard. Auth type `wpa` (default, covers WPA2/WPA3) / `wep` / `nopass` (open network, omits `P:`). **Forgetting the password on a WPA/WEP network is a hard error** (an empty-password code silently fails to join); for a genuinely open network pass `--auth nopass` explicitly. SSID via positional arg or `--ssid`. Password via `-p` (convenient) or `--password-stdin` (keeps it off shell history; the QR itself reveals the password by design, so this only guards the history/`ps` layer). Render flags (`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`) are all inherited from `qr`. **Deliberately out of scope**: enterprise 802.1X / EAP (complex payload, poor scanner support) and reading the system's saved WiFi password (would require digging into each platform's keychain).
+
+### `jdan barcode`
+
+Generate a **Code128 1D barcode** (common on inventory / logistics / shipping labels). **Zero new deps**: an embedded 107-row Code128 pattern table does the encoding, and rendering is hand-rolled (`image/png` is stdlib) — no external barcode library, the same "embedded table + algorithm" path as `lunar`.
+
+Full technical doc: [docs/jdan-barcode.md](docs/jdan-barcode.md)
+
+```bash
+$ jdan barcode "ABC-123"           # terminal bars + human-readable text below
+$ jdan barcode 5901234123457 -o label.png
+$ jdan barcode "SKU42" -o tag.svg
+$ echo "data" | jdan barcode       # stdin
+$ jdan barcode "ABC-123" --json    # {data, code_set, checksum, modules}
+```
+
+**How it works**: a 1D barcode is a row of bars and spaces whose widths encode the data. Code128 has 107 symbols, each 11 modules wide (3 bars + 3 spaces), structured `[quiet] Start data checksum Stop [quiet]`, checksum = `(Start + Σ position×value) mod 103`. Code set defaults to **B** (printable ASCII 32-126); when the input is **all digits and even-length** it auto-switches to **C** (one symbol per 2 digits, half the width). Output: terminal (`█` bar columns + text) / PNG / SVG (`-o` by extension), with `--module` for thickness, `--invert`, `--no-text`. **Deliberately out of scope**: EAN-13 / UPC / Code39 (each has its own check-digit rules, can be added later), optimal mid-string code-set switching, and barcode *decoding* (image → digits needs image processing, same as `qr` not decoding). Note: PNG omits the human-readable text (would need a font dep); terminal and SVG render it.
 
 ### `jdan figlet`
 

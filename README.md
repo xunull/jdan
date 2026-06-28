@@ -132,6 +132,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 **编码 & 二维码**
 - [`jdan qr`](#jdan-qr) — 生成二维码（终端 / PNG / SVG）
 - [`jdan qrwifi`](#jdan-qrwifi) — 生成 WiFi 入网二维码（扫码即连，自动转义）
+- [`jdan barcode`](#jdan-barcode) — 生成 Code128 一维条码（终端 / PNG / SVG）
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
@@ -219,6 +220,22 @@ $ jdan qrwifi Home -p pw --json                  # {ssid,auth,hidden,payload,...
 ```
 
 payload 按 `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` 标准拼。认证类型 `wpa`（默认，含 WPA2/WPA3）/ `wep` / `nopass`（开放网络，省略 `P:`）。**WPA/WEP 忘了给密码会直接报错**（空密码的码扫了静默连不上），真·开放网络请显式 `--auth nopass`。SSID 可用位置参数或 `--ssid`。密码 `-p` 方便、`--password-stdin` 避免进 shell history（二维码本身会暴露密码,故只防 history/`ps` 这层）。渲染 flag（`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`）全继承 `qr`。**有意不做**企业级 802.1X / EAP（payload 复杂、扫码端支持差）和「读系统已存 WiFi 密码」（要抠各平台钥匙串，越权）。
+
+### `jdan barcode`
+
+生成 **Code128 一维条码**（库存 / 物流 / 快递单常用）。**0 新依赖**：内嵌 107 行 Code128 模式表自己编码 + 自己渲染（`image/png` 是 stdlib），不引外部 barcode 库——跟 `lunar` 一样的「内嵌表 + 算法」路子。
+
+详细技术文档：[docs/jdan-barcode.md](docs/jdan-barcode.md)
+
+```bash
+$ jdan barcode "ABC-123"           # 终端竖条 + 下方人眼可读文本
+$ jdan barcode 5901234123457 -o label.png
+$ jdan barcode "SKU42" -o tag.svg
+$ echo "data" | jdan barcode       # stdin
+$ jdan barcode "ABC-123" --json    # {data, code_set, checksum, modules}
+```
+
+**原理**：一维条码 = 一排竖条+空白，靠宽度编码。Code128 共 107 个符号、每个 11 模块（3 条+3 空），结构 `[静区] Start 数据 校验 Stop [静区]`，校验 = `(Start + Σ位置×值) mod 103`。字符集默认 **B**（可打印 ASCII 32-126）；输入**全数字且偶数长度**时自动用 **C** 集（一个符号编 2 位数，宽度减半）。输出：终端（整列 █ 竖条 + 下方文本）/ PNG / SVG（`-o` 按扩展名），`--module` 调粗细、`--invert` 反色、`--no-text` 隐藏文本。**有意不做** EAN-13 / UPC / Code39（各有独立校验位规则，可后续单加）、中途切 code set 的最优压缩、条码**识别**（图→数字，要图像处理，跟 `qr` 没做解码同理）。注：PNG 不画人眼文本（要字体依赖），终端和 SVG 画。
 
 ### `jdan figlet`
 
