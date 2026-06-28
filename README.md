@@ -217,7 +217,7 @@ $ jdan qrwifi Home --password-stdin <<< 'pw'     # 密码走 stdin，不进 shel
 $ jdan qrwifi Home -p pw --json                  # {ssid,auth,hidden,payload,...}
 ```
 
-payload 按 `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` 标准拼。认证类型 `wpa`（默认，含 WPA2/WPA3）/ `wep` / `nopass`（开放网络，省略 `P:`）。SSID 可用位置参数或 `--ssid`。密码 `-p` 方便、`--password-stdin` 避免进 shell history（二维码本身会暴露密码,故只防 history/`ps` 这层）。渲染 flag（`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`）全继承 `qr`。**有意不做**企业级 802.1X / EAP（payload 复杂、扫码端支持差）和「读系统已存 WiFi 密码」（要抠各平台钥匙串，越权）。
+payload 按 `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` 标准拼。认证类型 `wpa`（默认，含 WPA2/WPA3）/ `wep` / `nopass`（开放网络，省略 `P:`）。**WPA/WEP 忘了给密码会直接报错**（空密码的码扫了静默连不上），真·开放网络请显式 `--auth nopass`。SSID 可用位置参数或 `--ssid`。密码 `-p` 方便、`--password-stdin` 避免进 shell history（二维码本身会暴露密码,故只防 history/`ps` 这层）。渲染 flag（`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`）全继承 `qr`。**有意不做**企业级 802.1X / EAP（payload 复杂、扫码端支持差）和「读系统已存 WiFi 密码」（要抠各平台钥匙串，越权）。
 
 ### `jdan figlet`
 

@@ -51,6 +51,11 @@ func Payload(c Config) (string, error) {
 	if auth == "" {
 		auth = AuthWPA
 	}
+	// WPA/WEP 空密码是无效配置：会编出「空密码」的码，手机扫了静默连不上。
+	// 拦掉事故（忘了给密码 / 空 stdin），不挡任何合理用法。开放网络请用 nopass。
+	if auth != AuthNopass && c.Password == "" {
+		return "", fmt.Errorf("%s 网络需要密码（开放网络请用 --auth nopass）", auth)
+	}
 
 	var b strings.Builder
 	b.WriteString("WIFI:")

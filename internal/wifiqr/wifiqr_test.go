@@ -74,6 +74,19 @@ func TestPayload_EmptySSID(t *testing.T) {
 	}
 }
 
+// WPA/WEP 空密码会编出连不上的「空密码」码 → 应报错，而不是静默生成。
+func TestPayload_WPAEmptyPasswordErrors(t *testing.T) {
+	for _, auth := range []Auth{AuthWPA, AuthWEP, ""} { // "" 默认 WPA
+		if _, err := Payload(Config{SSID: "N", Auth: auth, Password: ""}); err == nil {
+			t.Errorf("auth=%q 空密码应报错", auth)
+		}
+	}
+	// nopass 空密码是合法的（开放网络）
+	if _, err := Payload(Config{SSID: "N", Auth: AuthNopass, Password: ""}); err != nil {
+		t.Errorf("nopass 空密码不应报错：%v", err)
+	}
+}
+
 func TestParseAuth(t *testing.T) {
 	ok := map[string]Auth{
 		"wpa": AuthWPA, "WPA": AuthWPA, "wpa2": AuthWPA, "wpa3": AuthWPA, "": AuthWPA,

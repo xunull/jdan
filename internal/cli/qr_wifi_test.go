@@ -57,6 +57,23 @@ func TestQRWifi_BothPasswordSourcesConflict(t *testing.T) {
 	}
 }
 
+func TestQRWifi_WPANoPasswordErrors(t *testing.T) {
+	_, err := runQRWifi(t, nil, "MyNet") // 忘了 -p，默认 wpa
+	if err == nil || !strings.Contains(err.Error(), "需要密码") {
+		t.Errorf("WPA 无密码应报错（防生成连不上的码），got %v", err)
+	}
+}
+
+func TestQRWifi_NopassNoPasswordOK(t *testing.T) {
+	out, err := runQRWifi(t, nil, "MyNet", "--auth", "nopass", "--json")
+	if err != nil {
+		t.Fatalf("开放网络无密码应正常：%v", err)
+	}
+	if !strings.Contains(out, "WIFI:T:nopass;S:MyNet;;") {
+		t.Errorf("开放网络 payload 错:\n%s", out)
+	}
+}
+
 func TestQRWifi_TerminalRenders(t *testing.T) {
 	out, err := runQRWifi(t, nil, "MyNet", "-p", "x")
 	if err != nil {

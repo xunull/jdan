@@ -216,7 +216,7 @@ $ jdan qrwifi Home --password-stdin <<< 'pw'     # password via stdin, off shell
 $ jdan qrwifi Home -p pw --json                  # {ssid,auth,hidden,payload,...}
 ```
 
-The payload follows the `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` standard. Auth type `wpa` (default, covers WPA2/WPA3) / `wep` / `nopass` (open network, omits `P:`). SSID via positional arg or `--ssid`. Password via `-p` (convenient) or `--password-stdin` (keeps it off shell history; the QR itself reveals the password by design, so this only guards the history/`ps` layer). Render flags (`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`) are all inherited from `qr`. **Deliberately out of scope**: enterprise 802.1X / EAP (complex payload, poor scanner support) and reading the system's saved WiFi password (would require digging into each platform's keychain).
+The payload follows the `WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;` standard. Auth type `wpa` (default, covers WPA2/WPA3) / `wep` / `nopass` (open network, omits `P:`). **Forgetting the password on a WPA/WEP network is a hard error** (an empty-password code silently fails to join); for a genuinely open network pass `--auth nopass` explicitly. SSID via positional arg or `--ssid`. Password via `-p` (convenient) or `--password-stdin` (keeps it off shell history; the QR itself reveals the password by design, so this only guards the history/`ps` layer). Render flags (`--ecc`/`--invert`/`--full-block`/`--output .png/.svg`/`--json`) are all inherited from `qr`. **Deliberately out of scope**: enterprise 802.1X / EAP (complex payload, poor scanner support) and reading the system's saved WiFi password (would require digging into each platform's keychain).
 
 ### `jdan figlet`
 
