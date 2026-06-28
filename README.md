@@ -154,6 +154,8 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan whois`](#jdan-whois) — 域名/IP WHOIS（自动路由 + IANA/ARIN referral 跟随 + parsed 表）
 - [`jdan ip`](#jdan-ip) — IP / CIDR 计算（info / contains / range / split / normalize）
 - [`jdan meta`](#jdan-meta) — 抓网页 meta / Open Graph / Twitter Card（分享卡片体检）
+- [`jdan csp`](#jdan-csp) — 解析 Content-Security-Policy + 安全体检
+- [`jdan cookie`](#jdan-cookie) — 解析 Set-Cookie / Cookie + 安全体检
 
 **文件 hash & 归档**
 - [`jdan hash`](#jdan-hash) — 跨平台 md5/sha1/sha256/sha512 + `--check` 校验
@@ -376,6 +378,36 @@ $ jdan meta page.html                # 解析本地文件
 ```
 
 抓取约束：跟随重定向报最终 URL；非 `text/html` 拒绝；只读 `<head>` 区（封顶 512 KiB，不下整个大页面）；默认 10s 超时（`--timeout`）。默认伪装常见浏览器 UA（不少站对非浏览器 UA 返回阉割页），`--ua` 可改成模拟某平台爬虫。体检会指出缺 `og:image`/`og:title`/`description`/`canonical` 等关键标签。**只读静态 HTML、不跑 JS**：靠 JS 注入标签的 SPA 抓不到（如实反映，非 bug）。解析用 `x/net/html` 正经 tokenizer，畸形 HTML 也稳。
+
+### `jdan csp`
+
+解析 **Content-Security-Policy** 头成可读表格，并揪出常见弱点（迷你 CSP Evaluator）。0 依赖（纯字符串解析 + 复用现有 http 栈抓取）。
+
+详细技术文档：[docs/jdan-csp.md](docs/jdan-csp.md)
+
+```bash
+$ jdan csp https://example.com                                  # 抓 URL 取 CSP 头
+$ jdan csp "default-src 'self'; script-src 'self' 'unsafe-inline'"   # 直接给头值
+$ echo "default-src 'self'" | jdan csp                          # stdin
+$ jdan csp https://example.com --json
+```
+
+输入三选一:含空格/分号 → 当头值解析,否则当 URL 抓 `Content-Security-Policy`(缺了再试 `-Report-Only`)。**体检**才是重点:`'unsafe-inline'`/`'unsafe-eval'`、`*` 通配、缺 `default-src`、缺 `object-src 'none'`、`data:` 进脚本源、缺 `frame-ancestors`。**有意不做**全套 Google CSP-Evaluator(几十项 bypass 检测)和「生成更安全的 CSP」(越权易给错建议)。
+
+### `jdan cookie`
+
+解析 **Set-Cookie / Cookie** 头成可读表格,并揪出安全问题。解析直接用 stdlib `http.ParseSetCookie`(Go 1.23+),只加审计层,0 依赖。
+
+详细技术文档：[docs/jdan-cookie.md](docs/jdan-cookie.md)
+
+```bash
+$ jdan cookie https://example.com                              # 抓 URL 取全部 Set-Cookie
+$ jdan cookie "sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax"   # 直接给一条
+$ jdan cookie --request "a=1; b=2; sid=abc"                    # 当请求 Cookie 头(只列 pairs)
+$ jdan cookie https://example.com --json
+```
+
+输入三选一:含 `=` → 头值,否则当 URL 抓(可多条 Set-Cookie)。**体检**:缺 `Secure`、缺 `HttpOnly`、`SameSite=None` 无 `Secure`(浏览器拒收)、`__Host-`/`__Secure-` 前缀规则、`Domain` 过宽。`--request` 把输入当请求 `Cookie:` 头(只列 name=value 对,不审计)。跟 `jdan csp` 是姊妹(都解析 HTTP 安全头),跟 `jdan jwt`(解 JWT)互补。
 
 ### `jdan jwt decode`
 

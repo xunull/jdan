@@ -153,6 +153,8 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan whois`](#jdan-whois) — domain/IP WHOIS (auto routing + IANA/ARIN referral following + parsed table)
 - [`jdan ip`](#jdan-ip) — IP / CIDR calculation (info / contains / range / split / normalize)
 - [`jdan meta`](#jdan-meta) — fetch page meta / Open Graph / Twitter Card (share-card audit)
+- [`jdan csp`](#jdan-csp) — parse Content-Security-Policy + security audit
+- [`jdan cookie`](#jdan-cookie) — parse Set-Cookie / Cookie + security audit
 
 **File Hashing & Archives**
 - [`jdan hash`](#jdan-hash) — cross-platform md5/sha1/sha256/sha512 + `--check` verification
@@ -375,6 +377,36 @@ $ jdan meta page.html                # parse a local file
 ```
 
 Fetch constraints: follows redirects and reports the final URL; rejects non-`text/html`; reads only the `<head>` region (capped at 512 KiB, no whole-page download); 10s timeout by default (`--timeout`). Sends a common browser User-Agent by default (many sites serve a stripped page to non-browser UAs); `--ua` lets you impersonate a specific platform crawler. The audit flags missing key tags like `og:image`/`og:title`/`description`/`canonical`. **Reads static HTML only, no JS**: SPAs that inject tags via JS won't be picked up (reflected honestly, not a bug). Parsing uses the proper `x/net/html` tokenizer, so malformed HTML is handled robustly.
+
+### `jdan csp`
+
+Parse a **Content-Security-Policy** header into a readable table and flag common weaknesses (a mini CSP Evaluator). Zero deps (plain string parsing + the existing HTTP stack for fetching).
+
+Full technical doc: [docs/jdan-csp.md](docs/jdan-csp.md)
+
+```bash
+$ jdan csp https://example.com                                  # fetch URL, read the CSP header
+$ jdan csp "default-src 'self'; script-src 'self' 'unsafe-inline'"   # pass the header value
+$ echo "default-src 'self'" | jdan csp                          # stdin
+$ jdan csp https://example.com --json
+```
+
+Input is one of three: contains a space/semicolon → treated as a header value, otherwise fetched as a URL (`Content-Security-Policy`, falling back to `-Report-Only`). The **audit** is the point: `'unsafe-inline'`/`'unsafe-eval'`, `*` wildcards, missing `default-src`, missing `object-src 'none'`, `data:` in a script source, missing `frame-ancestors`. **Deliberately out of scope**: the full Google CSP-Evaluator (dozens of bypass checks) and generating a "more secure" CSP (over-reach, easy to advise wrong).
+
+### `jdan cookie`
+
+Parse **Set-Cookie / Cookie** headers into a readable table and flag security issues. Parsing uses stdlib `http.ParseSetCookie` (Go 1.23+) with just an audit layer on top, zero deps.
+
+Full technical doc: [docs/jdan-cookie.md](docs/jdan-cookie.md)
+
+```bash
+$ jdan cookie https://example.com                              # fetch URL, all Set-Cookie headers
+$ jdan cookie "sid=abc; Path=/; Secure; HttpOnly; SameSite=Lax"   # pass one Set-Cookie
+$ jdan cookie --request "a=1; b=2; sid=abc"                    # parse as a request Cookie header (pairs only)
+$ jdan cookie https://example.com --json
+```
+
+Input is one of three: contains `=` → a header value, otherwise fetched as a URL (multiple Set-Cookie supported). The **audit**: missing `Secure`, missing `HttpOnly`, `SameSite=None` without `Secure` (browsers reject it), `__Host-`/`__Secure-` prefix rules, an overly broad `Domain`. `--request` parses the input as a request `Cookie:` header (lists name=value pairs only, no audit). A sibling of `jdan csp` (both parse HTTP security headers), complementing `jdan jwt` (decode JWTs).
 
 ### `jdan jwt decode`
 
