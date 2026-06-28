@@ -143,6 +143,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan totp`](#jdan-totp) — TOTP 2FA 验证码（RFC 6238，兼容 Google Authenticator）
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 编码/解码（standard / URL-safe / no-pad）
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
+- [`jdan grab`](#jdan-grab) — 从文本捞 URL / email / IP（松正则 + stdlib 校验）
 - [`jdan num`](#jdan-num) — 进制转换（dec/hex/bin/oct）+ 位运算
 - [`jdan calc`](#jdan-calc) — 算术表达式计算器（+ - * / % ^ + 函数）
 - [`jdan env`](#jdan-env) — .env 文件工具（lint / diff / redact / get）
@@ -770,6 +771,24 @@ a b
 |------|-----------|------|
 | 默认 / `--path` | `%20` | URL path 段 / 大多数场景 |
 | `--query` | `+` | URL query string（兼容 application/x-www-form-urlencoded）|
+
+### `jdan grab`
+
+从任意文本 / 日志里把 **URL / email / IP** 捞出来。**0 依赖**。
+
+详细技术文档：[docs/jdan-grab.md](docs/jdan-grab.md)
+
+**原理**：纯正则永远做不完美（URL / email / IPv6 语法太复杂），所以两步走——松正则把「长得像」的候选都抓出来，再用 **stdlib 校验器**留真去假：`netip.ParseAddr`（IP）/ `url.Parse`（URL）/ `mail.ParseAddress`（email）。所以 `999.1.1.1`、`a@@b`、MAC 地址、`12:34:56`（时间）这类会被自动淘汰。这三个校验器项目里都用过，比手写正则可靠得多。
+
+```bash
+$ cat access.log | jdan grab -t ip        # 只抽 IP（逐行，可管道）
+$ jdan grab -t email < contacts.txt       # 只抽邮箱
+$ pbpaste | jdan grab                      # 抽全部，带类型标签
+$ jdan grab -t ip --count log.txt         # 带出现次数（默认降序）
+$ jdan grab page.html --json              # 按类型分组 JSON
+```
+
+`-t` 选类型（`url`/`email`/`ip`，csv，默认全部）。默认去重 + 保留首次出现顺序;`--count` 出现次数;`--sort` 排序。输入：无参读 stdin、参数是已存在文件则读文件、否则当字面文本。IP 归一化（IPv6 压缩零段）。**有意不做**：电话号（locale 太杂）、信用卡（那是 `secrets-scan`）、裸域名 / `www.`（太噪）；MAC 可后续加。
 
 ### `jdan num`
 

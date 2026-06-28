@@ -142,6 +142,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan totp`](#jdan-totp) — TOTP 2FA codes (RFC 6238, compatible with Google Authenticator)
 - [`jdan b64 enc/dec`](#jdan-b64) — base64 encode/decode (standard / URL-safe / no-pad)
 - [`jdan url enc/dec`](#jdan-url) — URL percent-encoding
+- [`jdan grab`](#jdan-grab) — pull URLs / emails / IPs from text (loose regex + stdlib validation)
 - [`jdan num`](#jdan-num) — base conversion (dec/hex/bin/oct) + bitwise operations
 - [`jdan calc`](#jdan-calc) — arithmetic expression calculator (+ - * / % ^ + functions)
 - [`jdan env`](#jdan-env) — .env file tools (lint / diff / redact / get)
@@ -769,6 +770,24 @@ a b
 |------|-----------|------|
 | default / `--path` | `%20` | URL path segments / most scenarios |
 | `--query` | `+` | URL query strings (compatible with application/x-www-form-urlencoded) |
+
+### `jdan grab`
+
+Pull **URLs / emails / IPs** out of arbitrary text or logs. **Zero deps**.
+
+Full technical doc: [docs/jdan-grab.md](docs/jdan-grab.md)
+
+**How it works**: a perfect regex is impossible (URL / email / IPv6 grammars are too complex), so it goes in two steps — a loose regex grabs everything that "looks like" a candidate, then a **stdlib validator** keeps the real ones and drops the rest: `netip.ParseAddr` (IP) / `url.Parse` (URL) / `mail.ParseAddress` (email). So `999.1.1.1`, `a@@b`, MAC addresses, and `12:34:56` (a time) are filtered out automatically. All three validators are already battle-tested in the project, far more reliable than a hand-rolled regex.
+
+```bash
+$ cat access.log | jdan grab -t ip        # IPs only (line per match, pipeable)
+$ jdan grab -t email < contacts.txt       # emails only
+$ pbpaste | jdan grab                      # all types, labeled
+$ jdan grab -t ip --count log.txt         # with occurrence counts (desc by default)
+$ jdan grab page.html --json              # grouped JSON by type
+```
+
+`-t` selects types (`url`/`email`/`ip`, csv, default all). Dedup + first-seen order by default; `--count` for frequencies; `--sort`. Input: stdin with no arg, a file if the arg exists, otherwise literal text. IPs are normalized (IPv6 zero-compression). **Deliberately out of scope**: phone numbers (locale-dependent), credit cards (that's `secrets-scan`), bare domains / `www.` (too noisy); MAC could be added later.
 
 ### `jdan num`
 
