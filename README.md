@@ -123,6 +123,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 **Git**
 - [`jdan git summary`](#jdan-git-summary) — 仓库一眼看（commit/分支/tag/年龄/贡献者/hotspots）
 - [`jdan git changelog`](#jdan-git-changelog) — 从最近 tag 到 HEAD 生成 changelog（Conventional Commits 分组）
+- [`jdan git commitlint`](#jdan-git-commitlint) — 按 Conventional Commits 规范校验提交信息
 
 **文档 / Markdown**
 - [`jdan toc`](#jdan-toc) — 从 Markdown 标题生成目录（GitHub 风格 anchor，可回填）
@@ -2511,6 +2512,32 @@ $ jdan git changelog --json
 ```
 
 范围默认「最近 tag → HEAD」（无 tag 取全部历史）；merge commit 默认跳过；不符合规范的 subject 归到 Other（不丢）。非 git 仓库 / 非法 ref 有清晰报错。
+
+### `jdan git commitlint`
+
+按 **Conventional Commits** 规范校验提交信息（`type(scope): subject`）。**0 新依赖**。
+
+```
+$ jdan git commitlint origin/main..HEAD     # 校验 PR 分支上的全部提交
+✗ d4e5f6  Fixed the login bug.
+    · [header-structure] header 不符合 "type(scope): subject" 结构："Fixed the login bug."
+✓ a1b2c3  feat(api): 加分页
+1/2 条提交不合规 ✗
+```
+
+输入来源按优先级：`-m` 字面量 > `-f` 文件（commit-msg hook 用）> revision-range（调 git）> stdin > 默认 `HEAD`。查的规则：type 必填/白名单内/小写、subject 非空且无结尾句号、header 不超长（默认 100，**按 rune 计**，中文不误伤）、scope 小写、body 前空行；`!` 或 `BREAKING CHANGE:` 识别为破坏性。
+
+```
+-m "feat: x"        直接校验字面量
+-f <file>           读文件（hook：git 把信息文件路径传进来）
+--types a,b,c       覆盖 type 白名单
+--max-header N       header 上限（默认 100）
+--scope-required     强制要有 scope
+--json               JSON 输出（顶层 ok 布尔）
+--warn               软模式：只报不拦（退出 0）
+```
+
+**退出码**：全合规 0、有违规非 0（可直接当 commit-msg hook 拦下）。**当 hook 用**（不内置安装，避免覆盖 husky）：`.git/hooks/commit-msg` 写 `exec jdan git commitlint -f "$1"` 即可。原理与规则详见 [docs/jdan-commitlint.md](docs/jdan-commitlint.md)。
 
 ### `jdan toc`
 

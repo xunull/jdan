@@ -122,6 +122,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **Git**
 - [`jdan git summary`](#jdan-git-summary) — repo at a glance (commits/branches/tags/age/contributors/hotspots)
 - [`jdan git changelog`](#jdan-git-changelog) — generate a changelog from the latest tag to HEAD (grouped by Conventional Commits)
+- [`jdan git commitlint`](#jdan-git-commitlint) — lint commit messages against the Conventional Commits spec
 
 **Docs / Markdown**
 - [`jdan toc`](#jdan-toc) — generate a table of contents from Markdown headings (GitHub-style anchors, can write back in place)
@@ -2497,6 +2498,32 @@ $ jdan git changelog --json
 ```
 
 The range defaults to "latest tag → HEAD" (whole history if there are no tags); merge commits are skipped by default; non-conforming subjects land in Other (nothing dropped). Non-git repos / invalid refs get a clear error.
+
+### `jdan git commitlint`
+
+Lint commit messages against the **Conventional Commits** spec (`type(scope): subject`). **Zero new dependencies**.
+
+```
+$ jdan git commitlint origin/main..HEAD     # lint every commit on a PR branch
+✗ d4e5f6  Fixed the login bug.
+    · [header-structure] header 不符合 "type(scope): subject" 结构："Fixed the login bug."
+✓ a1b2c3  feat(api): 加分页
+1/2 条提交不合规 ✗
+```
+
+Input sources by precedence: `-m` literal > `-f` file (for the commit-msg hook) > revision-range (shells out to git) > stdin > default `HEAD`. Rules checked: type required / in the allowlist / lowercase, subject non-empty with no trailing period, header within length (default 100, **counted in runes** so CJK isn't penalized), scope lowercase, blank line before body; `!` or a `BREAKING CHANGE:` footer marks a breaking change.
+
+```
+-m "feat: x"        lint a literal message
+-f <file>           read from a file (hook: git passes the message file path)
+--types a,b,c       override the type allowlist
+--max-header N       header length cap (default 100)
+--scope-required     require a scope
+--json               JSON output (top-level ok bool)
+--warn               soft mode: report but don't block (exit 0)
+```
+
+**Exit codes**: 0 when all pass, non-0 on any violation (drop-in commit-msg hook gate). **As a hook** (no built-in installer, so it won't clobber husky): put `exec jdan git commitlint -f "$1"` in `.git/hooks/commit-msg`. Full rules and rationale in [docs/jdan-commitlint.md](docs/jdan-commitlint.md).
 
 ### `jdan toc`
 
