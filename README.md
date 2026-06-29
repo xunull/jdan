@@ -1621,7 +1621,7 @@ Cloudflare：
 
 三路**互相独立**的信号，任一命中即报，多路一致定性「确定」：
 
-- **HTTP 响应头指纹** — 各家的铁证头（★）：Cloudflare `CF-RAY`、CloudFront `x-amz-cf-id`、Akamai `x-akamai-request-id`、Fastly `x-fastly-request-id`；国内 CDN：阿里云 `EagleId`/`Server: Tengine`、百度 `Server: bfe`、腾讯 `X-NWS-LOG-UUID`、京东 `Via: (jcs …)`。`CF-RAY` 后缀还是边缘机房的 IATA 机场码，顺手解出来
+- **HTTP 响应头指纹** — 各家的铁证头（★）：Cloudflare `CF-RAY`、CloudFront `x-amz-cf-id`、Akamai `x-akamai-request-id`、Fastly `x-fastly-request-id`；国内 CDN：阿里云 `EagleId`/`Server: Tengine`、百度 `Server: bfe`、腾讯 `X-NWS-LOG-UUID`/`stgw`/`tRPC-Gateway`、京东 `Via: (jcs …)`、网宿 `X-Ser`。`CF-RAY` 后缀还是边缘机房的 IATA 机场码，顺手解出来
 - **fake-ip 代理友好** — Clash/Surge 那类 fake-ip 模式下 DNS 返回的是 `198.18.0.0/15` 合成 IP，IP 段判定天然失效；jdan 会识别并提示，结论改靠响应头 + NS（穿过代理仍是真实值）
 - **DNS NS 记录** — 域名是否托管在该 CDN 的 DNS（如 `*.ns.cloudflare.com`）。从全名往上逐级找委派点，不依赖 PSL
 - **IP 段归属** — 解析 IP 落不落在该 CDN 公布的 CIDR 段里（内嵌 Cloudflare 全段，约 15 v4 + 7 v6）。头被删了也藏不住

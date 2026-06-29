@@ -133,6 +133,71 @@ func TestDetect_ChineseCDNs(t *testing.T) {
 	}
 }
 
+// 向量取自 jdan http headers 实抓：imgcache.qq.com / www.qq.com / www.ibm.com
+// / www.adobe.com / www.mi.com 的真实响应头。
+func TestDetect_MoreCDNsFromLiveHeaders(t *testing.T) {
+	cases := []struct {
+		name     string
+		headers  map[string]string
+		wantProv string
+		wantConf string
+	}{
+		{
+			name:     "腾讯 NWS 边缘(imgcache.qq.com)",
+			headers:  map[string]string{"x-nws-log-uuid": "14329967330101172559", "server": "lego server", "x-cache-lookup": "cache refresh hit"},
+			wantProv: "Tencent Cloud CDN",
+			wantConf: "确定",
+		},
+		{
+			name:     "腾讯 STGW 网关",
+			headers:  map[string]string{"server": "stgw"},
+			wantProv: "Tencent Cloud CDN",
+			wantConf: "很可能",
+		},
+		{
+			name:     "腾讯 tRPC-Gateway(www.qq.com 另一后端)",
+			headers:  map[string]string{"server": "trpc-gateway"},
+			wantProv: "Tencent Cloud CDN",
+			wantConf: "很可能",
+		},
+		{
+			name:     "Akamai GHost(www.ibm.com)",
+			headers:  map[string]string{"server": "akamaighost"},
+			wantProv: "Akamai",
+			wantConf: "很可能",
+		},
+		{
+			name:     "Akamai NetStorage(www.adobe.com)", // 放宽前会漏
+			headers:  map[string]string{"server": "akamainetstorage"},
+			wantProv: "Akamai",
+			wantConf: "很可能",
+		},
+		{
+			name:     "网宿(www.mi.com)",
+			headers:  map[string]string{"server": "mife/3.0", "x-ser": "i27247_c14934, i27247_c14934, i54356_c26753", "x-cache": "hit from i54356_c26753(cloudsvr)"},
+			wantProv: "Wangsu (网宿)",
+			wantConf: "很可能",
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := Detect(c.headers, nil, nil, DefaultProviders())
+			var m *Match
+			for i := range res.Matches {
+				if res.Matches[i].Provider == c.wantProv {
+					m = &res.Matches[i]
+				}
+			}
+			if m == nil {
+				t.Fatalf("应识别出 %s，got %+v", c.wantProv, res.Matches)
+			}
+			if m.Confidence != c.wantConf {
+				t.Errorf("%s 置信度应为 %q，got %q", c.wantProv, c.wantConf, m.Confidence)
+			}
+		})
+	}
+}
+
 func TestDetect_SyntheticIP(t *testing.T) {
 	// Clash/Surge fake-ip：198.18.0.x 应被标记为合成 IP
 	res := Detect(nil, nil,

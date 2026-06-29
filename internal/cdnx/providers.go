@@ -75,7 +75,7 @@ func DefaultProviders() []Provider {
 				{Key: "x-akamai-request-id", Strong: true},
 				{Key: "akamai-grn", Strong: true},
 				{Key: "x-akamai-transformed"},
-				{Key: "server", Contains: "akamaighost"},
+				{Key: "server", Contains: "akamai"}, // AkamaiGHost / AkamaiNetStorage 都收
 			},
 		},
 		{
@@ -108,10 +108,12 @@ func DefaultProviders() []Provider {
 			},
 		},
 		{
-			Name: "Tencent Cloud CDN", // 腾讯云 CDN（NWS 边缘）
+			Name: "Tencent Cloud CDN", // 腾讯云 CDN（NWS 边缘 / STGW 网关）
 			Headers: []HeaderSig{
 				{Key: "x-nws-log-uuid", Strong: true}, // 腾讯 NWS 边缘唯一 id，铁证
 				{Key: "server", Contains: "nws"},
+				{Key: "server", Contains: "stgw"}, // Secure Tencent GateWay
+				{Key: "server", Contains: "trpc"}, // tRPC-Gateway，腾讯 API 网关（如 www.qq.com）
 			},
 		},
 		{
@@ -120,6 +122,12 @@ func DefaultProviders() []Provider {
 				{Key: "via", Contains: "jcs"}, // Via 里的 (jcs …) 节点标记
 			},
 			NSSuffixes: []string{".jdcache.com"},
+		},
+		{
+			Name: "Wangsu (网宿)", // ChinaNetCenter；X-Ser + X-Cache 里的 iNNNN_cNNNN 节点名是其招牌
+			Headers: []HeaderSig{
+				{Key: "x-ser"}, // 网宿边缘节点头（启发式，标"很可能"）
+			},
 		},
 		{
 			Name: "ChinaCache", // 蓝汛

@@ -122,14 +122,19 @@ Cloudflare 支持最深：还会从 CF-RAY 解出边缘机房（IATA 机场码�
 
 // realFetchHeaders 复用 httphdr.Fetch：手动跟重定向、逐跳带响应头、不下 body。
 // 取最后一跳的 URL + 响应头（键统一小写）喂给检测器。
+// 先走 HTTP/2；若失败（大站 h2 偶发 stream RST），强制 HTTP/1.1 再试一次。
 func realFetchHeaders(_ context.Context, rawURL string, insecure bool, maxRedirects int, timeout time.Duration) (string, map[string]string, error) {
-	client := &http.Client{Timeout: timeout * 2}
-	if insecure {
-		client.Transport = &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}
-	}
 	reqHeader := http.Header{}
 	reqHeader.Set("User-Agent", "jdan-net-cdn/1.0")
 
+	url, hdr, err := fetchHops(cdnHTTPClient(insecure, timeout, false), rawURL, reqHeader, maxRedirects)
+	if err != nil {
+		url, hdr, err = fetchHops(cdnHTTPClient(insecure, timeout, true), rawURL, reqHeader, maxRedirects)
+	}
+	return url, hdr, err
+}
+
+func fetchHops(client *http.Client, rawURL string, reqHeader http.Header, maxRedirects int) (string, map[string]string, error) {
 	hops, err := httphdr.Fetch(client, rawURL, "GET", reqHeader, maxRedirects)
 	if len(hops) == 0 {
 		if err != nil {
@@ -139,6 +144,19 @@ func realFetchHeaders(_ context.Context, rawURL string, insecure bool, maxRedire
 	}
 	last := hops[len(hops)-1]
 	return last.URL, lowerHeaders(last.Header), nil
+}
+
+// cdnHTTPClient 构造拉头用的 client。forceHTTP1 时禁用 h2 协商，绕开偶发 h2 RST。
+func cdnHTTPClient(insecure bool, timeout time.Duration, forceHTTP1 bool) *http.Client {
+	tr := &http.Transport{
+		Proxy:           http.ProxyFromEnvironment,
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure},
+	}
+	if forceHTTP1 {
+		tr.ForceAttemptHTTP2 = false
+		tr.TLSNextProto = map[string]func(string, *tls.Conn) http.RoundTripper{} // 空 map = 禁用 h2
+	}
+	return &http.Client{Timeout: timeout * 2, Transport: tr}
 }
 
 func realLookupNS(ctx context.Context, host string) ([]string, error) {

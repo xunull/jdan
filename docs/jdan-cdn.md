@@ -14,13 +14,16 @@ CDN 把流量代理在自己边缘节点上,所以"它在不在某家 CDN 后面
 |----------|-----------|--------|
 | Cloudflare | `CF-RAY` | `Server: cloudflare`、`CF-Cache-Status`、`cf-mitigated` |
 | Amazon CloudFront | `x-amz-cf-id` | `x-amz-cf-pop`、`Via: …cloudfront` |
-| Akamai | `x-akamai-request-id`、`akamai-grn` | `Server: AkamaiGHost` |
+| Akamai | `x-akamai-request-id`、`akamai-grn` | `Server: AkamaiGHost` / `AkamaiNetStorage` |
 | Fastly | `x-fastly-request-id` | `x-served-by: cache-…`、`Via: …varnish` |
 | 阿里云 CDN(淘宝/天猫) | `EagleId`、`X-Swift-Cachetime` | `Server: Tengine`、`X-Cache: HIT` |
 | 百度 BFE | — | `Server: bfe` / `Server: BWS/1.1`(单路弱信号,标"很可能") |
-| 腾讯云 CDN | `X-NWS-LOG-UUID` | `Server: NWS_…` |
+| 腾讯云 CDN | `X-NWS-LOG-UUID` | `Server: NWS_…` / `stgw` / `tRPC-Gateway` |
 | 京东 CDN | — | `Via: …(jcs …)`、NS `*.jdcache.com` |
+| 网宿 Wangsu | — | `X-Ser`(节点名 `iNNNN_cNNNN`)、`X-Cache: … from i…`(启发式,"很可能") |
 | ChinaCache(蓝汛) | `Powered-By-ChinaCache` | — |
+
+> 大站常多后端负载均衡,同一域名不同请求可能回不同 `Server`(如 `www.qq.com` 在 `stgw`/`tRPC-Gateway`/源站间轮替),所以一家 provider 收多个网关名。从国内看,部分海外站(如 apple.com)其实由国内 CDN(阿里云等)在抗,会如实判成国内 CDN。
 
 `CF-RAY` 形如 `8a1f2c3d4e5f6789-LAX`,**后缀是 Cloudflare 边缘机房的 IATA 机场码**(`LAX` = 洛杉矶),顺手解出来告诉你走的哪个 colo。
 
@@ -90,6 +93,7 @@ internal/cli/net_cdn.go      CLI：HTTP 拉头（复用 httphdr.Fetch）+ DNS NS
 - **纯函数好测**:`Detect` 吃「已采集的头/NS/IP」吐结果,核心逻辑脱网快测;CLI 只管网络采集 + 调 `Detect`,三个采集函数是注入点,测试灌桩数据不走真网。
 - **嵌表纪律**:CIDR 段内嵌 + `TestCloudflareRanges_AllParse` 往返保证每条都能 `ParsePrefix`,落段命中用真实 IP 断言。
 - **复用积木**:HTTP 拉头复用 `httphdr.Fetch`(手动跟重定向、逐跳带头、不下 body),scheme 补全复用 `httphdr.EnsureScheme`。
+- **h2→h1 回退**:大站 HTTP/2 偶发 `stream RST`,首次 h2 拉头失败就强制 HTTP/1.1 再试一次(`cdnHTTPClient(forceHTTP1)` 把 `TLSNextProto` 置空 map 禁用 h2)。
 
 ## 有意不做
 

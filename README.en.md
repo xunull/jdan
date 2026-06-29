@@ -1620,7 +1620,7 @@ Cloudflare：
 
 Three **independent** signals; any hit reports, agreement across signals makes it "确定" (certain):
 
-- **HTTP response-header fingerprints** — each vendor's rock-solid header (★): Cloudflare `CF-RAY`, CloudFront `x-amz-cf-id`, Akamai `x-akamai-request-id`, Fastly `x-fastly-request-id`; Chinese CDNs: Alibaba `EagleId`/`Server: Tengine`, Baidu `Server: bfe`, Tencent `X-NWS-LOG-UUID`, JD `Via: (jcs …)`. The `CF-RAY` suffix is also the edge colo's IATA airport code, decoded for you
+- **HTTP response-header fingerprints** — each vendor's rock-solid header (★): Cloudflare `CF-RAY`, CloudFront `x-amz-cf-id`, Akamai `x-akamai-request-id`, Fastly `x-fastly-request-id`; Chinese CDNs: Alibaba `EagleId`/`Server: Tengine`, Baidu `Server: bfe`, Tencent `X-NWS-LOG-UUID`/`stgw`/`tRPC-Gateway`, JD `Via: (jcs …)`, Wangsu `X-Ser`. The `CF-RAY` suffix is also the edge colo's IATA airport code, decoded for you
 - **fake-ip proxy friendly** — under Clash/Surge fake-ip mode, DNS returns synthetic `198.18.0.0/15` IPs, so IP-range matching is moot; jdan detects this and says so, falling back to headers + NS (which pass through the proxy as real values)
 - **DNS NS records** — whether the domain's DNS is hosted on that CDN (e.g. `*.ns.cloudflare.com`). Walks up from the full name to find the delegation point, no PSL needed
 - **IP-range membership** — whether the resolved IP falls in the CDN's published CIDRs (Cloudflare's full set is embedded, ~15 v4 + 7 v6). Can't be hidden by stripping headers
