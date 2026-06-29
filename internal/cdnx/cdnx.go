@@ -49,12 +49,22 @@ type Match struct {
 
 // Result 是一次检测的完整结果。
 type Result struct {
-	Matches  []Match  `json:"matches"`
-	Colo     string   `json:"colo,omitempty"` // Cloudflare CF-RAY 里的边缘机房码（IATA 机场码）
-	FinalURL string   `json:"final_url,omitempty"`
-	Host     string   `json:"host,omitempty"`
-	IPs      []string `json:"ips,omitempty"`
-	NS       []string `json:"ns,omitempty"`
+	Matches     []Match  `json:"matches"`
+	Colo        string   `json:"colo,omitempty"` // Cloudflare CF-RAY 里的边缘机房码（IATA 机场码）
+	FinalURL    string   `json:"final_url,omitempty"`
+	Host        string   `json:"host,omitempty"`
+	IPs         []string `json:"ips,omitempty"`
+	NS          []string `json:"ns,omitempty"`
+	SyntheticIP bool     `json:"synthetic_ip,omitempty"` // 解析到的 IP 全是内网/fake-ip，段判定无意义
+}
+
+// benchPrefix 是 RFC2544 benchmarking 段，Clash/Surge 等 fake-ip 代理默认拿它当合成 IP。
+var benchPrefix = netip.MustParsePrefix("198.18.0.0/15")
+
+// looksSynthetic 判断 IP 是否像本地代理 fake-ip / 内网地址——这类 IP 做"落段"判定没意义。
+func looksSynthetic(a netip.Addr) bool {
+	return a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() ||
+		a.IsUnspecified() || benchPrefix.Contains(a)
 }
 
 // Detected 是否命中任何 CDN。
@@ -122,6 +132,17 @@ func Detect(headers map[string]string, ns []string, ips []netip.Addr, providers 
 	if v, ok := headers["cf-ray"]; ok {
 		res.Colo = ColoFromCFRay(v)
 	}
+
+	// 全部解析 IP 都是合成/内网 → 标记，提示用户"落段"这一路在本机环境无效
+	if len(ips) > 0 {
+		res.SyntheticIP = true
+		for _, ip := range ips {
+			if !looksSynthetic(ip) {
+				res.SyntheticIP = false
+				break
+			}
+		}
+	}
 	return res
 }
 
@@ -183,6 +204,9 @@ func Render(r Result) string {
 		if len(r.IPs) > 0 {
 			fmt.Fprintf(&b, "   IP：%s\n", strings.Join(r.IPs, ", "))
 		}
+	}
+	if r.SyntheticIP {
+		b.WriteString("   ⚠ 解析 IP 像本地代理 fake-ip / 内网，IP 段判定已失效；结论只基于响应头与 NS\n")
 	}
 	return b.String()
 }

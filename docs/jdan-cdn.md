@@ -16,6 +16,11 @@ CDN 把流量代理在自己边缘节点上,所以"它在不在某家 CDN 后面
 | Amazon CloudFront | `x-amz-cf-id` | `x-amz-cf-pop`、`Via: …cloudfront` |
 | Akamai | `x-akamai-request-id`、`akamai-grn` | `Server: AkamaiGHost` |
 | Fastly | `x-fastly-request-id` | `x-served-by: cache-…`、`Via: …varnish` |
+| 阿里云 CDN(淘宝/天猫) | `EagleId`、`X-Swift-Cachetime` | `Server: Tengine`、`X-Cache: HIT` |
+| 百度 BFE | — | `Server: bfe` / `Server: BWS/1.1`(单路弱信号,标"很可能") |
+| 腾讯云 CDN | `X-NWS-LOG-UUID` | `Server: NWS_…` |
+| 京东 CDN | — | `Via: …(jcs …)`、NS `*.jdcache.com` |
+| ChinaCache(蓝汛) | `Powered-By-ChinaCache` | — |
 
 `CF-RAY` 形如 `8a1f2c3d4e5f6789-LAX`,**后缀是 Cloudflare 边缘机房的 IATA 机场码**(`LAX` = 洛杉矶),顺手解出来告诉你走的哪个 colo。
 
@@ -28,6 +33,8 @@ CDN 把流量代理在自己边缘节点上,所以"它在不在某家 CDN 后面
 ### 信号 3 — IP 段归属(网络层,最不会骗人)
 
 把 host 解析成 A/AAAA,看 IP 落不落在 **Cloudflare 公布的 CIDR 段**里(`104.16.0.0/13`、`172.64.0.0/13`、`2606:4700::/32` 等,约 15 个 v4 + 7 个 v6)。IP 在段里 = 流量确实穿过 Cloudflare,**头被删了也藏不住**。`net/netip` 的 `Prefix.Contains` 一句话。段稳定,**内嵌**(0 依赖,同 lunar 嵌表路子),目前只有 Cloudflare 填满整段。
+
+> **fake-ip 代理环境**:Clash/Surge 这类工具在 fake-ip 模式下,DNS 返回的是 `198.18.0.0/15`(RFC2544 保留段)的合成 IP,不是真实公网 IP —— 这一路在你机器上天然失效。jdan 会识别出这种合成/内网 IP 并在输出里点一句「IP 段判定已失效」,此时结论只基于响应头 + NS(这两路穿过代理仍是真实值)。
 
 ### 判定逻辑
 

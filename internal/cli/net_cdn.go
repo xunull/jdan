@@ -43,7 +43,7 @@ func newCDNCommand(deps cdnCmdDeps) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "cdn <url>",
-		Short: "识别站点前面挂的 CDN/WAF（Cloudflare/CloudFront/Akamai/Fastly）",
+		Short: "识别站点前面挂的 CDN/WAF（Cloudflare/阿里云/百度/腾讯/京东/CloudFront/Akamai/Fastly 等）",
 		Long: `判断一个网址前面是不是挂了 CDN/WAF，挂的是哪家。0 新依赖（纯 stdlib）。
 
 三路互相独立的信号，任一命中即报，多路一致定性"确定"：

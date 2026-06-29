@@ -73,6 +73,81 @@ func TestDetect_None(t *testing.T) {
 	}
 }
 
+// 中国主流 CDN：测试向量是 jdan http headers 实抓 www.taobao.com / www.baidu.com
+// / www.jd.com 的真实响应头（非自洽构造）。
+func TestDetect_ChineseCDNs(t *testing.T) {
+	cases := []struct {
+		name     string
+		headers  map[string]string
+		ns       []string
+		wantProv string
+		wantConf string
+	}{
+		{
+			name: "阿里云/淘宝",
+			headers: map[string]string{
+				"server":            "tengine",
+				"eagleid":           "75094e0c17826997760165899e",
+				"x-swift-cachetime": "142",
+				"x-cache":           "hit tcp_mem_hit dirn:-2:-2",
+			},
+			wantProv: "Alibaba Cloud CDN",
+			wantConf: "确定", // eagleid / x-swift 是强指纹
+		},
+		{
+			name:     "百度",
+			headers:  map[string]string{"server": "bfe"},
+			wantProv: "Baidu BFE",
+			wantConf: "很可能", // 只有 Server: bfe 单路弱信号，诚实标很可能
+		},
+		{
+			name:     "京东",
+			headers:  map[string]string{"server": "nginx", "via": "http/1.1 ori-cloud-hb1-mix-70 (jcs [crs f ])"},
+			ns:       []string{"ns4.jdcache.com"},
+			wantProv: "JD CDN",
+			wantConf: "确定", // via(header) + ns(jdcache) 两路一致
+		},
+		{
+			name:     "腾讯",
+			headers:  map[string]string{"x-nws-log-uuid": "abc-123", "server": "nws_tcaccess"},
+			wantProv: "Tencent Cloud CDN",
+			wantConf: "确定", // x-nws-log-uuid 强
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			res := Detect(c.headers, c.ns, nil, DefaultProviders())
+			var m *Match
+			for i := range res.Matches {
+				if res.Matches[i].Provider == c.wantProv {
+					m = &res.Matches[i]
+				}
+			}
+			if m == nil {
+				t.Fatalf("应识别出 %s，got %+v", c.wantProv, res.Matches)
+			}
+			if m.Confidence != c.wantConf {
+				t.Errorf("%s 置信度应为 %q，got %q", c.wantProv, c.wantConf, m.Confidence)
+			}
+		})
+	}
+}
+
+func TestDetect_SyntheticIP(t *testing.T) {
+	// Clash/Surge fake-ip：198.18.0.x 应被标记为合成 IP
+	res := Detect(nil, nil,
+		[]netip.Addr{netip.MustParseAddr("198.18.0.67")}, DefaultProviders())
+	if !res.SyntheticIP {
+		t.Error("198.18.0.67 应被识别为 fake-ip/合成 IP")
+	}
+	// 真实公网 IP 不该被标记
+	res2 := Detect(nil, nil,
+		[]netip.Addr{netip.MustParseAddr("104.16.1.1")}, DefaultProviders())
+	if res2.SyntheticIP {
+		t.Error("104.16.1.1 是真实公网 IP，不该标记为合成")
+	}
+}
+
 func TestColoFromCFRay(t *testing.T) {
 	cases := map[string]string{
 		"8a1f2c3d4e5f6789-SJC": "SJC",

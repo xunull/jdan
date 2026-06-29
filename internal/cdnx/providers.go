@@ -89,5 +89,43 @@ func DefaultProviders() []Provider {
 				{Key: "x-fastly-request-id", Strong: true},
 			},
 		},
+		// ---- 中国主流 CDN ----
+		{
+			Name: "Alibaba Cloud CDN", // 阿里云 CDN（淘宝/天猫/阿里系）
+			Headers: []HeaderSig{
+				{Key: "eagleid", Strong: true},                   // 阿里边缘唯一请求 id，铁证
+				{Key: "x-swift-cachetime", Strong: true},         // 阿里 Swift 缓存
+				{Key: "x-swift-savetime", Strong: true},          //
+				{Key: "ali-swift-global-savetime", Strong: true}, //
+				{Key: "server", Contains: "tengine"},             // 阿里的 nginx 分支（弱，开源他人也能用）
+			},
+		},
+		{
+			Name: "Baidu BFE", // 百度 Front End / Web Server
+			Headers: []HeaderSig{
+				{Key: "server", Contains: "bfe"}, // Baidu Front End
+				{Key: "server", Contains: "bws"}, // Baidu Web Server（旧）
+			},
+		},
+		{
+			Name: "Tencent Cloud CDN", // 腾讯云 CDN（NWS 边缘）
+			Headers: []HeaderSig{
+				{Key: "x-nws-log-uuid", Strong: true}, // 腾讯 NWS 边缘唯一 id，铁证
+				{Key: "server", Contains: "nws"},
+			},
+		},
+		{
+			Name: "JD CDN", // 京东自建 CDN（jcs = JD Cloud Service）
+			Headers: []HeaderSig{
+				{Key: "via", Contains: "jcs"}, // Via 里的 (jcs …) 节点标记
+			},
+			NSSuffixes: []string{".jdcache.com"},
+		},
+		{
+			Name: "ChinaCache", // 蓝汛
+			Headers: []HeaderSig{
+				{Key: "powered-by-chinacache", Strong: true},
+			},
+		},
 	}
 }
