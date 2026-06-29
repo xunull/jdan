@@ -162,6 +162,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan entropy`](#jdan-entropy) — compute Shannon entropy (tell if data is encrypted/compressed/random; sliding-window sparkline)
 - [`jdan secrets-scan`](#jdan-secrets-scan) — scan for hardcoded secrets/tokens (regex + entropy; redacted output)
 - [`jdan pwned`](#jdan-pwned) — check if a password is breached (HIBP k-anonymity, password never leaves your machine)
+- [`jdan htpasswd`](#jdan-htpasswd) — generate/verify Basic Auth password hashes (bcrypt/apr1/SHA)
 - [`jdan extract`](#jdan-extract) — general-purpose extraction for zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -614,6 +615,24 @@ $ echo -n 'pw' | jdan pwned --json
 ```
 
 Input comes only from a **no-echo prompt** or stdin (there is **deliberately no `-p` flag** — a leak-checking tool shouldn't leave your password in shell history). `Add-Padding: true` is on by default (fixed-length response, so even the size leaks nothing). Exit codes: 0 clean / 1 pwned / 2 error — usable as a CI / pre-commit gate. **Deliberately out of scope**: looking up breached accounts by email (that API needs a paid key and sends your real email, with no k-anonymity protection).
+
+### `jdan htpasswd`
+
+Generate / verify **Apache·nginx Basic Auth** password hash lines (for `.htpasswd`). **Zero new deps**.
+
+Full technical doc: [docs/jdan-htpasswd.md](docs/jdan-htpasswd.md)
+
+**How it works**: Basic Auth reads a `username:password-hash` file; the server hashes the request password and compares. This command generates those hash lines. The prefix picks the dialect: `$2y$` (bcrypt, most secure), `$apr1$` (Apache MD5-crypt, works on old systems), `{SHA}` (unsalted, insecure, legacy only). bcrypt uses `x/crypto` (already in the dep graph), apr1 is a hand-rolled MD5-crypt (matches openssl's golden output), {SHA} uses `crypto/sha1`.
+
+```bash
+$ jdan htpasswd alice                       # prompt for password (twice) → alice:$2y$...
+$ jdan htpasswd alice --apr1                 # use apr1
+$ printf 'pass\n' | jdan htpasswd alice      # non-TTY: read password from stdin
+$ jdan htpasswd alice -f .htpasswd           # upsert into a file (replace same user / append new / keep the rest)
+$ jdan htpasswd --verify '$2y$10$...'        # verify: enter password, compare to an existing hash
+```
+
+Default is bcrypt (`--cost`, default 10); `--apr1` / `--sha` switch algorithm. The password comes **only from a no-echo prompt or stdin, never a `-p` flag** (same as `jdan pwned` — keeps it out of shell history). With `-f`, a same-name user is replaced, a new user appended, and comments/other lines preserved. `--verify` auto-detects bcrypt/apr1/{SHA} by prefix; exit 0 on match, 1 on mismatch (scriptable). **Deliberately out of scope**: a `-p` cleartext flag (security red line), traditional DES crypt (ancient, insecure), cleartext entries, and htdigest (a different format, could be a separate command later).
 
 ### `jdan extract`
 

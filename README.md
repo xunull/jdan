@@ -163,6 +163,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan entropy`](#jdan-entropy) — 算 Shannon 熵（判断是否加密/压缩/随机；滑窗 sparkline）
 - [`jdan secrets-scan`](#jdan-secrets-scan) — 扫硬编码密钥/token（正则 + 高熵；输出脱敏）
 - [`jdan pwned`](#jdan-pwned) — 查密码是否已泄露（HIBP k-匿名，密码不出本机）
+- [`jdan htpasswd`](#jdan-htpasswd) — 生成/校验 Basic Auth 密码哈希（bcrypt/apr1/SHA）
 - [`jdan extract`](#jdan-extract) — 通用解压 zip/tar/tar.gz/tar.bz2/gz/bz2
 
 
@@ -615,6 +616,24 @@ $ echo -n 'pw' | jdan pwned --json
 ```
 
 输入只走**无回显交互提示**或 stdin（**故意不提供 `-p`**：查泄露的工具不该把密码留进 shell history）。默认带 `Add-Padding: true`（返回定长，连响应大小都不泄露）。退出码 0 干净 / 1 泄露 / 2 出错——可进 CI / pre-commit 当 gate。**有意不做**按邮箱查账号泄露（那个 API 要付费 key 且会把真实邮箱发出去，没有 k-匿名保护）。
+
+### `jdan htpasswd`
+
+生成 / 校验 **Apache·nginx Basic Auth** 的密码哈希行（`.htpasswd` 用）。**0 新依赖**。
+
+详细技术文档：[docs/jdan-htpasswd.md](docs/jdan-htpasswd.md)
+
+**原理**：Basic Auth 读一个 `用户名:密码哈希` 的文件,服务器把请求密码哈希后比对。这命令就是生成那些哈希行。哈希靠前缀分方言:`$2y$`(bcrypt,最安全)、`$apr1$`(Apache MD5-crypt,老系统通吃)、`{SHA}`(无盐,不安全仅兼容)。bcrypt 走 `x/crypto`(已在依赖图),apr1 手写 MD5-crypt(对齐 openssl 金标准),{SHA} 用 `crypto/sha1`。
+
+```bash
+$ jdan htpasswd alice                       # 交互输密码（两次确认）→ alice:$2y$...
+$ jdan htpasswd alice --apr1                 # 用 apr1
+$ printf 'pass\n' | jdan htpasswd alice      # 非 TTY：从 stdin 读密码
+$ jdan htpasswd alice -f .htpasswd           # upsert 进文件（替换同名 / 追加新 / 保留其余）
+$ jdan htpasswd --verify '$2y$10$...'        # 校验：输密码比对已有 hash
+```
+
+默认 bcrypt(`--cost` 调,默认 10);`--apr1` / `--sha` 换算法。密码**只走无回显提示或 stdin,绝不收 `-p`**(同 `jdan pwned`,不进 shell history)。`-f` 时同名用户替换、新用户追加、注释/其余行原样保留。`--verify` 按前缀自动认 bcrypt/apr1/{SHA},匹配退出 0、不匹配退出 1(可进脚本)。**有意不做**:`-p` 明文参数(安全红线)、crypt 传统 DES(古董不安全)、明文条目、htdigest(另一种格式,可后续单独做)。
 
 ### `jdan extract`
 
