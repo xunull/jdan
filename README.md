@@ -81,6 +81,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
+- [`jdan net cdn`](#jdan-net-cdn) — 识别站点前面挂的 CDN/WAF（Cloudflare/CloudFront/Akamai/Fastly）
 - [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
 - [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
 - [`jdan ssl pin`](#jdan-ssl-pin) — 生成 cert pinning 用的 SPKI hash（6 种格式）
@@ -1600,6 +1601,41 @@ jdan net selfcheck 8080 --json     # 结构化输出
 
 - macOS / 主流 Linux 默认带 `lsof`。Alpine 等极简环境可能没，selfcheck 会优雅降级提示 `install lsof`
 - 只 macOS 有真正的应用层防火墙检测；Linux/Windows 暂不实现（iptables/ufw/Defender 语义差异大）
+
+### `jdan net cdn`
+
+给个网址，判断它前面挂没挂 CDN/WAF、挂的是哪家。**0 新依赖**（纯 stdlib）。
+
+```
+$ jdan net cdn cloudflare.com
+✅ Cloudflare（确定）
+   经 LAX 边缘
+   最终 URL：https://www.cloudflare.com/
+
+Cloudflare：
+   · [header] cf-ray: a131…-LAX ★
+   · [header] server: cloudflare
+   · [ns] NS jule.ns.cloudflare.com
+   · [ip] 104.16.124.96 ∈ 104.16.0.0/13 ★
+```
+
+三路**互相独立**的信号，任一命中即报，多路一致定性「确定」：
+
+- **HTTP 响应头指纹** — 各家的铁证头（★）：Cloudflare `CF-RAY`、CloudFront `x-amz-cf-id`、Akamai `x-akamai-request-id`、Fastly `x-fastly-request-id`。`CF-RAY` 后缀还是边缘机房的 IATA 机场码，顺手解出来
+- **DNS NS 记录** — 域名是否托管在该 CDN 的 DNS（如 `*.ns.cloudflare.com`）。从全名往上逐级找委派点，不依赖 PSL
+- **IP 段归属** — 解析 IP 落不落在该 CDN 公布的 CIDR 段里（内嵌 Cloudflare 全段，约 15 v4 + 7 v6）。头被删了也藏不住
+
+```
+--headers-only      只看响应头，跳过 DNS/IP 解析（快、离线友好）
+--json              JSON 输出（顶层带 detected 布尔）
+-k, --insecure      跳过 TLS 证书验证
+--max-redirects N   最多跟几跳重定向（默认 10，0 = 不跟）
+--timeout           单步超时（默认 10s）
+```
+
+**退出码**：文本模式检测到 = 0、没检测到 = 非 0（可进 CI）；`--json` 恒 0，脚本读 `.detected`。
+
+**有意不做**：回源 IP 反查 / 揭穿真实后端（攻击性侦察，安全红线，只检测不去匿名化）、WAF 绕过、联网更新 CIDR 段。Fastly 无公开强指纹头，按启发式诚实标「很可能」。原理详见 [docs/jdan-cdn.md](docs/jdan-cdn.md)。
 
 ### `jdan ssl cert`
 

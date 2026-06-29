@@ -81,6 +81,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan http serve`](#jdan-http-serve) — temporary static file server + LAN URL + terminal QR code
 - [`jdan net probe`](#jdan-net-probe) — client-side phase-by-phase probe (DNS/TCP/TLS/HTTP)
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — server-side self-check + external reachability prediction
+- [`jdan net cdn`](#jdan-net-cdn) — fingerprint the CDN/WAF in front of a site (Cloudflare/CloudFront/Akamai/Fastly)
 - [`jdan ssl cert`](#jdan-ssl-cert) — inspect HTTPS certificate details (chain / verification / OCSP)
 - [`jdan ssl scan`](#jdan-ssl-scan) — full TLS configuration audit (ssllabs-style A+/A/B/C/D/F grade)
 - [`jdan ssl pin`](#jdan-ssl-pin) — generate the SPKI hash for cert pinning (6 formats)
@@ -1599,6 +1600,41 @@ jdan net selfcheck 8080 --json     # structured output
 
 - macOS / mainstream Linux ship with `lsof` by default. Minimal environments like Alpine may not have it, and selfcheck degrades gracefully with an `install lsof` hint
 - Only macOS has real application-layer firewall detection; Linux/Windows aren't implemented yet (iptables/ufw/Defender semantics differ too much)
+
+### `jdan net cdn`
+
+Give it a URL; it tells you whether a CDN/WAF sits in front and which one. **Zero new dependencies** (pure stdlib).
+
+```
+$ jdan net cdn cloudflare.com
+✅ Cloudflare（确定）
+   经 LAX 边缘
+   最终 URL：https://www.cloudflare.com/
+
+Cloudflare：
+   · [header] cf-ray: a131…-LAX ★
+   · [header] server: cloudflare
+   · [ns] NS jule.ns.cloudflare.com
+   · [ip] 104.16.124.96 ∈ 104.16.0.0/13 ★
+```
+
+Three **independent** signals; any hit reports, agreement across signals makes it "确定" (certain):
+
+- **HTTP response-header fingerprints** — each vendor's rock-solid header (★): Cloudflare `CF-RAY`, CloudFront `x-amz-cf-id`, Akamai `x-akamai-request-id`, Fastly `x-fastly-request-id`. The `CF-RAY` suffix is also the edge colo's IATA airport code, decoded for you
+- **DNS NS records** — whether the domain's DNS is hosted on that CDN (e.g. `*.ns.cloudflare.com`). Walks up from the full name to find the delegation point, no PSL needed
+- **IP-range membership** — whether the resolved IP falls in the CDN's published CIDRs (Cloudflare's full set is embedded, ~15 v4 + 7 v6). Can't be hidden by stripping headers
+
+```
+--headers-only      headers only, skip DNS/IP resolution (fast, offline-friendly)
+--json              JSON output (top-level detected bool)
+-k, --insecure      skip TLS certificate verification
+--max-redirects N   max redirect hops to follow (default 10, 0 = don't follow)
+--timeout           per-step timeout (default 10s)
+```
+
+**Exit codes**: text mode returns 0 when a CDN is detected, non-0 when not (CI-friendly); `--json` always 0, scripts read `.detected`.
+
+**Deliberately out of scope**: origin-IP unmasking / de-cloaking the real backend (offensive recon, a security red line — detect only, never de-anonymize), WAF evasion, online CIDR updates. Fastly has no public strong header, so it's honestly flagged "很可能" (likely) via heuristics. Full write-up in [docs/jdan-cdn.md](docs/jdan-cdn.md).
 
 ### `jdan ssl cert`
 
