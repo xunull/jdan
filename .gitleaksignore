@@ -1,0 +1,13 @@
+# gitleaks 忽略清单（fingerprint = commit:file:rule:line）。
+# 这里全是测试夹具的误报，不是真泄露。jdan git secrets / gitleaks 会自动读本文件。
+# 校验方式：确认对应文件确为一次性 throwaway 测试数据后再加进来。
+
+# sshkey 单测用的一次性 throwaway 私钥（test@jdan，从不用于真实场景，
+# 同 x/crypto/ssh 自带 testdata 做法）。见 internal/sshkey/testdata/。
+24a99a02a82034ba782088545592d84c35ce0c95:internal/sshkey/testdata/ecdsa256:private-key:1
+24a99a02a82034ba782088545592d84c35ce0c95:internal/sshkey/testdata/ed25519:private-key:1
+24a99a02a82034ba782088545592d84c35ce0c95:internal/sshkey/testdata/ed25519_enc:private-key:1
+24a99a02a82034ba782088545592d84c35ce0c95:internal/sshkey/testdata/rsa2048:private-key:1
+
+# jwtdecode 单测里的示例 JWT payload，被 gitleaks 误当 generic-api-key。非密钥。
+32ef794c778886a16734202dcd5bd7780075a500:internal/jwtdecode/decoder_test.go:generic-api-key:260
