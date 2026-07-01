@@ -14,6 +14,7 @@ func newGitCommand() *cobra.Command {
 	cmd.AddCommand(newGitSummaryCommand(gitSummaryDeps{}))
 	cmd.AddCommand(newGitChangelogCommand(gitChangelogDeps{}))
 	cmd.AddCommand(newCommitlintCommand(commitlintDeps{}))
+	cmd.AddCommand(newGitSecretsCommand(gitSecretsDeps{}))
 	return cmd
 }
 

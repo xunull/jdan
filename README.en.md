@@ -123,6 +123,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan git summary`](#jdan-git-summary) — repo at a glance (commits/branches/tags/age/contributors/hotspots)
 - [`jdan git changelog`](#jdan-git-changelog) — generate a changelog from the latest tag to HEAD (grouped by Conventional Commits)
 - [`jdan git commitlint`](#jdan-git-commitlint) — lint commit messages against the Conventional Commits spec
+- [`jdan git secrets`](#jdan-git-secrets) — scan git history for committed secrets/credentials (gitleaks-backed, redacted by default)
 
 **Docs / Markdown**
 - [`jdan toc`](#jdan-toc) — generate a table of contents from Markdown headings (GitHub-style anchors, can write back in place)
@@ -2524,6 +2525,33 @@ Input sources by precedence: `-m` literal > `-f` file (for the commit-msg hook) 
 ```
 
 **Exit codes**: 0 when all pass, non-0 on any violation (drop-in commit-msg hook gate). **As a hook** (no built-in installer, so it won't clobber husky): put `exec jdan git commitlint -f "$1"` in `.git/hooks/commit-msg`. Full rules and rationale in [docs/jdan-commitlint.md](docs/jdan-commitlint.md).
+
+### `jdan git secrets`
+
+Scan git **history** for committed secrets/credentials (staged changes too); detection is delegated to **gitleaks**. **Zero new Go dependencies** (needs `git` + `gitleaks` at runtime). Complements `jdan secrets-scan` (zero-dep, scans the working tree): this one audits "was it ever committed."
+
+```
+$ jdan git secrets                    # scan the current repo's full history
+[history] config/app.go:12  aws-access-key  deadbeef  (Bob 2026-01-05)  REDACTED
+
+疑似敏感文件（仅文件名，内容未验证）：
+  · deploy/id_rsa   [SSH 私钥]
+
+共 1 处内容命中 + 1 个可疑文件（已脱敏；exit 1）
+```
+
+Three things raw gitleaks doesn't give you: **redacted by default** (gitleaks prints plaintext; jdan always passes `--redact=100`, use `--show-secrets` to override), **a filename-audit layer** (catches content-less credential files gitleaks misses: `.env`/`id_rsa`/keystores), and **unified exit codes + a friendly error** (install hint when gitleaks is missing).
+
+```
+--staged             scan the staged diff only (for pre-commit)
+--show-secrets       print plaintext (redacted by default)
+--no-filenames       skip the filename-audit layer
+--json               machine-readable (still redacted)
+--log-opts=<x>       limit the range (e.g. origin/main..HEAD)
+--baseline <f>       ignore known findings (gitleaks baseline)
+```
+
+**Exit codes**: 0 clean / 1 found (CI gate) / 2 environment missing (gitleaks not installed or not a git repo). **As a pre-commit hook**: put `exec jdan git secrets --staged` in `.git/hooks/pre-commit`. **Deliberately out of scope**: never rewrites history (detect + rotate reminder only), no network validation, no reinventing the rule engine. Details in [docs/jdan-git-secrets.md](docs/jdan-git-secrets.md).
 
 ### `jdan toc`
 

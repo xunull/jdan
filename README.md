@@ -124,6 +124,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan git summary`](#jdan-git-summary) — 仓库一眼看（commit/分支/tag/年龄/贡献者/hotspots）
 - [`jdan git changelog`](#jdan-git-changelog) — 从最近 tag 到 HEAD 生成 changelog（Conventional Commits 分组）
 - [`jdan git commitlint`](#jdan-git-commitlint) — 按 Conventional Commits 规范校验提交信息
+- [`jdan git secrets`](#jdan-git-secrets) — 扫 git 历史里提交过的密钥/凭据（底层 gitleaks，默认脱敏）
 
 **文档 / Markdown**
 - [`jdan toc`](#jdan-toc) — 从 Markdown 标题生成目录（GitHub 风格 anchor，可回填）
@@ -2538,6 +2539,33 @@ $ jdan git commitlint origin/main..HEAD     # 校验 PR 分支上的全部提交
 ```
 
 **退出码**：全合规 0、有违规非 0（可直接当 commit-msg hook 拦下）。**当 hook 用**（不内置安装，避免覆盖 husky）：`.git/hooks/commit-msg` 写 `exec jdan git commitlint -f "$1"` 即可。原理与规则详见 [docs/jdan-commitlint.md](docs/jdan-commitlint.md)。
+
+### `jdan git secrets`
+
+扫 git **历史**里是否提交过密钥/凭据（也能扫暂存区），检测交给 **gitleaks**。**0 新 Go 依赖**（运行时需 `git` + `gitleaks`）。跟 `jdan secrets-scan`（零依赖、扫工作区）分工：这个审「过去有没有提交过」。
+
+```
+$ jdan git secrets                    # 扫当前仓库全历史
+[history] config/app.go:12  aws-access-key  deadbeef  (Bob 2026-01-05)  REDACTED
+
+疑似敏感文件（仅文件名，内容未验证）：
+  · deploy/id_rsa   [SSH 私钥]
+
+共 1 处内容命中 + 1 个可疑文件（已脱敏；exit 1）
+```
+
+比裸跑 gitleaks 多三样：**默认脱敏**（gitleaks 默认打印明文，jdan 固定传 `--redact=100`，要明文得 `--show-secrets`）、**补一层文件名审计**（抓 gitleaks 漏的 `.env`/`id_rsa`/keystore 这类内容无特征的凭据文件）、**统一退出码 + 友好报错**（没装 gitleaks 给安装指引）。
+
+```
+--staged             只扫暂存区（pre-commit 用）
+--show-secrets       输出明文（默认脱敏）
+--no-filenames       跳过文件名审计层
+--json               机读（同样脱敏）
+--log-opts=<x>       限范围（如 origin/main..HEAD）
+--baseline <f>       忽略已知项（gitleaks baseline）
+```
+
+**退出码**：0 干净 / 1 有发现（CI 可卡门）/ 2 环境缺失（没装 gitleaks 或非 git 仓库）。**当 pre-commit hook 用**：`.git/hooks/pre-commit` 写 `exec jdan git secrets --staged`。**有意不做**：不替你改写历史（只检测 + 提示轮换）、不联网验真、不重造规则引擎。原理详见 [docs/jdan-git-secrets.md](docs/jdan-git-secrets.md)。
 
 ### `jdan toc`
 
