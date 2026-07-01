@@ -66,6 +66,10 @@ func newGitSecretsCommand(deps gitSecretsDeps) *cobra.Command {
 检测交给 gitleaks（需先安装），jdan 负责：默认脱敏、补一层「敏感文件名」审计、
 统一输出与退出码。0 新 Go 依赖（运行时需要 git + gitleaks）。
 
+默认就扫【所有分支/所有 ref】（本地分支 + tag + 远程跟踪分支）的全部历史 ——
+gitleaks 底层跑 git log -p --full-history --all。--log-opts 只在你要【限定】范围
+时用（如某个 range），它会替换掉这个默认，不要用它来「加 --all」。
+
 例：
   jdan git secrets                              扫当前仓库全历史
   jdan git secrets /path/to/repo                扫指定仓库
@@ -174,7 +178,7 @@ func newGitSecretsCommand(deps gitSecretsDeps) *cobra.Command {
 	cmd.Flags().Bool("show-secrets", false, "输出明文密钥（默认脱敏）")
 	cmd.Flags().Bool("no-filenames", false, "跳过敏感文件名审计层")
 	cmd.Flags().Bool("json", false, "结构化输出（默认同样脱敏）")
-	cmd.Flags().String("log-opts", "", "透传给 gitleaks 的 git log 选项（限范围，如 origin/main..HEAD）")
+	cmd.Flags().String("log-opts", "", "限定范围的 git log 选项（如 origin/main..HEAD）；默认已扫全分支，此项会替换该默认")
 	cmd.Flags().String("baseline", "", "gitleaks baseline 文件（忽略已知项）")
 	return cmd
 }

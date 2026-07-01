@@ -27,6 +27,20 @@ gitleaks git . --report-format json --report-path - --redact=100 --no-banner --e
 
 报告走 stdout(`--report-path -`),jdan 解析 JSON,合上文件名审计,渲染。
 
+### 扫描范围：默认就是「所有分支的所有 commit」
+
+不用加任何参数。gitleaks `git` 默认底层跑的是:
+
+```
+git log -p -U0 --full-history --all --diff-filter=tuxdb
+```
+
+那个 `--all` 覆盖**所有 ref**(本地分支 `refs/heads`、tag、远程跟踪分支 `refs/remotes`),`--full-history` 保证不漏合并进来的历史。文件名审计层同样用 `git log --all`,两层一致。所以一个只提交在某条侧分支(HEAD 不可达)上的密钥,默认也照样扫得到。
+
+⚠️ 别用 `--log-opts=--all` 去「加全分支」——`--log-opts` 会**替换**掉上面那套聪明默认(变成裸的 `git log -p --all`,丢了 `--full-history` 和 diff-filter),是反效果。`--log-opts` 只在你要**缩小**范围时用,比如 `--log-opts=origin/main..HEAD` 只看某个 range。
+
+唯一扫不到的:**你本地没 fetch 下来的远程分支**——那些 commit 根本不在本地对象库里,任何本地工具都无能为力,先 `git fetch --all` 再扫。
+
 ## 用法
 
 ```bash
@@ -59,7 +73,7 @@ jdan git secrets --baseline known.json         # 忽略已知项（gitleaks base
 | `--show-secrets` | false | 输出明文密钥(默认脱敏) |
 | `--no-filenames` | false | 跳过敏感文件名审计层 |
 | `--json` | false | 结构化输出(默认同样脱敏) |
-| `--log-opts` | — | 透传给 gitleaks 的 git log 选项(限范围) |
+| `--log-opts` | — | **缩小**范围的 git log 选项(如 `origin/main..HEAD`);默认已扫全分支,此项会替换该默认 |
 | `--baseline` | — | gitleaks baseline 文件(忽略已知项) |
 
 ### 退出码
