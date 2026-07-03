@@ -78,6 +78,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 **网络 & DNS**
 - [`jdan http timing`](#jdan-http-timing) — 测 HTTP 请求各阶段耗时
 - [`jdan http headers`](#jdan-http-headers) — 看响应头 + 完整重定向链（逐跳）
+- [`jdan http grade`](#jdan-http-grade) — 给站点安全响应头打分（A+~F，securityheaders 风格）
 - [`jdan http serve`](#jdan-http-serve) — 临时静态文件服务器 + LAN URL + 终端二维码
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
@@ -1317,6 +1318,24 @@ $ jdan http headers <url> --json
 ```
 
 **手动跟重定向**（不靠 client 自动跟），逐跳展示每一跳的 status/Location/响应头——自动跟转做不到。默认 GET 但只读响应头、不下载 body（避开 HEAD 的怪行为）。相对 Location 正确解析；重定向循环被 `--max-redirects` 截断；连接失败时已成功的跳照常列出。重定向跳默认只显 Location，`-a` 每跳显全部头。
+
+### `jdan http grade`
+
+给站点的**安全响应头**打分（A+~F），风格同 securityheaders.com。**0 新依赖**（复用 `http headers` 的抓取）。看核心 6 项（HSTS/CSP/X-Content-Type-Options/X-Frame-Options/Referrer-Policy/Permissions-Policy），并对信息泄露头（`Server` 带版本号、`X-Powered-By`）反向扣分。
+
+```
+$ jdan http grade github.com
+安全响应头评级：B (74/100)  https://github.com
+
+✓ Strict-Transport-Security    max-age=31536000; includeSubdomains; preload
+⚠ Content-Security-Policy      含 unsafe-inline（削弱了防护，等于给内联脚本开口子）
+✓ X-Content-Type-Options       nosniff
+✓ X-Frame-Options              由 CSP frame-ancestors 覆盖
+✓ Referrer-Policy              strict-origin-when-cross-origin
+✗ Permissions-Policy           缺失
+```
+
+解析头**内容质量**而非只看存在：HSTS 的 `max-age` 太短要扣、CSP 含 `unsafe-inline` 降级、X-Frame 被 CSP `frame-ancestors` 覆盖也算过。跨源隔离 COOP/COEP/CORP 默认只提示、`--strict` 才计入。**退出码默认恒 0**（评估报告），只有 `--fail-under B` 且实际更低时才非 0（CI 卡门）——这跟 `net cdn`/`git secrets` 的是/否判定故意不同。**有意不做**：不主动扫漏洞/不发探测 payload、只读一次正常响应头；不代改服务器配置。原理详见 [docs/jdan-http-grade.md](docs/jdan-http-grade.md)。
 
 ### `jdan http serve`
 

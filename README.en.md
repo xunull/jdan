@@ -78,6 +78,7 @@ Index grouped by topic (the actual section order follows when each command was a
 **Network & DNS**
 - [`jdan http timing`](#jdan-http-timing) — measure the time spent in each phase of an HTTP request
 - [`jdan http headers`](#jdan-http-headers) — show response headers + the full redirect chain (hop by hop)
+- [`jdan http grade`](#jdan-http-grade) — grade a site's security response headers (A+~F, securityheaders style)
 - [`jdan http serve`](#jdan-http-serve) — temporary static file server + LAN URL + terminal QR code
 - [`jdan net probe`](#jdan-net-probe) — client-side phase-by-phase probe (DNS/TCP/TLS/HTTP)
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — server-side self-check + external reachability prediction
@@ -1316,6 +1317,24 @@ $ jdan http headers <url> --json
 ```
 
 It **follows redirects manually** (not via the client's auto-follow), showing each hop's status/Location/headers — something auto-follow can't do. Defaults to GET but only reads the response headers, never downloading the body (sidestepping HEAD's quirks). Relative `Location` is resolved correctly; redirect loops are capped by `--max-redirects`; on a connection failure the hops that did succeed are still listed. Redirect hops show only `Location` by default; `-a` shows all headers on every hop.
+
+### `jdan http grade`
+
+Grade a site's **security response headers** (A+~F), securityheaders.com style. **Zero new dependencies** (reuses `http headers`' fetch). Scores the core 6 (HSTS/CSP/X-Content-Type-Options/X-Frame-Options/Referrer-Policy/Permissions-Policy) and deducts for info-leak headers (`Server` with a version, `X-Powered-By`).
+
+```
+$ jdan http grade github.com
+安全响应头评级：B (74/100)  https://github.com
+
+✓ Strict-Transport-Security    max-age=31536000; includeSubdomains; preload
+⚠ Content-Security-Policy      含 unsafe-inline（削弱了防护，等于给内联脚本开口子）
+✓ X-Content-Type-Options       nosniff
+✓ X-Frame-Options              由 CSP frame-ancestors 覆盖
+✓ Referrer-Policy              strict-origin-when-cross-origin
+✗ Permissions-Policy           缺失
+```
+
+It grades header **quality**, not just presence: a short HSTS `max-age` is docked, a CSP with `unsafe-inline` is downgraded, and an `X-Frame-Options` covered by CSP `frame-ancestors` still passes. Cross-origin isolation (COOP/COEP/CORP) is info-only by default; `--strict` folds it into the grade. **Exit code is 0 by default** (it's an assessment report); only `--fail-under B` makes it non-zero when the grade is lower (CI gate) — deliberately unlike the yes/no verdicts of `net cdn`/`git secrets`. **Deliberately out of scope**: no active scanning / no probe payloads, just one normal response read; never rewrites server config. Details in [docs/jdan-http-grade.md](docs/jdan-http-grade.md).
 
 ### `jdan http serve`
 
