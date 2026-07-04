@@ -83,6 +83,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan net probe`](#jdan-net-probe) — client-side phase-by-phase probe (DNS/TCP/TLS/HTTP)
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — server-side self-check + external reachability prediction
 - [`jdan net cdn`](#jdan-net-cdn) — fingerprint the CDN/WAF in front of a site (Cloudflare/Alibaba/Baidu/Tencent/JD/CloudFront/Akamai/Fastly, …)
+- [`jdan net ws`](#jdan-net-ws) — probe a WebSocket endpoint (handshake + ping/pong round-trip)
 - [`jdan ssl cert`](#jdan-ssl-cert) — inspect HTTPS certificate details (chain / verification / OCSP)
 - [`jdan ssl scan`](#jdan-ssl-scan) — full TLS configuration audit (ssllabs-style A+/A/B/C/D/F grade)
 - [`jdan ssl pin`](#jdan-ssl-pin) — generate the SPKI hash for cert pinning (6 formats)
@@ -1657,6 +1658,21 @@ Three **independent** signals; any hit reports, agreement across signals makes i
 **Exit codes**: text mode returns 0 when a CDN is detected, non-0 when not (CI-friendly); `--json` always 0, scripts read `.detected`.
 
 **Deliberately out of scope**: origin-IP unmasking / de-cloaking the real backend (offensive recon, a security red line — detect only, never de-anonymize), WAF evasion, online CIDR updates. Fastly has no public strong header, so it's honestly flagged "很可能" (likely) via heuristics. Full write-up in [docs/jdan-cdn.md](docs/jdan-cdn.md).
+
+### `jdan net ws`
+
+Probe a **WebSocket endpoint**: send the HTTP Upgrade handshake, verify `101` + `Sec-WebSocket-Accept` (confirming it's a real WS endpoint), then send a ping frame and read the pong (proving data actually flows). **Zero new dependencies** (hand-rolled handshake + minimal RFC6455 framing, pure stdlib). Complements `net probe` (which stops at HTTP) by probing one layer higher.
+
+```
+$ jdan net ws echo.websocket.org           # no scheme → wss:// added
+WebSocket 握手：✓ 101 Switching Protocols  (握手 271.0ms)  wss://echo.websocket.org
+  Server:   Fly/…
+  Ping/Pong: ✓ pong 339.8ms
+```
+
+It recomputes `Sec-WebSocket-Accept` per the RFC6455 formula and compares, guarding against a "just returned 101" false positive; the ping frame is **masked** per the client rule, and only a returned pong counts as real bidirectional flow. `--origin`/`--subprotocol`/`-H` handle endpoints that check Origin or negotiate a subprotocol; `--no-ping` does handshake only; `-k` skips TLS verification.
+
+**Exit codes**: 0 on a successful handshake, non-0 on failure (can't connect / non-101 / accept mismatch / timeout) — usable as a WS liveness gate in CI. **Ping/pong is an extra connectivity hint only** — a missing pong doesn't change the exit code (some servers don't auto-pong). **Deliberately out of scope**: no interactive WS client (that's wscat/websocat), no load testing, no auth bypass. Full write-up in [docs/jdan-net-ws.md](docs/jdan-net-ws.md).
 
 ### `jdan ssl cert`
 

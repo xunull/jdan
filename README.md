@@ -83,6 +83,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan net probe`](#jdan-net-probe) — 客户端视角逐阶段（DNS/TCP/TLS/HTTP）探查
 - [`jdan net selfcheck`](#jdan-net-selfcheck) — 服务端自检 + 外部访问预测
 - [`jdan net cdn`](#jdan-net-cdn) — 识别站点前面挂的 CDN/WAF（Cloudflare/阿里云/百度/腾讯/京东/CloudFront/Akamai/Fastly 等）
+- [`jdan net ws`](#jdan-net-ws) — 探测 WebSocket 端点（握手 + ping/pong 往返）
 - [`jdan ssl cert`](#jdan-ssl-cert) — 看 HTTPS 证书详情（chain / verification / OCSP）
 - [`jdan ssl scan`](#jdan-ssl-scan) — TLS 配置综合审计（ssllabs 风格 A+/A/B/C/D/F 评分）
 - [`jdan ssl pin`](#jdan-ssl-pin) — 生成 cert pinning 用的 SPKI hash（6 种格式）
@@ -1658,6 +1659,21 @@ Cloudflare：
 **退出码**：文本模式检测到 = 0、没检测到 = 非 0（可进 CI）；`--json` 恒 0，脚本读 `.detected`。
 
 **有意不做**：回源 IP 反查 / 揭穿真实后端（攻击性侦察，安全红线，只检测不去匿名化）、WAF 绕过、联网更新 CIDR 段。Fastly 无公开强指纹头，按启发式诚实标「很可能」。原理详见 [docs/jdan-cdn.md](docs/jdan-cdn.md)。
+
+### `jdan net ws`
+
+探测一个 **WebSocket 端点**：发 HTTP Upgrade 握手、验 `101` + `Sec-WebSocket-Accept`（确认是真 WS 端点），再发一个 ping 帧收 pong（证明数据真能通）。**0 新依赖**（纯 stdlib 手搓握手 + 最小 RFC6455 帧）。跟 `net probe`（探到 HTTP 层）互补，再往上探一层。
+
+```
+$ jdan net ws echo.websocket.org           # 无 scheme 自动补 wss://
+WebSocket 握手：✓ 101 Switching Protocols  (握手 271.0ms)  wss://echo.websocket.org
+  Server:   Fly/…
+  Ping/Pong: ✓ pong 339.8ms
+```
+
+自己按 RFC6455 公式复算 `Sec-WebSocket-Accept` 比对，防「随便回个 101」的假阳性；ping 帧按客户端规则**掩码**，读到 pong 才算数据真通。`--origin`/`--subprotocol`/`-H` 应付按 Origin 校验或要协商子协议的端点；`--no-ping` 只握手；`-k` 跳 TLS 校验。
+
+**退出码**：0 握手成功 / 非0 失败（连不上/非101/Accept 不对/超时），可当 WS 探活进 CI。**ping/pong 只是附加连通性提示**，没收到 pong 不影响退出码（有些服务端不自动回 pong）。**有意不做**：不做交互式 WS 客户端（那是 wscat/websocat）、不压测、不绕鉴权。原理详见 [docs/jdan-net-ws.md](docs/jdan-net-ws.md)。
 
 ### `jdan ssl cert`
 
