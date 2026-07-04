@@ -141,6 +141,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
+- [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
 - [`jdan ascii-art`](#jdan-ascii-art) — render an image as ASCII art (optional truecolor)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
@@ -335,6 +336,23 @@ hi    —    44
 Keypad `2 abc / 3 def / 4 ghi / 5 jkl / 6 mno / 7 pqrs / 8 tuv / 9 wxyz`. One row per Han character (char + pinyin + digits), one per English word, digits pass through as-is, spaces/punctuation are skipped silently, and other unmappable characters are skipped and counted (to stderr). `--digits` prints just the digit string (pipe-friendly); `--json` for machines.
 
 Han→pinyin is pure table lookup, not logic (`jdan` is an offline binary, so the readings must ship inside it), so it uses `go-pinyin` (~40k embedded Unihan readings, works offline). **Limitation**: heteronyms take the most common reading (e.g. 行 defaults to xíng, no phrase-level disambiguation), so a few may be off. Details in [docs/jdan-t9.md](docs/jdan-t9.md).
+
+### `jdan spt9`
+
+Translate Chinese into **Xiaohe double-pinyin (小鹤双拼)** keypresses on a nine-key keypad — exactly **2 keys per character** (one initial + one final). Complements `jdan t9` (full pinyin, variable length).
+
+```
+$ jdan spt9 "你好世界 hi"
+你  ni   ni  64
+好  hao  hc  42
+世  shi  ui  84
+界  jie  jp  57
+hi  —  —   44
+─────
+64 42 84 57 44
+```
+
+It adds a "pinyin → double-pinyin two-code" step: 中 → zhong → initial zh=v, final ong=s = `vs` → keys 8, 7. **The Xiaohe scheme is transcribed rule-by-rule from [RIME `rime-double-pinyin`](https://github.com/rime/rime-double-pinyin)'s flypy schema** (initials zh/ch/sh=v/i/u), not from memory — the official example `dan → dj → keys 3+5` is pinned by a test. Same sentence 中国: t9 full-pinyin `94664 486` vs spt9 double-pinyin `87 46`. `--digits`/`--json`; English uses plain T9, digits pass through, punctuation skipped. **Limitation**: Xiaohe only (dedicated nine-key schemes like Miganla/Gushi could be a future `--scheme`); heteronyms take the most common reading. Details in [docs/jdan-spt9.md](docs/jdan-spt9.md).
 
 ### `jdan img`
 
