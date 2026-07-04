@@ -141,6 +141,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan alpha`](#jdan-alpha) — 字母表 ↔ 序号对照（A1Z26；表格 + 单向查询）
+- [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
 - [`jdan ascii-art`](#jdan-ascii-art) — 图片 → ASCII 字符画（可选真彩）
 - [`jdan mime`](#jdan-mime) — 按 magic bytes 判断文件真实类型（不看扩展名）
@@ -317,6 +318,24 @@ $ jdan alpha -u        # 大写表
 ```
 
 无参数打印字母行 + **列对齐在正下方**的序号行（每个字母正好落在它的序号上方）；带一个参数就单向查询：字母 → 序号 / 序号 → 字母。`-u` 用大写。越界（0/27）或非单字母报错。
+
+### `jdan t9`
+
+把一段文字翻成**九宫格键盘（T9）实际要按的数字键**。汉字先转拼音再映射（中 → zhong → 94664），英文字母直接映射（hi → 44）。
+
+```
+$ jdan t9 "你好 hi 2024"
+你    ni   64
+好    hao  426
+hi    —    44
+2024  —    2024
+─────
+64 426 44 2024
+```
+
+键位 `2 abc / 3 def / 4 ghi / 5 jkl / 6 mno / 7 pqrs / 8 tuv / 9 wxyz`。每个汉字一行（字+拼音+数字），英文单词一行，阿拉伯数字原样透传，空格/标点静默跳过、其它无法映射的字符跳过并计数（走 stderr）。`--digits` 只出整串数字（可管道），`--json` 机读。
+
+汉字→拼音这步是纯查表、不是逻辑（`jdan` 是离线二进制，读音必须自带字典），故用 `go-pinyin`（内嵌 ~4 万条 Unihan 读音，离线可用）。**局限**：多音字取最常见读音（如「行」默认 xíng，不按词组消歧），个别可能不准。原理详见 [docs/jdan-t9.md](docs/jdan-t9.md)。
 
 ### `jdan img`
 

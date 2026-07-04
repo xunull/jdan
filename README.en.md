@@ -140,6 +140,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
+- [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
 - [`jdan ascii-art`](#jdan-ascii-art) — render an image as ASCII art (optional truecolor)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
@@ -316,6 +317,24 @@ $ jdan alpha -u        # uppercase table
 ```
 
 With no argument it prints the letters plus the position numbers **column-aligned directly below** (each letter sits right above its number); with one argument it does a one-way lookup: letter → number / number → letter. `-u` uses uppercase. Out-of-range (0/27) or non-single-letter input errors out.
+
+### `jdan t9`
+
+Translate text into the **number keys you'd actually press on a 9-key (T9) keypad**. Chinese characters go through pinyin first (中 → zhong → 94664), English letters map directly (hi → 44).
+
+```
+$ jdan t9 "你好 hi 2024"
+你    ni   64
+好    hao  426
+hi    —    44
+2024  —    2024
+─────
+64 426 44 2024
+```
+
+Keypad `2 abc / 3 def / 4 ghi / 5 jkl / 6 mno / 7 pqrs / 8 tuv / 9 wxyz`. One row per Han character (char + pinyin + digits), one per English word, digits pass through as-is, spaces/punctuation are skipped silently, and other unmappable characters are skipped and counted (to stderr). `--digits` prints just the digit string (pipe-friendly); `--json` for machines.
+
+Han→pinyin is pure table lookup, not logic (`jdan` is an offline binary, so the readings must ship inside it), so it uses `go-pinyin` (~40k embedded Unihan readings, works offline). **Limitation**: heteronyms take the most common reading (e.g. 行 defaults to xíng, no phrase-level disambiguation), so a few may be off. Details in [docs/jdan-t9.md](docs/jdan-t9.md).
 
 ### `jdan img`
 
