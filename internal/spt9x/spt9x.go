@@ -1,9 +1,7 @@
-// Package spt9x 把全拼音节转成【小鹤双拼(flypy)】两码，并落到九宫格/T9 数字键。
+// Package spt9x 把全拼音节转成【小鹤双拼】两码，并落到九宫格/T9 数字键。
 //
-// 小鹤双拼：每个音节 = 一键声母 + 一键韵母（共 2 码）。声母 zh/ch/sh 分别记作
-// v/i/u，其余声母=自身；韵母按下表映射到单个字母（权威来源：RIME
-// rime-double-pinyin 的 double_pinyin_flypy.schema.yaml，逐条抄死）。
-// 两个字母再各自落到标准 T9 键（复用 t9x）。例：中 zhong → zh=v,ong=s = "vs" → 87。
+// 小鹤双拼编码复用 shuangpinx（多方案双拼包，规则照 RIME 抄）的 flypy 方案；本包只
+// 负责「双拼两码 → 每字母落 T9 键」与渲染。例：中 zhong → 小鹤 "vs" → v(8)s(7) = 87。
 //
 // 纯逻辑、0 依赖（runewidth 已是仓库依赖，仅用于 CJK 对齐）。
 package spt9x
@@ -14,67 +12,14 @@ import (
 	"strings"
 
 	"github.com/mattn/go-runewidth"
+
+	"github.com/xunull/jdan/internal/shuangpinx"
 )
 
-// finalLetter：韵母 → 小鹤字母。照 RIME flypy 规则逐条列出。
-var finalLetter = map[string]byte{
-	// 单韵母
-	"a": 'a', "o": 'o', "e": 'e', "i": 'i', "u": 'u', "v": 'v',
-	// 复/鼻韵母
-	"iu": 'q', "ei": 'w', "uan": 'r', "ue": 't', "ve": 't', "un": 'y',
-	"uo": 'o', "ie": 'p', "ong": 's', "iong": 's', "ing": 'k', "uai": 'k',
-	"ai": 'd', "en": 'f', "eng": 'g', "iang": 'l', "uang": 'l', "ang": 'h',
-	"ian": 'm', "an": 'j', "ou": 'z', "ia": 'x', "ua": 'x', "iao": 'n',
-	"ao": 'c', "ui": 'v', "in": 'b', "vn": 'y', "van": 'r',
-}
-
-var twoInitials = map[string]bool{"zh": true, "ch": true, "sh": true}
-
-func initialLetter(sm string) byte {
-	switch sm {
-	case "zh":
-		return 'v'
-	case "ch":
-		return 'i'
-	case "sh":
-		return 'u'
-	}
-	return sm[0] // 单声母 = 自身
-}
-
-// split 把音节拆成 (声母, 韵母)。a/o/e 开头视为零声母（声母为空）。
-func split(py string) (sm, ym string) {
-	if len(py) >= 2 && twoInitials[py[:2]] {
-		return py[:2], py[2:]
-	}
-	switch py[0] {
-	case 'a', 'o', 'e':
-		return "", py // 零声母
-	default:
-		return py[:1], py[1:]
-	}
-}
-
-// Encode 把一个全拼音节转成小鹤双拼两码字母（小写）。ok=false 表示无法解析。
+// Encode 把一个全拼音节转成小鹤双拼两码字母（小写）。ok=false 表示不是合法双拼码
+// （非 2 键，如声母缺韵母/杂串）。委托给 shuangpinx 的小鹤方案。
 func Encode(py string) (string, bool) {
-	py = strings.ToLower(strings.TrimSpace(py))
-	py = strings.ReplaceAll(py, "ü", "v")
-	if py == "" {
-		return "", false
-	}
-	if py == "er" {
-		return "er", true // 特例：儿化/而
-	}
-	sm, ym := split(py)
-	fl, ok := finalLetter[ym]
-	if !ok {
-		return "", false
-	}
-	if sm == "" {
-		// 零声母：首字母(a/o/e) + 韵母键
-		return string(py[0]) + string(fl), true
-	}
-	return string(initialLetter(sm)) + string(fl), true
+	return shuangpinx.Flypy().Valid(py)
 }
 
 // Unit 是一个输出单元：一个汉字（含拼音+双拼两码）、一个英文单词、或一段数字。

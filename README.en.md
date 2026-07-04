@@ -142,6 +142,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
+- [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
 - [`jdan ascii-art`](#jdan-ascii-art) — render an image as ASCII art (optional truecolor)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
@@ -353,6 +354,21 @@ hi  —  —   44
 ```
 
 It adds a "pinyin → double-pinyin two-code" step: 中 → zhong → initial zh=v, final ong=s = `vs` → keys 8, 7. **The Xiaohe scheme is transcribed rule-by-rule from [RIME `rime-double-pinyin`](https://github.com/rime/rime-double-pinyin)'s flypy schema** (initials zh/ch/sh=v/i/u), not from memory — the official example `dan → dj → keys 3+5` is pinned by a test. Same sentence 中国: t9 full-pinyin `94664 486` vs spt9 double-pinyin `87 46`. `--digits`/`--json`; English uses plain T9, digits pass through, punctuation skipped. **Limitation**: Xiaohe only (dedicated nine-key schemes like Miganla/Gushi could be a future `--scheme`); heteronyms take the most common reading. Details in [docs/jdan-spt9.md](docs/jdan-spt9.md).
+
+### `jdan sp`
+
+Translate Chinese into **standard 26-key double-pinyin** keypresses — **2 keys per character**, across **multiple schemes**, with `--all` to compare them side by side. Complements `jdan spt9` (nine-key double-pinyin, digit keys): this is the full keyboard, letter keys.
+
+```
+$ jdan sp 中文输入法 --all
+小鹤      vs wf uu ru fa
+自然码    vs wf uu ru fa
+微软      vs wf uu ru fa
+智能ABC   as wf vu ru fa
+拼音加加  vy wr iu ru fa
+```
+
+Schemes (`-s/--scheme`, default Xiaohe): Xiaohe `flypy` / Ziranma `ziranma` / Microsoft `mspy` (Sogou double-pinyin = this layout, `-s sogou`) / Zhineng-ABC `abc` / Pinyin-Jiajia `pyjj`. **Each scheme is transcribed rule-by-rule from [RIME `rime-double-pinyin`](https://github.com/rime/rime-double-pinyin)'s schemas** (a small interpreter applies the xform rules in order), not from memory. `jdan spt9`'s Xiaohe encoding now reuses this same implementation. Same sentence 中国: t9 `94664 486` → spt9 `87 46` → sp `vs go`. `--codes`/`--json`; English uses the letters themselves, digits pass through, punctuation skipped. **Limitation**: zero-initial syllables follow each scheme's RIME rules and may differ slightly from your IME's habit; heteronyms take the most common reading. Details in [docs/jdan-sp.md](docs/jdan-sp.md).
 
 ### `jdan img`
 

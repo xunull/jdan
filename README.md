@@ -143,6 +143,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan alpha`](#jdan-alpha) — 字母表 ↔ 序号对照（A1Z26；表格 + 单向查询）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
+- [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
 - [`jdan ascii-art`](#jdan-ascii-art) — 图片 → ASCII 字符画（可选真彩）
 - [`jdan mime`](#jdan-mime) — 按 magic bytes 判断文件真实类型（不看扩展名）
@@ -354,6 +355,21 @@ hi  —  —   44
 ```
 
 比 t9 多一步「拼音 → 小鹤双拼两码」：中 → zhong → 声母 zh=v、韵母 ong=s = `vs` → 键 8、7。**小鹤方案照 [RIME `rime-double-pinyin`](https://github.com/rime/rime-double-pinyin) 的 flypy 规则逐条写死**（声母 zh/ch/sh=v/i/u），不凭记忆，官方实例 `dan → dj → 键3+键5` 被单测钉死。同一句 `中国`：t9 全拼 `94664 486`，spt9 双拼 `87 46`。`--digits`/`--json`；英文按普通 T9、数字原样、标点跳过。**局限**：只做小鹤方案（米旮旯/辜氏等专用九键可日后 `--scheme` 扩）；多音字取常见读音。原理详见 [docs/jdan-spt9.md](docs/jdan-spt9.md)。
+
+### `jdan sp`
+
+把中文翻成**标准 26 键双拼**要按的字母键 —— 每字**恒 2 键**，并支持**多套方案** + `--all` 一次对比。跟 `jdan spt9`（九宫格双拼，出数字键）互补：这个是 26 键，出字母键。
+
+```
+$ jdan sp 中文输入法 --all
+小鹤      vs wf uu ru fa
+自然码    vs wf uu ru fa
+微软      vs wf uu ru fa
+智能ABC   as wf vu ru fa
+拼音加加  vy wr iu ru fa
+```
+
+方案（`-s/--scheme`，默认小鹤）：小鹤 `flypy` / 自然码 `ziranma` / 微软 `mspy`（搜狗双拼=此布局，`-s sogou`）/ 智能ABC `abc` / 拼音加加 `pyjj`。**每套规则逐条照 [RIME `rime-double-pinyin`](https://github.com/rime/rime-double-pinyin) 各 schema 抄**，非凭记忆（用一个小解释器按序套用 xform 规则）。`jdan spt9` 的小鹤编码已改为复用同一份实现。同一句 `中国`：t9 `94664 486` → spt9 `87 46` → sp `vs go`。`--codes`/`--json`；英文按字母本身、数字原样、标点跳过。**局限**：零声母字按各方案 RIME 规则、个别或与你的输入法习惯略有出入；多音字取常见读音。原理详见 [docs/jdan-sp.md](docs/jdan-sp.md)。
 
 ### `jdan img`
 
