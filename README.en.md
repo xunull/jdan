@@ -139,6 +139,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan barcode`](#jdan-barcode) — generate a Code128 1D barcode (terminal / PNG / SVG)
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
+- [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
 - [`jdan img`](#jdan-img) — read an image file header and report dimensions/format/color/size (PNG/JPEG/GIF)
 - [`jdan ascii-art`](#jdan-ascii-art) — render an image as ASCII art (optional truecolor)
 - [`jdan mime`](#jdan-mime) — detect a file's real type by magic bytes (ignores the extension)
@@ -297,6 +298,24 @@ $ jdan morse "E" --encode            # force direction for short/ambiguous input
 ```
 
 Letters separated by a single space, words by ` / `; case-insensitive, decode output is uppercase. Covers A–Z / 0–9 + standard punctuation. Unencodable characters (CJK/emoji) are skipped and unrecognized codes become `#`, with counts sent to stderr (stdout stays clean for pipes). `--json` gives `{direction, output}`.
+
+### `jdan alpha`
+
+Alphabet ↔ position table (A1Z26). Zero dependencies (pure stdlib).
+
+```
+$ jdan alpha
+a b c d e f g h i j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+
+$ jdan alpha k         # letter → number
+11
+$ jdan alpha 11        # number → letter
+k
+$ jdan alpha -u        # uppercase table
+```
+
+With no argument it prints the letters plus the position numbers **column-aligned directly below** (each letter sits right above its number); with one argument it does a one-way lookup: letter → number / number → letter. `-u` uses uppercase. Out-of-range (0/27) or non-single-letter input errors out.
 
 ### `jdan img`
 

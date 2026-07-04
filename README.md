@@ -140,6 +140,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan barcode`](#jdan-barcode) — 生成 Code128 一维条码（终端 / PNG / SVG）
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
+- [`jdan alpha`](#jdan-alpha) — 字母表 ↔ 序号对照（A1Z26；表格 + 单向查询）
 - [`jdan img`](#jdan-img) — 读图片文件头报尺寸/格式/颜色/大小（PNG/JPEG/GIF）
 - [`jdan ascii-art`](#jdan-ascii-art) — 图片 → ASCII 字符画（可选真彩）
 - [`jdan mime`](#jdan-mime) — 按 magic bytes 判断文件真实类型（不看扩展名）
@@ -298,6 +299,24 @@ $ jdan morse "E" --encode            # 极短/有歧义时强制方向（-d 强�
 ```
 
 字母间单空格、单词间 ` / `；大小写无关，解码输出大写。覆盖 A–Z / 0–9 + 标准标点。无法编码的字符（中文/emoji）跳过、无法识别的码出 `#`，计数走 stderr（stdout 保持干净可管道）。`--json` 给 `{direction, output}`。
+
+### `jdan alpha`
+
+字母表 ↔ 序号对照（A1Z26）。0 依赖（纯 stdlib）。
+
+```
+$ jdan alpha
+a b c d e f g h i j  k  l  m  n  o  p  q  r  s  t  u  v  w  x  y  z
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+
+$ jdan alpha k         # 字母 → 序号
+11
+$ jdan alpha 11        # 序号 → 字母
+k
+$ jdan alpha -u        # 大写表
+```
+
+无参数打印字母行 + **列对齐在正下方**的序号行（每个字母正好落在它的序号上方）；带一个参数就单向查询：字母 → 序号 / 序号 → 字母。`-u` 用大写。越界（0/27）或非单字母报错。
 
 ### `jdan img`
 
