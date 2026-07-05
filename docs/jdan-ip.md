@@ -1,8 +1,8 @@
 # jdan ip
 
-IP 地址 & CIDR 计算工具集。5 个子命令覆盖**综合信息 / 网段包含判断 / IP 列表 /
-子网划分 / IPv6 标准化**。0 新依赖（纯 stdlib `net/netip`），跟 `jdan whois` /
-`jdan dns` 配合形成完整网络套件。
+IP 地址 & CIDR 计算工具集。7 个子命令覆盖**综合信息 / 网段包含判断 / IP 列表 /
+区间→CIDR / 子网划分 / 网段聚合 / IPv6 标准化**。0 新依赖（纯 stdlib `net/netip`），
+跟 `jdan whois` / `jdan dns` 配合形成完整网络套件。
 
 ## 它解决什么问题
 
@@ -32,7 +32,9 @@ jdan ip normalize 2001:db8::1 --expand  # 8 段完整 IPv6
 | `info <ip\|cidr>` | 综合信息（吃 IP 或 CIDR） |
 | `contains <cidr> <ip>` | 判断 IP 是否在 CIDR 内（退出码） |
 | `range <cidr>` | 列出 CIDR 内的 IP（默认前 16 个） |
+| `range-cidr <start> <end>` | 任意起止区间 → 最小 CIDR 集（`range` 的反向） |
 | `split <cidr> <new-bits>` | 子网划分 |
+| `aggregate [cidr\|ip ...]` | 合并一组网段为最小 CIDR 覆盖集（`split` 的逆运算） |
 | `normalize <ipv6>` | IPv6 标准化（compact / expand） |
 
 ## info
@@ -237,6 +239,55 @@ $ jdan ip split 2001:db8::/62 64
 2001:db8:0:3::/64
 (4 subnets)
 ```
+
+## aggregate
+
+`split` 的**逆运算**：把一堆 CIDR / IP 合并成最小的 CIDR 覆盖集——重叠或相邻的网段被并起来。防火墙规则合并、路由汇总常用。IPv4 与 IPv6 各自聚合（结果先 v4 后 v6）。
+
+```bash
+# 两个相邻 /25 → 一个 /24
+$ jdan ip aggregate 10.0.0.0/25 10.0.0.128/25
+10.0.0.0/24
+(2 in → 1 out)
+
+# 被包含的会被吸收，有洞的不合并
+$ jdan ip aggregate 10.0.0.0/25 10.0.0.128/25 10.1.0.0/24
+10.0.0.0/24
+10.1.0.0/24
+(3 in → 2 out)
+```
+
+裸 IP 当 `/32`（IPv6 当 `/128`）。参数留空时从 **stdin** 读（空白/换行分隔），方便管道：
+
+```bash
+$ cat routes.txt | jdan ip aggregate
+$ jdan ip split 10.0.0.0/22 24 | grep / | jdan ip aggregate   # split↔aggregate 往返自洽 → 10.0.0.0/22
+```
+
+`--json` 输出 `{in, out, cidrs[]}`。
+
+## range-cidr
+
+`range` 的**反向**：把任意起止 IP 区间（**不必对齐边界**）分解成最小数量的 CIDR。iptables / ipset 里把一段区间转成规则时常用。
+
+```bash
+$ jdan ip range-cidr 192.168.1.5 192.168.1.20
+192.168.1.5/32
+192.168.1.6/31
+192.168.1.8/29
+192.168.1.16/30
+192.168.1.20/32
+(5 CIDRs)
+```
+
+也支持单参数 `start-end` 写法（IPv4/IPv6 地址本身都不含 `-`，切分安全）：
+
+```bash
+$ jdan ip range-cidr 192.168.1.5-192.168.1.20
+$ jdan ip range-cidr 2001:db8:: 2001:db8::ff        # IPv6 → 2001:db8::/120
+```
+
+起止必须同族且 `start <= end`。`--json` 输出 `{start, end, count, cidrs[]}`。
 
 ## normalize
 

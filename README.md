@@ -162,7 +162,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 
 **网络 / 查询**
 - [`jdan whois`](#jdan-whois) — 域名/IP WHOIS（自动路由 + IANA/ARIN referral 跟随 + parsed 表）
-- [`jdan ip`](#jdan-ip) — IP / CIDR 计算（info / contains / range / split / normalize）
+- [`jdan ip`](#jdan-ip) — IP / CIDR 计算（info / contains / range / range-cidr / split / aggregate / normalize）
 - [`jdan meta`](#jdan-meta) — 抓网页 meta / Open Graph / Twitter Card（分享卡片体检）
 - [`jdan csp`](#jdan-csp) — 解析 Content-Security-Policy + 安全体检
 - [`jdan cookie`](#jdan-cookie) — 解析 Set-Cookie / Cookie + 安全体检
@@ -1157,6 +1157,22 @@ $ jdan ip split 10.0.0.0/22 24
 10.0.2.0/24
 10.0.3.0/24
 (4 subnets)
+
+# 聚合：一堆网段 → 最小 CIDR 覆盖集（split 的逆运算，防火墙/路由汇总）
+$ jdan ip aggregate 10.0.0.0/25 10.0.0.128/25 10.1.0.0/24
+10.0.0.0/24
+10.1.0.0/24
+(3 in → 2 out)
+$ cat routes.txt | jdan ip aggregate           # 也可走 stdin
+
+# 任意起止 IP 区间 → 最小 CIDR 集（range 的反向，iptables/ipset 常用）
+$ jdan ip range-cidr 192.168.1.5 192.168.1.20
+192.168.1.5/32
+192.168.1.6/31
+192.168.1.8/29
+192.168.1.16/30
+192.168.1.20/32
+(5 CIDRs)
 
 # 列出 IP（默认 16 个，--limit 0 全列，硬上限 1M 防 OOM）
 $ jdan ip range 192.168.1.0/29

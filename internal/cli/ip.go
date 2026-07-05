@@ -32,25 +32,29 @@ func newIPCommand(deps ipCmdDeps) *cobra.Command {
 		Long: `IP / CIDR 计算工具。0 新依赖，全 stdlib net/netip。
 
 子命令：
-  info       综合信息（吃 IP 或 CIDR）
-  contains   判断 IP 是否在 CIDR 内（退出码 0/1，CI gate 用）
-  range      列出 CIDR 内的 IP（前 N 个）
-  split      子网划分（10.0.0.0/22 split 24 → 4 个 /24）
-  normalize  IPv6 标准化（expand / compact）
+  info        综合信息（吃 IP 或 CIDR）
+  contains    判断 IP 是否在 CIDR 内（退出码 0/1，CI gate 用）
+  range       列出 CIDR 内的 IP（前 N 个）
+  range-cidr  任意起止 IP 区间 → 最小 CIDR 集
+  split       子网划分（10.0.0.0/22 split 24 → 4 个 /24）
+  aggregate   合并一组网段为最小 CIDR 覆盖集（split 的逆运算）
+  normalize   IPv6 标准化（expand / compact）
 
 例：
-  jdan ip info 192.168.1.42
   jdan ip info 192.168.1.0/24
-  jdan ip info 2001:db8::1
   jdan ip contains 10.0.0.0/8 10.5.1.2 && echo "internal"
   jdan ip range 192.168.1.0/29
+  jdan ip range-cidr 192.168.1.5 192.168.1.20
   jdan ip split 10.0.0.0/22 24
+  jdan ip aggregate 10.0.0.0/25 10.0.0.128/25
   jdan ip normalize 2001:db8::1 --expand`,
 	}
 	cmd.AddCommand(newIPInfoCommand(deps))
 	cmd.AddCommand(newIPContainsCommand(deps))
 	cmd.AddCommand(newIPRangeCommand(deps))
+	cmd.AddCommand(newIPRangeCIDRCommand(deps))
 	cmd.AddCommand(newIPSplitCommand(deps))
+	cmd.AddCommand(newIPAggregateCommand(deps))
 	cmd.AddCommand(newIPNormalizeCommand(deps))
 	return cmd
 }

@@ -161,7 +161,7 @@ Index grouped by topic (the actual section order follows when each command was a
 
 **Network / Lookup**
 - [`jdan whois`](#jdan-whois) — domain/IP WHOIS (auto routing + IANA/ARIN referral following + parsed table)
-- [`jdan ip`](#jdan-ip) — IP / CIDR calculation (info / contains / range / split / normalize)
+- [`jdan ip`](#jdan-ip) — IP / CIDR calculation (info / contains / range / range-cidr / split / aggregate / normalize)
 - [`jdan meta`](#jdan-meta) — fetch page meta / Open Graph / Twitter Card (share-card audit)
 - [`jdan csp`](#jdan-csp) — parse Content-Security-Policy + security audit
 - [`jdan cookie`](#jdan-cookie) — parse Set-Cookie / Cookie + security audit
@@ -1156,6 +1156,22 @@ $ jdan ip split 10.0.0.0/22 24
 10.0.2.0/24
 10.0.3.0/24
 (4 subnets)
+
+# aggregate: a pile of prefixes → minimal covering CIDR set (inverse of split; firewall/route summarization)
+$ jdan ip aggregate 10.0.0.0/25 10.0.0.128/25 10.1.0.0/24
+10.0.0.0/24
+10.1.0.0/24
+(3 in → 2 out)
+$ cat routes.txt | jdan ip aggregate           # or read from stdin
+
+# arbitrary start-end IP range → minimal CIDR set (reverse of range; common for iptables/ipset)
+$ jdan ip range-cidr 192.168.1.5 192.168.1.20
+192.168.1.5/32
+192.168.1.6/31
+192.168.1.8/29
+192.168.1.16/30
+192.168.1.20/32
+(5 CIDRs)
 
 # list IPs (16 by default, --limit 0 lists all, hard cap of 1M prevents OOM)
 $ jdan ip range 192.168.1.0/29
