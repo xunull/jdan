@@ -140,6 +140,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan figlet`](#jdan-figlet) — text → ASCII art banner (standard / block fonts)
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
+- [`jdan pinyin`](#jdan-pinyin) — Chinese → pinyin (multiple tone styles; the shared first step of t9/sp)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
@@ -319,6 +320,23 @@ $ jdan alpha -u        # uppercase table
 ```
 
 With no argument it prints the letters plus the position numbers **column-aligned directly below** (each letter sits right above its number); with one argument it does a one-way lookup: letter → number / number → letter. `-u` uses uppercase. Out-of-range (0/27) or non-single-letter input errors out.
+
+### `jdan pinyin`
+
+Convert Chinese to **pinyin**, multiple tone styles, non-Han characters passed through in place. This is the **shared first step** of `jdan t9` / `sp` / `spt9` as its own command (they all do "Chinese→pinyin" internally before mapping to keys).
+
+```
+$ jdan pinyin 中文输入法
+zhōng wén shū rù fǎ
+
+$ jdan pinyin "Hello 世界 2024" --style plain     # passthrough + no tone
+Hello shi jie 2024
+
+$ jdan pinyin 银行 --heteronym                     # list all heteronym readings
+yín xíng/háng/héng/xìng/hàng
+```
+
+Style `-s/--style` (default `tone` with marks): `num` (`zhong1 wen2`) / `plain` (no tone) / `initials` (`zh w`) / `first`. `--sep` changes the separator, `--heteronym` lists all readings, `--json` for per-char structure. Backed by go-pinyin's ~40k Unihan readings (offline); the pinyin infra for `t9`/`sp`/`spt9` is now unified in one `internal/pinyinx`. **Limitation**: per-character most-common reading, no phrase disambiguation (行 in 银行 may not default to háng). Details in [docs/jdan-pinyin.md](docs/jdan-pinyin.md).
 
 ### `jdan t9`
 

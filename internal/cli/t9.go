@@ -9,8 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mozillazg/go-pinyin"
-
+	"github.com/xunull/jdan/internal/pinyinx"
 	"github.com/xunull/jdan/internal/t9x"
 )
 
@@ -145,14 +144,10 @@ func isASCIILetter(r rune) bool {
 	return (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
 }
 
-// realPinyin 用 go-pinyin 取一个汉字的无声调拼音（最常见读音）。
+// realPinyin 取一个汉字的无声调拼音（最常见读音），供 t9/sp/spt9 共用。
+// 委托给 pinyinx（拼音基建归一处）。
 func realPinyin(r rune) string {
-	a := pinyin.NewArgs()
-	a.Style = pinyin.Normal // 只要字母、无声调
-	if ps := pinyin.LazyPinyin(string(r), a); len(ps) > 0 {
-		return ps[0]
-	}
-	return ""
+	return pinyinx.Plain(r)
 }
 
 func init() {

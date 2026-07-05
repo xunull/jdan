@@ -141,6 +141,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan figlet`](#jdan-figlet) — 文字 → ASCII art 大横幅（standard / block 字体）
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan alpha`](#jdan-alpha) — 字母表 ↔ 序号对照（A1Z26；表格 + 单向查询）
+- [`jdan pinyin`](#jdan-pinyin) — 中文 → 拼音（多种声调样式；t9/sp 的共同第一步）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
 - [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
@@ -320,6 +321,23 @@ $ jdan alpha -u        # 大写表
 ```
 
 无参数打印字母行 + **列对齐在正下方**的序号行（每个字母正好落在它的序号上方）；带一个参数就单向查询：字母 → 序号 / 序号 → 字母。`-u` 用大写。越界（0/27）或非单字母报错。
+
+### `jdan pinyin`
+
+把中文转成**拼音**,多种声调样式,非汉字原样穿插。是 `jdan t9` / `sp` / `spt9` 的**共同第一步**单独成命令(它们内部都先「中文→拼音」再往键盘映射)。
+
+```
+$ jdan pinyin 中文输入法
+zhōng wén shū rù fǎ
+
+$ jdan pinyin "Hello 世界 2024" --style plain     # 非汉字穿插 + 无调
+Hello shi jie 2024
+
+$ jdan pinyin 银行 --heteronym                     # 多音字列全部
+yín xíng/háng/héng/xìng/hàng
+```
+
+样式 `-s/--style`(默认 `tone` 带调符):`num`(`zhong1 wen2`)/`plain`(无调)/`initials`(声母 `zh w`)/`first`(首字母)。`--sep` 改分隔符、`--heteronym` 多音字、`--json` 逐字结构化。底层 go-pinyin ~4 万条 Unihan 读音(离线),`t9`/`sp`/`spt9` 的拼音基建已收敛到同一份 `internal/pinyinx`。**局限**:逐字取常见读音、不按词消歧(`银行` 的行默认可能不是 háng)。原理详见 [docs/jdan-pinyin.md](docs/jdan-pinyin.md)。
 
 ### `jdan t9`
 
