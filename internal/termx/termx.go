@@ -42,6 +42,26 @@ func humanBytes(n uint64, precise bool) string {
 	return fmt.Sprintf("%.0f%s", v, units[i])
 }
 
+// Comma 给大数字加千位分隔符（412883 → 412,883）。
+func Comma(n uint64) string {
+	s := fmt.Sprintf("%d", n)
+	if len(s) <= 3 {
+		return s
+	}
+	var sb strings.Builder
+	lead := len(s) % 3
+	if lead > 0 {
+		sb.WriteString(s[:lead])
+	}
+	for i := lead; i < len(s); i += 3 {
+		if sb.Len() > 0 {
+			sb.WriteByte(',')
+		}
+		sb.WriteString(s[i : i+3])
+	}
+	return sb.String()
+}
+
 // Bar 渲染 width 宽的使用率条，pct 四舍五入到格。
 func Bar(pct, width int) string {
 	pct = min(max(pct, 0), 100)

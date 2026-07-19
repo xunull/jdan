@@ -102,6 +102,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan zip`](#jdan-zip) — pack a file or directory into a `.zip`
 - [`jdan tree2`](#jdan-tree2) — show a two-level directory tree in multiple columns
 - [`jdan disk`](#jdan-disk) — disk usage overview (per-mount capacity, df-style)
+- [`jdan size`](#jdan-size) — directory size ranking (who ate the space; with share bars)
 - [`jdan readme`](#jdan-readme) — print the README.md of a given directory (with bat highlighting)
 
 **System**
@@ -2318,6 +2319,35 @@ $ jdan disk --json
 ```
 
 The use% matches `df` (`used/(used+avail)`, rounded up). On a TTY, use% ≥90% is red and ≥75% is yellow; piped/redirected output is plain text with no ANSI. Pseudo filesystems **and TimeMachine local snapshots** are hidden by default; `-a` shows everything. Over-long device names / mount points are **middle-ellipsis truncated** to the terminal width (TTY only; piped / `--json` / `--no-trunc` show full text). Windows is not supported yet (clear error).
+
+### `jdan size`
+
+Scan a directory tree and rank entries by disk usage, with share bars. Replaces the `du -sh * | sort -hr | head` pipeline (`sort -hr` behaves differently on BSD vs GNU). **0 new dependencies**.
+
+Full technical doc: [docs/jdan-size.md](docs/jdan-size.md)
+
+```bash
+$ jdan size ~/.claude
+/Users/quincy/.claude  784.7Mi  (11,039 files)
+
+  projects         577.7Mi  █████████████░░░░  73.6%
+  plugins           79.3Mi  ██░░░░░░░░░░░░░░░  10.1%
+  transcripts       74.8Mi  ██░░░░░░░░░░░░░░░   9.5%
+  file-history      49.6Mi  █░░░░░░░░░░░░░░░░   6.3%
+  ...9 more          1.4Mi  ░░░░░░░░░░░░░░░░░   0.2%
+
+$ jdan size --depth 3        # expand three levels
+$ jdan size --files          # list files too (find that one huge file)
+$ jdan size --apparent       # logical size (what Finder shows)
+$ jdan size --all            # include hidden entries
+$ jdan size --json | jq      # full tree as JSON
+```
+
+**Measures actual disk usage (`st_blocks × 512`), not logical size**, because the question you are asking is "how much space do I get back if I delete this". The gap is bigger than intuition suggests and the direction is often assumed backwards: 500 one-byte files are 500 B logical but occupy 2 MB (4 KiB block rounding, 4000×); sparse files go the other way, 1 GiB logical and 0 B on disk. Use `--apparent` for the Finder number.
+
+**Root total matches `du -sh` byte for byte**, with matching semantics (hardlinks counted once, no filesystem crossing by default, symlinks not followed, directories' own blocks included). One deliberate difference: a hardlink is attributed to the **lexicographically smallest path** rather than `du`'s "first one encountered", so repeated concurrent scans of the same tree produce byte-identical output; the tradeoff is that individual subdirectory numbers may differ from `du`.
+
+Concurrent traversal: measured 6.3× faster than single-threaded on 11,793 files with a warm cache. Concurrency should track the storage medium, not CPU count: keep the default on SSD, use `--jobs 2` to `4` on spinning disks. Permission errors are collected without aborting, summarized in the footer, and still exit 0. `--json` always emits the full tree (unaffected by `--top`/`--depth`). Non-darwin/linux platforms fall back to logical size with a header note.
 
 ### `jdan unix-time`
 

@@ -3,7 +3,7 @@ package sizex
 import (
 	"path/filepath"
 	"sort"
-	"strings"
+	"strconv"
 )
 
 // Tree 是渲染用的嵌套结构。由 BuildTree 从扁平的 Result.Nodes 一次性拼出，
@@ -135,41 +135,7 @@ func (t *Tree) RelPath(root string) string {
 // displayName 给渲染层用：聚合行显示「其他 N 项」，其余显示名字。
 func (t *Tree) displayName() string {
 	if t.Aggregated > 0 {
-		return "其他 " + itoa(t.Aggregated) + " 项"
+		return "其他 " + strconv.Itoa(t.Aggregated) + " 项"
 	}
 	return t.Name
-}
-
-func itoa(n int) string {
-	if n == 0 {
-		return "0"
-	}
-	var b [20]byte
-	i := len(b)
-	for n > 0 {
-		i--
-		b[i] = byte('0' + n%10)
-		n /= 10
-	}
-	return string(b[i:])
-}
-
-// commaGroup 给大数字加千位分隔符（412883 → 412,883）。
-func commaGroup(n uint64) string {
-	s := itoa(int(n))
-	if len(s) <= 3 {
-		return s
-	}
-	var sb strings.Builder
-	lead := len(s) % 3
-	if lead > 0 {
-		sb.WriteString(s[:lead])
-	}
-	for i := lead; i < len(s); i += 3 {
-		if sb.Len() > 0 {
-			sb.WriteByte(',')
-		}
-		sb.WriteString(s[i : i+3])
-	}
-	return sb.String()
 }

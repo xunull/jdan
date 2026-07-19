@@ -67,9 +67,13 @@ func (r *Result) JSONData() *JSONRoot {
 
 func jsonSubtree(n *Node, kidsOf map[string][]*Node) *JSONNode {
 	kids := kidsOf[n.Path]
+	typ := "dir"
+	if n.IsFile {
+		typ = "file"
+	}
 	out := &JSONNode{
 		Path:     n.Path,
-		Type:     "dir",
+		Type:     typ,
 		Bytes:    n.Bytes,
 		Files:    n.Files,
 		Children: make([]*JSONNode, 0, len(kids)),

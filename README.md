@@ -102,6 +102,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan zip`](#jdan-zip) — 把文件或目录打成 `.zip`
 - [`jdan tree2`](#jdan-tree2) — 多列展示两层目录树
 - [`jdan disk`](#jdan-disk) — 磁盘使用一览（各挂载点容量/占用，df 式）
+- [`jdan size`](#jdan-size) — 目录体积排行（谁吃了空间；带占比条形图）
 - [`jdan readme`](#jdan-readme) — 输出指定目录的 README.md（带 bat 高亮）
 
 **系统**
@@ -2319,6 +2320,37 @@ $ jdan disk --json
 ```
 
 使用率算法对齐 `df`（`已用/(已用+可用)` 向上取整）。TTY 下使用率 ≥90% 染红、≥75% 染黄；管道/重定向纯文本不插 ANSI。默认隐藏伪文件系统**和 TimeMachine 本地快照**，`-a` 全显。超长设备名/挂载点按终端宽度**中间省略号截断**（只在 TTY；管道/`--json`/`--no-trunc` 全显）。Windows 暂不支持（报清晰错）。
+
+### `jdan size`
+
+扫描目录树按占盘大小排行，带占比条形图。省掉 `du -sh * | sort -hr | head` 这串管道（`sort -hr` 在 BSD 和 GNU 上行为还不一致）。**0 新依赖**。
+
+详细技术文档：[docs/jdan-size.md](docs/jdan-size.md)
+
+```bash
+$ jdan size ~/.claude
+/Users/quincy/.claude  784.7Mi  （11,039 个文件）
+
+  projects         577.7Mi  █████████████░░░░  73.6%
+  plugins           79.3Mi  ██░░░░░░░░░░░░░░░  10.1%
+  transcripts       74.8Mi  ██░░░░░░░░░░░░░░░   9.5%
+  file-history      49.6Mi  █░░░░░░░░░░░░░░░░   6.3%
+  其他 9 项          1.4Mi  ░░░░░░░░░░░░░░░░░   0.2%
+
+用时 36ms
+
+$ jdan size --depth 3        # 展开三层
+$ jdan size --files          # 把文件也列出来（找单个大文件）
+$ jdan size --apparent       # 按逻辑大小（Finder 那个数字）
+$ jdan size --all            # 含隐藏文件
+$ jdan size --json | jq      # 全树 JSON
+```
+
+**默认量的是实际占盘（`st_blocks × 512`）而不是逻辑大小**，因为你问的是「删掉能腾出多少空间」。两者差得比直觉大且方向常被搞反：500 个 1 字节文件逻辑 500 B、实际占 2 MB（4 KiB 块取整，4000×）；稀疏文件则相反，逻辑 1 GiB、实际 0 B。要 Finder 那个数字用 `--apparent`。
+
+**根总量与 `du -sh` 逐字节一致**，语义全部对齐（硬链接只计一次、默认不跨文件系统、不跟随符号链接、目录自身的块计入）。一处刻意不同：硬链接归属给**字典序最小的路径**而非 `du` 的「先遇到的」，因此并发扫描下同一棵树连跑多次输出逐字节相同，代价是单个子目录数字可能与 `du` 不一致。
+
+并发遍历，实测 11793 个文件热缓存下 `--jobs 8` 比单线程快 6.3×。并发度按存储介质定：SSD 用默认，机械盘建议 `--jobs 2` 到 `4`。权限错误收集不中断，页脚汇总且退出码仍为 0。`--json` 永远输出全树（不受 `--top`/`--depth` 影响）。非 darwin/linux 降级为逻辑大小并在头部提示。
 
 ### `jdan unix-time`
 

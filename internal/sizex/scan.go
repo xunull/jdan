@@ -16,6 +16,7 @@ type Options struct {
 	Apparent      bool   // 用逻辑大小（Size()）而非实际占盘
 	OneFileSystem bool   // 不跨越文件系统边界（对齐 du -x）
 	IncludeHidden bool   // 含以 . 开头的条目
+	IncludeFiles  bool   // 为文件也建节点（默认只建目录节点，文件体积折叠进父目录）
 	Jobs          int    // 并发度；<=1 为单线程
 
 	// Scanned 若非 nil，扫描过程中会原子累加已扫条目数，供调用方显示进度。
@@ -30,9 +31,10 @@ type Options struct {
 // Node 是树上的一个目录。文件不单独建节点，体积折叠进所属目录
 // （默认输出只列目录，为文件建节点会让 100 万文件的树多占 10-50 倍内存）。
 type Node struct {
-	Path  string
-	Bytes uint64 // rollup 后：整棵子树的占盘
-	Files uint64 // rollup 后：整棵子树的文件数
+	Path   string
+	IsFile bool   // 仅 --files 模式下会有文件节点
+	Bytes  uint64 // rollup 后：整棵子树的占盘
+	Files  uint64 // rollup 后：整棵子树的文件数
 
 	// selfBytes 是「本目录自身的 st_blocks + 直属文件的占盘」，不含子目录。
 	// rollup 时才把子目录累加上来。这样硬链接 Pass 2 只需要改直属父目录，
@@ -187,6 +189,7 @@ func (st *scanState) scanDir(node *Node, q *dirQueue) {
 		selfBytes uint64
 		selfFiles uint64
 		subdirs   []*Node
+		subfiles  []*Node // 仅 --files 模式
 		localDef  []deferredLink
 		localErrs []ScanError
 	)
@@ -217,8 +220,18 @@ func (st *scanState) scanDir(node *Node, q *dirQueue) {
 		}
 
 		selfFiles++
+
+		// --files 模式给每个文件建节点，体积记在文件节点上；否则折叠进本目录。
+		// 两条路径下父目录的总量必须相同 —— 记在文件节点上时绝不能再加进
+		// selfBytes，否则双重计数。
+		var fileNode *Node
+		if st.opts.IncludeFiles {
+			fileNode = &Node{Path: p, IsFile: true, Files: 1}
+			subfiles = append(subfiles, fileNode)
+		}
+
 		if st.supported && nlink > 1 {
-			// Pass 1 只收集，不计入任何目录。归属留到 Pass 2 确定性地定。
+			// Pass 1 只收集，不计入任何地方。归属留到 Pass 2 确定性地定。
 			// 只有 nlink>1 才进队列：绝大多数文件 nlink==1，这道门槛能跳过
 			// 90%+ 的队列写入。
 			localDef = append(localDef, deferredLink{
@@ -228,16 +241,27 @@ func (st *scanState) scanDir(node *Node, q *dirQueue) {
 			})
 			continue
 		}
-		selfBytes += bytes
+		if fileNode != nil {
+			fileNode.selfBytes = bytes
+		} else {
+			selfBytes += bytes
+		}
 	}
 
 	// 本目录的 selfBytes/selfFiles 只有当前 worker 会写，无需加锁。
 	node.selfBytes += selfBytes
-	node.selfFiles += selfFiles
+	if !st.opts.IncludeFiles {
+		// --files 模式下文件计数记在各自的文件节点上，由 rollup 汇总，
+		// 这里再加一遍就翻倍了。
+		node.selfFiles += selfFiles
+	}
 
-	if len(subdirs) > 0 || len(localDef) > 0 || len(localErrs) > 0 {
+	if len(subdirs) > 0 || len(subfiles) > 0 || len(localDef) > 0 || len(localErrs) > 0 {
 		st.mu.Lock()
 		for _, n := range subdirs {
+			st.nodes[n.Path] = n
+		}
+		for _, n := range subfiles {
 			st.nodes[n.Path] = n
 		}
 		st.deferred = append(st.deferred, localDef...)
@@ -273,6 +297,13 @@ func (r *Result) attributeHardlinks(deferred []deferredLink) {
 	r.Deduped = len(deferred) - len(best)
 
 	for _, d := range best {
+		// --files 模式下该文件有自己的节点，体积记在它身上；否则折叠进父目录。
+		// 落选的那些硬链接节点保持 0 字节 —— 与 du 一致（du -a 也把非首次
+		// 遇到的链接显示为 0）。
+		if fn := r.Nodes[d.path]; fn != nil && fn.IsFile {
+			fn.selfBytes += d.bytes
+			continue
+		}
 		if parent := r.Nodes[filepath.Dir(d.path)]; parent != nil {
 			parent.selfBytes += d.bytes
 		}

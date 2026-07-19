@@ -47,7 +47,7 @@ func Render(r *Result, t *Tree, opt RenderOptions) string {
 	// ---- 根行 ----
 	rootLine := fmt.Sprintf("%s  %s", t.Name, termx.HumanBytes1(t.Bytes))
 	if t.Files > 0 {
-		rootLine += fmt.Sprintf("  （%s 个文件）", commaGroup(t.Files))
+		rootLine += fmt.Sprintf("  （%s 个文件）", termx.Comma(t.Files))
 	}
 	sb.WriteString(rootLine)
 	sb.WriteString("\n")
@@ -152,7 +152,7 @@ func footer(r *Result, opt RenderOptions) string {
 		parts = append(parts, msg)
 	}
 	if r.Deduped > 0 {
-		parts = append(parts, fmt.Sprintf("%s 个硬链接已去重", commaGroup(uint64(r.Deduped))))
+		parts = append(parts, fmt.Sprintf("%s 个硬链接已去重", termx.Comma(uint64(r.Deduped))))
 	}
 	if len(parts) == 0 {
 		return ""
