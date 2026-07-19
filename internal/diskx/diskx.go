@@ -4,10 +4,9 @@ package diskx
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/xunull/jdan/internal/termx"
 )
 
 // Mount 是一个挂载点的容量信息（块为单位，乘 BlockSize 得字节）。
@@ -49,25 +48,6 @@ func (m Mount) InodePercent() int {
 	}
 	used := m.Files - m.Ffree
 	return int((used*100 + m.Files - 1) / m.Files)
-}
-
-// HumanBytes 把字节数转成 1024 进制人类可读（贴 df -h：1.0Ki / 14Gi / 1.5Ti）。
-func HumanBytes(n uint64) string {
-	const unit = 1024
-	if n < unit {
-		return fmt.Sprintf("%dB", n)
-	}
-	units := []string{"Ki", "Mi", "Gi", "Ti", "Pi", "Ei"}
-	v := float64(n)
-	i := -1
-	for v >= unit && i < len(units)-1 {
-		v /= unit
-		i++
-	}
-	if v < 10 {
-		return fmt.Sprintf("%.1f%s", v, units[i])
-	}
-	return fmt.Sprintf("%.0f%s", v, units[i])
 }
 
 // 伪文件系统：默认隐藏（-a 显示）。
@@ -117,7 +97,7 @@ func Render(mounts []Mount, opt RenderOptions) string {
 	if width == 0 {
 		width = 9
 	}
-	sizeFmt := HumanBytes
+	sizeFmt := termx.HumanBytes
 	if opt.Bytes {
 		sizeFmt = func(n uint64) string { return fmt.Sprintf("%d", n) }
 	}
@@ -145,14 +125,14 @@ func Render(mounts []Mount, opt RenderOptions) string {
 			pct = m.UsePercent()
 		}
 		// 百分比右对齐到固定 4 宽（"  4%" / " 86%" / "100%"），条形左缘才能对齐成竖列。
-		usecol := colorize(fmt.Sprintf("%3d%%", pct), pct, opt.Color) + " " +
-			colorize(bar(pct, width), pct, opt.Color)
+		usecol := termx.Colorize(fmt.Sprintf("%3d%%", pct), pct, opt.Color) + " " +
+			termx.Colorize(termx.Bar(pct, width), pct, opt.Color)
 		rows = append(rows, []string{m.Device, size, used, avail, usecol, m.Mountpoint})
 	}
 	if opt.MaxWidth > 0 {
 		truncateColumns(header, rows, opt.MaxWidth)
 	}
-	return table(header, rows)
+	return termx.Table(header, rows, rightAlignCol)
 }
 
 const (
@@ -168,11 +148,11 @@ func truncateColumns(header []string, rows [][]string, maxWidth int) {
 	cols := len(header)
 	nat := make([]int, cols)
 	for c := range cols {
-		nat[c] = visWidth(header[c])
+		nat[c] = termx.VisWidth(header[c])
 	}
 	for _, r := range rows {
 		for c := range cols {
-			nat[c] = max(nat[c], visWidth(r[c]))
+			nat[c] = max(nat[c], termx.VisWidth(r[c]))
 		}
 	}
 
@@ -206,126 +186,13 @@ func truncateColumns(header []string, rows [][]string, maxWidth int) {
 	}
 
 	for _, r := range rows {
-		r[colDevice] = truncMiddle(r[colDevice], w0)
-		r[colMount] = truncMiddle(r[colMount], w5)
-	}
-}
-
-// truncMiddle 把字符串中间省略号截断到可见宽度 max（两头都保留信息）。
-func truncMiddle(s string, max int) string {
-	if max <= 0 {
-		return ""
-	}
-	if visWidth(s) <= max {
-		return s
-	}
-	if max == 1 {
-		return "…"
-	}
-	budget := max - 1 // 给省略号留 1 列
-	head := budget - budget/2
-	tail := budget / 2
-	return takeHead(s, head) + "…" + takeTail(s, tail)
-}
-
-func takeHead(s string, max int) string {
-	w := 0
-	var b strings.Builder
-	for _, r := range s {
-		rw := narrowWidth.RuneWidth(r)
-		if w+rw > max {
-			break
-		}
-		b.WriteRune(r)
-		w += rw
-	}
-	return b.String()
-}
-
-func takeTail(s string, max int) string {
-	runes := []rune(s)
-	w := 0
-	i := len(runes)
-	for i > 0 {
-		rw := narrowWidth.RuneWidth(runes[i-1])
-		if w+rw > max {
-			break
-		}
-		w += rw
-		i--
-	}
-	return string(runes[i:])
-}
-
-func bar(pct, width int) string {
-	pct = min(max(pct, 0), 100)
-	filled := (pct*width + 50) / 100
-	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
-}
-
-func colorize(s string, pct int, color bool) string {
-	if !color {
-		return s
-	}
-	switch {
-	case pct >= 90:
-		return "\x1b[31m" + s + "\x1b[0m" // 红
-	case pct >= 75:
-		return "\x1b[33m" + s + "\x1b[0m" // 黄
-	default:
-		return s
+		r[colDevice] = termx.TruncMiddle(r[colDevice], w0)
+		r[colMount] = termx.TruncMiddle(r[colMount], w5)
 	}
 }
 
 // 数值列右对齐（容量/已用/可用），其余左对齐。
 var rightAlignCol = map[int]bool{1: true, 2: true, 3: true}
-
-func table(header []string, rows [][]string) string {
-	cols := len(header)
-	widths := make([]int, cols)
-	for c := range cols {
-		widths[c] = visWidth(header[c])
-	}
-	for _, r := range rows {
-		for c := range cols {
-			widths[c] = max(widths[c], visWidth(r[c]))
-		}
-	}
-	var sb strings.Builder
-	writeRow := func(cells []string) {
-		parts := make([]string, cols)
-		for c := range cols {
-			parts[c] = pad(cells[c], widths[c], rightAlignCol[c])
-		}
-		sb.WriteString(strings.TrimRight(strings.Join(parts, "  "), " "))
-		sb.WriteByte('\n')
-	}
-	writeRow(header)
-	for _, r := range rows {
-		writeRow(r)
-	}
-	return sb.String()
-}
-
-func pad(s string, width int, right bool) string {
-	gap := width - visWidth(s)
-	if gap <= 0 {
-		return s
-	}
-	if right {
-		return strings.Repeat(" ", gap) + s
-	}
-	return s + strings.Repeat(" ", gap)
-}
-
-var ansiRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-
-// narrowWidth 强制 East-Asian-ambiguous 字符按 1 列算（使用率条的 █ U+2588 在 CJK
-// locale 下会被默认判成 2 列，但终端实际渲染成 1 列，不锁死就会整列错位）。
-// 真正的宽字符（中文表头「容量」等是 East_Asian_Width=W）不受影响，仍按 2 列算。
-var narrowWidth = &runewidth.Condition{EastAsianWidth: false}
-
-func visWidth(s string) int { return narrowWidth.StringWidth(ansiRe.ReplaceAllString(s, "")) }
 
 // JSONData 返回适合 JSON 序列化的结构。
 func JSONData(mounts []Mount) []map[string]any {

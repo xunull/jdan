@@ -4,25 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mattn/go-runewidth"
+	"github.com/xunull/jdan/internal/termx"
 )
 
-func TestHumanBytes(t *testing.T) {
-	cases := map[uint64]string{
-		0:             "0B",
-		1023:          "1023B",
-		1024:          "1.0Ki",
-		1536:          "1.5Ki",
-		14 * 1 << 30:  "14Gi",
-		1<<40 + 1<<39: "1.5Ti",
-		926 * 1 << 30: "926Gi",
-	}
-	for n, want := range cases {
-		if got := HumanBytes(n); got != want {
-			t.Errorf("HumanBytes(%d) = %s, want %s", n, got, want)
-		}
-	}
-}
+// 注：HumanBytes / bar / colorize / visWidth / truncMiddle 的单元测试随实现
+// 迁到 internal/termx（含 CJK 宽度回归用例）。这里保留 Render 级的集成测试，
+// 它们仍然会走到那些函数。
 
 func TestUsePercent_DfAligned(t *testing.T) {
 	// 总 100 块、空闲 20（含 root 保留）、非 root 可用 10 → 已用 80，分母 90 → ceil(8000/90)=89
@@ -86,34 +73,6 @@ func TestFilter_HidesLocalSnapshots(t *testing.T) {
 	}
 }
 
-func TestBar(t *testing.T) {
-	if b := bar(0, 9); b != strings.Repeat("░", 9) {
-		t.Errorf("bar(0) = %q", b)
-	}
-	if b := bar(100, 9); b != strings.Repeat("█", 9) {
-		t.Errorf("bar(100) = %q", b)
-	}
-	// 50% × 9 → round(4.5)=5 满格
-	if filled := strings.Count(bar(50, 9), "█"); filled != 5 {
-		t.Errorf("bar(50,9) filled = %d, want 5", filled)
-	}
-}
-
-func TestColorize(t *testing.T) {
-	if s := colorize("98%", 98, true); !strings.Contains(s, "\x1b[31m") {
-		t.Error("≥90% 应染红")
-	}
-	if s := colorize("80%", 80, true); !strings.Contains(s, "\x1b[33m") {
-		t.Error("≥75% 应染黄")
-	}
-	if s := colorize("50%", 50, true); strings.Contains(s, "\x1b") {
-		t.Error("<75% 不染色")
-	}
-	if s := colorize("98%", 98, false); strings.Contains(s, "\x1b") {
-		t.Error("color=false 不应有 ANSI")
-	}
-}
-
 func TestRender(t *testing.T) {
 	mounts := []Mount{
 		{Device: "/dev/disk1", Mountpoint: "/", Fstype: "apfs", BlockSize: 1024, Blocks: 1000, Bfree: 200, Bavail: 200, Files: 100, Ffree: 50},
@@ -145,50 +104,6 @@ func TestRender_Bytes(t *testing.T) {
 	}
 }
 
-func TestVisWidth_IgnoresANSI(t *testing.T) {
-	if w := visWidth("\x1b[31m86%\x1b[0m"); w != 3 {
-		t.Errorf("ANSI-wrapped '86%%' visual width = %d, want 3", w)
-	}
-}
-
-// 回归：CJK locale 下 runewidth 默认把 █ 判成 2 列（ambiguous→wide），与终端渲染（1 列）
-// 不符，导致整列错位。diskx 用 narrow 条件锁死按 1 列算；中文宽字符仍按 2 列。
-func TestVisWidth_AmbiguousBlocksNarrowUnderCJK(t *testing.T) {
-	old := runewidth.DefaultCondition.EastAsianWidth
-	runewidth.DefaultCondition.EastAsianWidth = true // 模拟 zh_CN.UTF-8 终端
-	defer func() { runewidth.DefaultCondition.EastAsianWidth = old }()
-
-	if w := visWidth("█"); w != 1 {
-		t.Errorf("█ (U+2588) 应按 1 列测量，得到 %d（CJK locale 回归）", w)
-	}
-	if w := visWidth("░"); w != 1 {
-		t.Errorf("░ (U+2591) 应按 1 列测量，得到 %d", w)
-	}
-	if w := visWidth("容"); w != 2 {
-		t.Errorf("中文宽字符「容」应仍按 2 列，得到 %d", w)
-	}
-}
-
-func TestTruncMiddle(t *testing.T) {
-	s := "com.apple.TimeMachine.2026-06-27-064158.local@/dev/disk3s5"
-	out := truncMiddle(s, 20)
-	if visWidth(out) > 20 {
-		t.Errorf("截断后宽度 %d > 20: %q", visWidth(out), out)
-	}
-	if !strings.Contains(out, "…") {
-		t.Errorf("应含省略号: %q", out)
-	}
-	if !strings.HasPrefix(out, "com") {
-		t.Errorf("应保留头部: %q", out)
-	}
-	if !strings.HasSuffix(out, "disk3s5") {
-		t.Errorf("应保留尾部: %q", out)
-	}
-	if truncMiddle("short", 20) != "short" {
-		t.Error("未超宽应原样返回")
-	}
-}
-
 // 长设备名/挂载点在窄终端按终端宽度中间省略号截断；MaxWidth=0（管道/--json/--no-trunc）全显。
 func TestRender_TruncatesWhenNarrow(t *testing.T) {
 	ms := []Mount{
@@ -199,8 +114,8 @@ func TestRender_TruncatesWhenNarrow(t *testing.T) {
 		t.Errorf("窄终端应截断:\n%s", narrow)
 	}
 	for ln := range strings.SplitSeq(strings.TrimRight(narrow, "\n"), "\n") {
-		if visWidth(ln) > 70 {
-			t.Errorf("行可见宽度 %d > MaxWidth 70: %q", visWidth(ln), ln)
+		if termx.VisWidth(ln) > 70 {
+			t.Errorf("行可见宽度 %d > MaxWidth 70: %q", termx.VisWidth(ln), ln)
 		}
 	}
 	full := Render(ms, RenderOptions{MaxWidth: 0})
