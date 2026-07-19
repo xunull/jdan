@@ -180,3 +180,31 @@ func TestPad(t *testing.T) {
 		t.Errorf("宽字符 Pad 应按 2 列算: %q", got)
 	}
 }
+
+// header=nil 不渲染表头行。传 []string{"", ""} 会渲染出一个空行，
+// 排行榜那种无列名版式必须用 nil。
+func TestTable_NilHeaderOmitsHeaderRow(t *testing.T) {
+	rows := [][]string{{"a", "1"}, {"b", "2"}}
+	withNil := Table(nil, rows, nil)
+	if n := strings.Count(strings.TrimRight(withNil, "\n"), "\n") + 1; n != 2 {
+		t.Errorf("header=nil 应只有 2 行，得到 %d 行:\n%q", n, withNil)
+	}
+	if strings.HasPrefix(withNil, "\n") {
+		t.Errorf("header=nil 不应以空行开头: %q", withNil)
+	}
+	// 对照：空字符串表头确实会多一行
+	withEmpty := Table([]string{"", ""}, rows, nil)
+	if n := strings.Count(strings.TrimRight(withEmpty, "\n"), "\n") + 1; n != 3 {
+		t.Errorf("空字符串表头应产生 3 行（含空表头行），得到 %d", n)
+	}
+	// 列宽由 rows 决定，不因缺表头而错乱
+	if !strings.Contains(Table(nil, [][]string{{"long-name", "1"}}, nil), "long-name") {
+		t.Error("header=nil 时列宽应由 rows 决定")
+	}
+}
+
+func TestTable_EmptyInput(t *testing.T) {
+	if got := Table(nil, nil, nil); got != "" {
+		t.Errorf("无表头无数据应返回空串，得到 %q", got)
+	}
+}

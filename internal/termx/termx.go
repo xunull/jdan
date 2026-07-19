@@ -112,27 +112,47 @@ func takeTail(s string, maxW int) string {
 
 // Table 把 header + rows 渲染成对齐表格。rightAlign 指定哪些列号右对齐
 // （数值列），nil 表示全部左对齐。
+//
+// header 为 nil 时不渲染表头行，列宽只由 rows 决定 —— 排行榜那种「每行
+// 都是数据、没有列名」的版式需要这个。传 []string{"", ""} 是不行的：那会
+// 渲染出一个空行。
 func Table(header []string, rows [][]string, rightAlign map[int]bool) string {
 	cols := len(header)
+	if cols == 0 {
+		for _, r := range rows {
+			cols = max(cols, len(r))
+		}
+	}
+	if cols == 0 {
+		return ""
+	}
 	widths := make([]int, cols)
-	for c := range cols {
+	for c := range header {
 		widths[c] = VisWidth(header[c])
 	}
 	for _, r := range rows {
 		for c := range cols {
-			widths[c] = max(widths[c], VisWidth(r[c]))
+			if c < len(r) {
+				widths[c] = max(widths[c], VisWidth(r[c]))
+			}
 		}
 	}
 	var sb strings.Builder
 	writeRow := func(cells []string) {
 		parts := make([]string, cols)
 		for c := range cols {
-			parts[c] = Pad(cells[c], widths[c], rightAlign[c])
+			cell := ""
+			if c < len(cells) {
+				cell = cells[c]
+			}
+			parts[c] = Pad(cell, widths[c], rightAlign[c])
 		}
 		sb.WriteString(strings.TrimRight(strings.Join(parts, "  "), " "))
 		sb.WriteByte('\n')
 	}
-	writeRow(header)
+	if header != nil {
+		writeRow(header)
+	}
 	for _, r := range rows {
 		writeRow(r)
 	}
