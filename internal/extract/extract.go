@@ -353,7 +353,10 @@ func safeJoin(root, entryName string) (string, error) {
 
 // copyLimited 用 io.Copy 但带"防 zip bomb"上限。
 // 4 GiB 单 entry 应付绝大多数合理 archive；恶意 zip bomb 通常解压几 TB。
-const maxEntrySize = 4 << 30 // 4 GiB
+//
+// 必须显式标 int64：untyped 常量传给 fmt.Errorf 的 ...any 时会默认成 int，
+// 在 32 位平台（linux/386、linux/arm）上 4294967296 溢出 int32，整个模块编译不过。
+const maxEntrySize int64 = 4 << 30 // 4 GiB
 
 func copyLimited(dst io.Writer, src io.Reader) (int64, error) {
 	n, err := io.Copy(dst, io.LimitReader(src, maxEntrySize+1))
