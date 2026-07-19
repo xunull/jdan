@@ -31,3 +31,27 @@ jobs:
 
       - name: go test (with race detector)
         run: go test -race -count=1 ./...
+
+  cross-compile:
+    name: cross-compile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+          check-latest: true
+          cache: true
+
+      # syscall.Stat_t 的字段类型按 GOOS/GOARCH 分歧（Nlink 是 uint16/uint32/
+      # uint64 三向），只在开发机上编译过就发布，冷门架构会在 release 时才炸。
+      # 降级平台（windows/freebsd）验证 !darwin && !linux 那条分支也能编译。
+      - name: build all targets
+        run: |
+          for t in darwin/amd64 darwin/arm64 \
+                   linux/amd64 linux/arm64 linux/386 linux/arm \
+                   windows/amd64 freebsd/amd64; do
+            echo "==> $t"
+            GOOS=${t%/*} GOARCH=${t#*/} go build ./... || exit 1
+          done
