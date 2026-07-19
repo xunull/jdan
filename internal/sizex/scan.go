@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"sync/atomic"
 )
 
 // Options 控制一次扫描。
@@ -15,6 +17,14 @@ type Options struct {
 	OneFileSystem bool   // 不跨越文件系统边界（对齐 du -x）
 	IncludeHidden bool   // 含以 . 开头的条目
 	Jobs          int    // 并发度；<=1 为单线程
+
+	// Scanned 若非 nil，扫描过程中会原子累加已扫条目数，供调用方显示进度。
+	//
+	// 用轮询而非回调：进度显示本来就是节流的（200ms 一帧），每个目录回调
+	// 一次既浪费又会乱序 —— 多个 worker 各自 Add 之后再调回调，拿到 161 的
+	// 那个可能先于拿到 160 的那个执行，显示上进度数字会往回跳。让调用方用
+	// ticker 读这个计数器，天然单调且无锁。
+	Scanned *atomic.Uint64
 }
 
 // Node 是树上的一个目录。文件不单独建节点，体积折叠进所属目录
@@ -97,73 +107,150 @@ func Scan(opts Options) (*Result, error) {
 	}
 
 	rootBytes, rootDev, _, _, supported := opts.sizeOf(info)
+	rootNode := &Node{Path: root, selfBytes: rootBytes}
+
+	st := &scanState{
+		opts:      opts,
+		rootDev:   rootDev,
+		supported: supported,
+		nodes:     map[string]*Node{root: rootNode},
+	}
+
+	jobs := opts.Jobs
+	if jobs <= 0 {
+		jobs = 1
+	}
+
+	q := newDirQueue()
+	q.push(rootNode)
+
+	var wg sync.WaitGroup
+	for range jobs {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				node, ok := q.pop()
+				if !ok {
+					return
+				}
+				st.scanDir(node, q)
+				// done 必须在子目录全部 push 之后才调 —— scanDir 返回时已经
+				// push 完了。提前调会让终止检测误判为「干完了」。
+				q.done()
+			}
+		}()
+	}
+	wg.Wait()
 
 	res := &Result{
 		Root:      root,
-		Nodes:     map[string]*Node{root: {Path: root, selfBytes: rootBytes}},
+		Nodes:     st.nodes,
+		Errors:    st.errs,
 		Apparent:  opts.Apparent,
 		Supported: supported,
 	}
-
-	var deferred []deferredLink
-	stack := []string{root}
-
-	for len(stack) > 0 {
-		dir := stack[len(stack)-1]
-		stack = stack[:len(stack)-1]
-
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			res.Errors = append(res.Errors, ScanError{Path: dir, Err: err})
-			continue
-		}
-		node := res.Nodes[dir]
-
-		for _, e := range entries {
-			name := e.Name()
-			if !opts.IncludeHidden && strings.HasPrefix(name, ".") {
-				continue
-			}
-			p := filepath.Join(dir, name)
-
-			// Lstat 而非 Stat：符号链接量它自己，不跟随（否则会重复计数并可能绕环）。
-			info, err := os.Lstat(p)
-			if err != nil {
-				res.Errors = append(res.Errors, ScanError{Path: p, Err: err})
-				continue
-			}
-			bytes, dev, ino, nlink, _ := opts.sizeOf(info)
-
-			if info.IsDir() {
-				// 跨文件系统检测只在目录边界做：挂载点一定是目录，文件不可能与
-				// 其所在目录不同设备。
-				if opts.OneFileSystem && supported && dev != rootDev {
-					continue
-				}
-				res.Nodes[p] = &Node{Path: p, selfBytes: bytes}
-				stack = append(stack, p)
-				continue
-			}
-
-			node.selfFiles++
-			if supported && nlink > 1 {
-				// Pass 1 只收集，不计入任何目录。归属留到 Pass 2 确定性地定。
-				// 只有 nlink>1 才进队列：绝大多数文件 nlink==1，这道门槛能跳过
-				// 90%+ 的队列写入。
-				deferred = append(deferred, deferredLink{
-					key:   inodeKey{dev: dev, ino: ino},
-					bytes: bytes,
-					path:  p,
-				})
-				continue
-			}
-			node.selfBytes += bytes
-		}
-	}
-
-	res.attributeHardlinks(deferred)
+	res.attributeHardlinks(st.deferred)
 	res.rollup()
 	return res, nil
+}
+
+// scanState 是并发扫描的共享状态。
+//
+// 竞争面刻意做得很窄：目录节点的 selfBytes/selfFiles 只由处理该目录的那一个
+// worker 写，不需要锁（创建者 → q.push → q.pop → 使用者 这条链上，队列的
+// mutex 已经提供了 happens-before）。真正需要锁的只有三件事：往 nodes 里插
+// 新目录、append 错误、append 延迟队列。而且这三件都按目录批量提交一次，
+// 不是每个条目一次。
+type scanState struct {
+	opts      Options
+	rootDev   uint64
+	supported bool
+
+	mu       sync.Mutex
+	nodes    map[string]*Node
+	errs     []ScanError
+	deferred []deferredLink
+}
+
+// scanDir 扫一个目录：统计直属文件、发现子目录并入队。
+func (st *scanState) scanDir(node *Node, q *dirQueue) {
+	entries, err := os.ReadDir(node.Path)
+	if err != nil {
+		st.mu.Lock()
+		st.errs = append(st.errs, ScanError{Path: node.Path, Err: err})
+		st.mu.Unlock()
+		return
+	}
+
+	var (
+		selfBytes uint64
+		selfFiles uint64
+		subdirs   []*Node
+		localDef  []deferredLink
+		localErrs []ScanError
+	)
+
+	for _, e := range entries {
+		name := e.Name()
+		if !st.opts.IncludeHidden && strings.HasPrefix(name, ".") {
+			continue
+		}
+		p := filepath.Join(node.Path, name)
+
+		// Lstat 而非 Stat：符号链接量它自己，不跟随（否则会重复计数并可能绕环）。
+		info, err := os.Lstat(p)
+		if err != nil {
+			localErrs = append(localErrs, ScanError{Path: p, Err: err})
+			continue
+		}
+		bytes, dev, ino, nlink, _ := st.opts.sizeOf(info)
+
+		if info.IsDir() {
+			// 跨文件系统检测只在目录边界做：挂载点一定是目录，文件不可能与
+			// 其所在目录不同设备。
+			if st.opts.OneFileSystem && st.supported && dev != st.rootDev {
+				continue
+			}
+			subdirs = append(subdirs, &Node{Path: p, selfBytes: bytes})
+			continue
+		}
+
+		selfFiles++
+		if st.supported && nlink > 1 {
+			// Pass 1 只收集，不计入任何目录。归属留到 Pass 2 确定性地定。
+			// 只有 nlink>1 才进队列：绝大多数文件 nlink==1，这道门槛能跳过
+			// 90%+ 的队列写入。
+			localDef = append(localDef, deferredLink{
+				key:   inodeKey{dev: dev, ino: ino},
+				bytes: bytes,
+				path:  p,
+			})
+			continue
+		}
+		selfBytes += bytes
+	}
+
+	// 本目录的 selfBytes/selfFiles 只有当前 worker 会写，无需加锁。
+	node.selfBytes += selfBytes
+	node.selfFiles += selfFiles
+
+	if len(subdirs) > 0 || len(localDef) > 0 || len(localErrs) > 0 {
+		st.mu.Lock()
+		for _, n := range subdirs {
+			st.nodes[n.Path] = n
+		}
+		st.deferred = append(st.deferred, localDef...)
+		st.errs = append(st.errs, localErrs...)
+		st.mu.Unlock()
+	}
+
+	if st.opts.Scanned != nil {
+		st.opts.Scanned.Add(uint64(len(entries)))
+	}
+
+	// push 必须在 done 之前（done 由调用方在 scanDir 返回后调）。
+	q.push(subdirs...)
 }
 
 // attributeHardlinks 是 Pass 2：把每组同 inode 的文件归属给字典序最小的路径。
