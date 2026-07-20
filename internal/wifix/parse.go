@@ -3,6 +3,7 @@ package wifix
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -77,15 +78,37 @@ func (n Network) AP() AP {
 	return AP{Band: n.Band, Channel: n.Channel, WidthMHz: n.WidthMHz, RSSI: n.RSSI}
 }
 
+// ChannelSpec 是一个「频段 + 信道号」对。
+//
+// 必须成对保存：supported_channels 是把所有频段混在一个平表里的
+// （"1 (2GHz)" 和 "36 (5GHz)" 在同一个数组），只留数字就没法区分
+// 2.4GHz 的 ch1 和 6GHz 的 ch1 —— 那正是本包在解析层反复强调不能做的事。
+type ChannelSpec struct {
+	Band    Band
+	Channel int
+}
+
 // Interface 是一个无线接口的完整状态。
 type Interface struct {
 	Name              string
 	Connected         bool
 	Current           *Network // 未连接时为 nil
 	Neighbors         []Network
-	SupportedChannels []int
+	SupportedChannels []ChannelSpec
 	CountryCode       string
 	MACAddress        string
+}
+
+// ChannelsIn 返回本机在指定频段支持的信道号，升序。
+func (i Interface) ChannelsIn(b Band) []int {
+	var out []int
+	for _, cs := range i.SupportedChannels {
+		if cs.Band == b {
+			out = append(out, cs.Channel)
+		}
+	}
+	slices.Sort(out)
+	return out
 }
 
 // ---- 解析 ----
@@ -105,8 +128,8 @@ var chanRe = regexp.MustCompile(`^(\d+)\s*\(([^,)]+)(?:,\s*(\d+)MHz)?\)`)
 // "-41 dBm / -88 dBm"
 var signalRe = regexp.MustCompile(`(-?\d+)\s*dBm\s*/\s*(-?\d+)\s*dBm`)
 
-// "36 (5GHz)"
-var supportedChanRe = regexp.MustCompile(`^(\d+)`)
+// "36 (5GHz)" —— 频段必须一起抓，不能只留数字
+var supportedChanRe = regexp.MustCompile(`^(\d+)\s*\(([^)]+)\)`)
 
 // Parse 解析 `system_profiler -xml SPAirPortDataType` 的输出。
 //
@@ -143,12 +166,21 @@ func parseIface(ri rawIface) Interface {
 	}
 
 	// supported_channels 是**字符串数组**（"36 (5GHz)"），不是整数数组。
+	// 频段与信道号一起保存 —— 只留数字就没法区分 2.4GHz ch1 和 6GHz ch1。
 	for _, s := range ri.SupportedChannels {
-		if m := supportedChanRe.FindStringSubmatch(s); m != nil {
-			if ch, err := strconv.Atoi(m[1]); err == nil {
-				iface.SupportedChannels = append(iface.SupportedChannels, ch)
-			}
+		m := supportedChanRe.FindStringSubmatch(s)
+		if m == nil {
+			continue
 		}
+		ch, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
+		b := ParseBand(strings.TrimSpace(m[2]))
+		if b == BandUnknown {
+			continue
+		}
+		iface.SupportedChannels = append(iface.SupportedChannels, ChannelSpec{Band: b, Channel: ch})
 	}
 
 	// awdl0 的 CNI 只有 spairport_network_type 一个键，解析出来的 Network

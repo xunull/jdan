@@ -147,6 +147,25 @@ func Expand(b Band, ch, widthMHz int) []int {
 	return []int{ch}
 }
 
+// CanHostWidth 判断该信道能否承载指定带宽。
+//
+// 5GHz/6GHz 的宽信道在固定栅格上，不是每个信道都能当任意宽度的 primary：
+// ch165 是孤立的 20MHz-only 信道，ch144 之后有 25MHz 断档。把这类信道当成
+// 候选会给出「换到 165」这种建议 —— 用户当前跑 80MHz，换过去带宽掉 4 倍，
+// 而它显得空恰恰因为它只占一个 20MHz 信道。
+//
+// 2.4GHz 走连续重叠模型，Expand 恒返回单信道，这里一律放行。
+func CanHostWidth(b Band, ch, widthMHz int) bool {
+	if b == Band24 {
+		return true
+	}
+	if widthMHz <= 20 {
+		return true
+	}
+	want := widthMHz / 20
+	return len(Expand(b, ch, widthMHz)) == want
+}
+
 // ---- 2.4GHz 重叠 ----
 
 // Overlap24 返回两个 2.4GHz 信道的重叠度 [0,1]。

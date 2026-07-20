@@ -185,7 +185,9 @@ func TestParse_SupportedChannelsAreStrings(t *testing.T) {
 	if len(conn.SupportedChannels) == 0 {
 		t.Fatal("应解析出支持的信道列表")
 	}
-	has := func(ch int) bool { return slices.Contains(conn.SupportedChannels, ch) }
+	has := func(ch int) bool {
+		return slices.Contains(conn.ChannelsIn(Band24), ch) || slices.Contains(conn.ChannelsIn(Band5), ch)
+	}
 	// 本机 country=CN，实测含 1-13 和 149-165，不含 100-144
 	if !has(13) {
 		t.Error("CN 应支持 2.4GHz ch13")

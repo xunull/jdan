@@ -263,3 +263,35 @@ func TestSNRGrade(t *testing.T) {
 		}
 	}
 }
+
+// 承载不了当前带宽的信道不能当候选。
+//
+// 实测踩到过：本机 80MHz 时 ch165 被推荐为「最空」—— 但 165 是孤立的
+// 20MHz-only 信道，换过去带宽掉 4 倍，而它显得空恰恰因为只占一个
+// 20MHz 信道。典型的「看起来合理的错建议」。
+func TestCanHostWidth(t *testing.T) {
+	cases := []struct {
+		ch, width int
+		want      bool
+	}{
+		{36, 20, true}, {36, 40, true}, {36, 80, true}, {36, 160, true},
+		{44, 80, true}, {44, 160, true},
+		{165, 20, true},  // 165 只能 20MHz
+		{165, 40, false}, // 不能更宽
+		{165, 80, false},
+		{165, 160, false},
+		{149, 80, true},   // 149 在 {149,153,157,161} 块里
+		{149, 160, false}, // 但 5GHz 高段没有合法 160MHz 块
+		{161, 80, true},
+		{161, 160, false},
+	}
+	for _, c := range cases {
+		if got := CanHostWidth(Band5, c.ch, c.width); got != c.want {
+			t.Errorf("CanHostWidth(5GHz, %d, %d) = %v，应为 %v", c.ch, c.width, got, c.want)
+		}
+	}
+	// 2.4GHz 一律放行（走连续重叠模型）
+	if !CanHostWidth(Band24, 6, 40) {
+		t.Error("2.4GHz 应一律放行")
+	}
+}
