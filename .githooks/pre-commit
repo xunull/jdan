@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+#
+# jdan pre-commit hook：提交前检查 Go 代码格式。
+#
+# 为什么放在 .githooks/ 而不是 .git/hooks/：
+#   .git/ 不进版本库，hook 换台机器就没了。放这里能纳入版本控制，
+#   新机器只需 `git config core.hooksPath .githooks` 一次。
+#
+# 为什么检查暂存区而不是工作区：
+#   `git add` 之后又改了文件的话，两者不一样。提交的是暂存区的内容，
+#   检查工作区会漏掉真正要提交的东西（也可能误报你还没 add 的改动）。
+#
+# 这个 hook 是快速反馈，不是最后防线 —— 它能被 `--no-verify` 绕过，
+# 新 clone 在跑过 core.hooksPath 之前也不生效。CI 那道 gate 才是兜底。
+
+set -uo pipefail
+
+# 只看本次提交涉及的 .go 文件（ACM = 新增/复制/修改，跳过删除和重命名的旧名）
+mapfile -t staged < <(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
+[ ${#staged[@]} -eq 0 ] && exit 0
+
+if ! command -v gofmt >/dev/null 2>&1; then
+  echo "pre-commit: 找不到 gofmt，跳过格式检查" >&2
+  exit 0
+fi
+
+bad=()
+for f in "${staged[@]}"; do
+  # 检查暂存区里的那一版内容，不是磁盘上的。
+  # gofmt -l 对 stdin 会打印 "<standard input>"，所以改用输出比对。
+  staged_content=$(git show ":$f" 2>/dev/null) || continue
+  formatted=$(printf '%s\n' "$staged_content" | gofmt 2>/dev/null) || {
+    # gofmt 失败通常意味着语法错误，交给编译器报，这里不拦
+    continue
+  }
+  if [ "$staged_content" != "$formatted" ]; then
+    bad+=("$f")
+  fi
+done
+
+if [ ${#bad[@]} -gt 0 ]; then
+  echo "" >&2
+  echo "✗ 以下文件未经 gofmt 格式化：" >&2
+  printf '    %s\n' "${bad[@]}" >&2
+  echo "" >&2
+  echo "  修复：" >&2
+  echo "    gofmt -w ${bad[*]}" >&2
+  echo "    git add ${bad[*]}" >&2
+  echo "" >&2
+  echo "  跳过本次检查（不推荐）：git commit --no-verify" >&2
+  echo "" >&2
+  exit 1
+fi
+
+exit 0

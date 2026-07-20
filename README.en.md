@@ -2815,4 +2815,14 @@ go test -tags integration ./internal/dnslookup/... ./internal/dnstrace/...
 GOWORK=off go build -o jdan .
 ```
 
+**Enable git hooks after a fresh clone (once):**
+
+```bash
+git config core.hooksPath .githooks
+```
+
+`.githooks/pre-commit` checks that staged content is `gofmt`-clean and prints the fix command when it is not. Hooks live in the repo rather than `.git/hooks/` so they survive a machine change, but **each clone must run the command above** for them to take effect.
+
+CI runs the same check as a backstop — hooks can be bypassed with `--no-verify` and do nothing until `core.hooksPath` is set, so both layers stay.
+
 Design docs are under `docs/brainstorms/` and `docs/plans/`, ordered by time, with each new subcommand typically corresponding to a brainstorm + plan pair.
