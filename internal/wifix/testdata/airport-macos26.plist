@@ -1,0 +1,531 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<array>
+	<dict>
+		<key>_SPCommandLineArguments</key>
+		<array>
+			<string>/usr/sbin/system_profiler</string>
+			<string>-nospawn</string>
+			<string>-xml</string>
+			<string>SPAirPortDataType</string>
+			<string>-detailLevel</string>
+			<string>full</string>
+		</array>
+		<key>_SPCompletionInterval</key>
+		<real>1.7120530605316162</real>
+		<key>_SPResponseTime</key>
+		<real>1.738379955291748</real>
+		<key>_dataType</key>
+		<string>SPAirPortDataType</string>
+		<key>_detailLevel</key>
+		<integer>-1</integer>
+		<key>_items</key>
+		<array>
+			<dict>
+				<key>spairport_airport_interfaces</key>
+				<array>
+					<dict>
+						<key>_name</key>
+						<string>en0</string>
+						<key>spairport_airport_other_local_wireless_networks</key>
+						<array>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>149 (5GHz, 80MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal</string>
+								<key>spairport_signal_noise</key>
+								<string>-73 dBm / -92 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>11 (2GHz, 20MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11b/g/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>pairport_security_mode_wpa3_transition</string>
+								<key>spairport_signal_noise</key>
+								<string>-37 dBm / -77 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>7 (2GHz, 20MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11b/g/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal_mixed</string>
+								<key>spairport_signal_noise</key>
+								<string>-61 dBm / -78 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>40 (5GHz, 160MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal_mixed</string>
+								<key>spairport_signal_noise</key>
+								<string>-78 dBm / -90 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>36 (5GHz, 80MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>pairport_security_mode_wpa3_transition</string>
+								<key>spairport_signal_noise</key>
+								<string>-38 dBm / -91 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>36 (5GHz, 160MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal</string>
+								<key>spairport_signal_noise</key>
+								<string>-87 dBm / -91 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>4 (2GHz, 20MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11b/g/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal_mixed</string>
+								<key>spairport_signal_noise</key>
+								<string>-53 dBm / -76 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>44 (5GHz, 160MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal_mixed</string>
+								<key>spairport_signal_noise</key>
+								<string>-73 dBm / -89 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>1 (2GHz, 20MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11b/g/n/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal</string>
+								<key>spairport_signal_noise</key>
+								<string>-39 dBm / -76 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>4 (2GHz, 20MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11b/g/n</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal_mixed</string>
+								<key>spairport_signal_noise</key>
+								<string>-74 dBm / -76 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>36 (5GHz, 80MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>pairport_security_mode_wpa3_transition</string>
+								<key>spairport_signal_noise</key>
+								<string>-38 dBm / -91 dBm</string>
+							</dict>
+							<dict>
+								<key>_name</key>
+								<string>&lt;redacted&gt;</string>
+								<key>spairport_network_channel</key>
+								<string>36 (5GHz, 160MHz)</string>
+								<key>spairport_network_phymode</key>
+								<string>802.11a/n/ac/ax</string>
+								<key>spairport_network_type</key>
+								<string>spairport_network_type_station</string>
+								<key>spairport_security_mode</key>
+								<string>spairport_security_mode_wpa2_personal</string>
+								<key>spairport_signal_noise</key>
+								<string>-53 dBm / -91 dBm</string>
+							</dict>
+						</array>
+						<key>spairport_caps_airdrop</key>
+						<string>spairport_caps_supported</string>
+						<key>spairport_caps_autounlock</key>
+						<string>spairport_caps_supported</string>
+						<key>spairport_caps_wow</key>
+						<string>spairport_caps_supported</string>
+						<key>spairport_current_network_information</key>
+						<dict>
+							<key>_name</key>
+							<string>&lt;redacted&gt;</string>
+							<key>spairport_network_channel</key>
+							<string>36 (5GHz, 80MHz)</string>
+							<key>spairport_network_country_code</key>
+							<string>CN</string>
+							<key>spairport_network_mcs</key>
+							<integer>11</integer>
+							<key>spairport_network_phymode</key>
+							<string>802.11ax</string>
+							<key>spairport_network_rate</key>
+							<integer>1200</integer>
+							<key>spairport_network_type</key>
+							<string>spairport_network_type_station</string>
+							<key>spairport_security_mode</key>
+							<string>pairport_security_mode_wpa3_transition</string>
+							<key>spairport_signal_noise</key>
+							<string>-41 dBm / -88 dBm</string>
+						</dict>
+						<key>spairport_status_information</key>
+						<string>spairport_status_connected</string>
+						<key>spairport_supported_channels</key>
+						<array>
+							<string>1 (2GHz)</string>
+							<string>2 (2GHz)</string>
+							<string>3 (2GHz)</string>
+							<string>4 (2GHz)</string>
+							<string>5 (2GHz)</string>
+							<string>6 (2GHz)</string>
+							<string>7 (2GHz)</string>
+							<string>8 (2GHz)</string>
+							<string>9 (2GHz)</string>
+							<string>10 (2GHz)</string>
+							<string>11 (2GHz)</string>
+							<string>12 (2GHz)</string>
+							<string>13 (2GHz)</string>
+							<string>36 (5GHz)</string>
+							<string>40 (5GHz)</string>
+							<string>44 (5GHz)</string>
+							<string>48 (5GHz)</string>
+							<string>52 (5GHz)</string>
+							<string>56 (5GHz)</string>
+							<string>60 (5GHz)</string>
+							<string>64 (5GHz)</string>
+							<string>149 (5GHz)</string>
+							<string>153 (5GHz)</string>
+							<string>157 (5GHz)</string>
+							<string>161 (5GHz)</string>
+							<string>165 (5GHz)</string>
+						</array>
+						<key>spairport_supported_phymodes</key>
+						<string>802.11 a/b/g/n/ac/ax</string>
+						<key>spairport_wireless_card_type</key>
+						<string>spairport_wireless_card_type_wifi (0x14E4, 0x4387)</string>
+						<key>spairport_wireless_country_code</key>
+						<string>CN</string>
+						<key>spairport_wireless_firmware_version</key>
+						<string>wl0: Jan 20 2026 17:44:15 version 20.140.13.0.8.7.224 FWID 01-b2a3fd0d
+IO80211_driverkit-1561.3 "IO80211_driverkit-1561.3" Apr 18 2026 17:42:26</string>
+						<key>spairport_wireless_locale</key>
+						<string>Unknown</string>
+						<key>spairport_wireless_mac_address</key>
+						<string>52:99:e0:b0:2a:d2</string>
+					</dict>
+					<dict>
+						<key>_name</key>
+						<string>awdl0</string>
+						<key>spairport_current_network_information</key>
+						<dict>
+							<key>spairport_network_type</key>
+							<string>spairport_network_type_station</string>
+						</dict>
+						<key>spairport_supported_channels</key>
+						<array>
+							<string>1 (2GHz)</string>
+							<string>2 (2GHz)</string>
+							<string>3 (2GHz)</string>
+							<string>4 (2GHz)</string>
+							<string>5 (2GHz)</string>
+							<string>6 (2GHz)</string>
+							<string>7 (2GHz)</string>
+							<string>8 (2GHz)</string>
+							<string>9 (2GHz)</string>
+							<string>10 (2GHz)</string>
+							<string>11 (2GHz)</string>
+							<string>12 (2GHz)</string>
+							<string>13 (2GHz)</string>
+							<string>36 (5GHz)</string>
+							<string>40 (5GHz)</string>
+							<string>44 (5GHz)</string>
+							<string>48 (5GHz)</string>
+							<string>52 (5GHz)</string>
+							<string>56 (5GHz)</string>
+							<string>60 (5GHz)</string>
+							<string>64 (5GHz)</string>
+							<string>149 (5GHz)</string>
+							<string>153 (5GHz)</string>
+							<string>157 (5GHz)</string>
+							<string>161 (5GHz)</string>
+							<string>165 (5GHz)</string>
+						</array>
+						<key>spairport_wireless_mac_address</key>
+						<string>7e:cb:75:5f:a7:95</string>
+					</dict>
+				</array>
+				<key>spairport_software_information</key>
+				<dict>
+					<key>spairport_corewlan_version</key>
+					<string>16.0 (1657)</string>
+					<key>spairport_corewlankit_version</key>
+					<string>16.0 (1657)</string>
+					<key>spairport_diagnostics_version</key>
+					<string>11.0 (1163)</string>
+					<key>spairport_extra_version</key>
+					<string>1.0 (19150.2)</string>
+					<key>spairport_family_version</key>
+					<string>12.0 (1200.13.1)</string>
+					<key>spairport_profiler_version</key>
+					<string>15.0 (1502)</string>
+					<key>spairport_utility_version</key>
+					<string>6.3.9 (639.29)</string>
+				</dict>
+			</dict>
+		</array>
+		<key>_name</key>
+		<string>_name</string>
+		<key>_parentDataType</key>
+		<string>SPNetworkDataType</string>
+		<key>_properties</key>
+		<dict>
+			<key>spairport_airdrop_channel</key>
+			<dict>
+				<key>_order</key>
+				<string>142</string>
+			</dict>
+			<key>spairport_airport_local_wireless_networks</key>
+			<dict>
+				<key>_detailLevel</key>
+				<string>1</string>
+				<key>_order</key>
+				<string>250</string>
+			</dict>
+			<key>spairport_airport_other_local_wireless_networks</key>
+			<dict>
+				<key>_detailLevel</key>
+				<string>1</string>
+				<key>_order</key>
+				<string>260</string>
+			</dict>
+			<key>spairport_caps_airdrop</key>
+			<dict>
+				<key>_order</key>
+				<string>141</string>
+			</dict>
+			<key>spairport_caps_autounlock</key>
+			<dict>
+				<key>_order</key>
+				<string>144</string>
+			</dict>
+			<key>spairport_caps_awdl</key>
+			<dict>
+				<key>_order</key>
+				<string>143</string>
+			</dict>
+			<key>spairport_caps_wow</key>
+			<dict>
+				<key>_order</key>
+				<string>140</string>
+			</dict>
+			<key>spairport_corewlan_version</key>
+			<dict>
+				<key>_order</key>
+				<string>15</string>
+			</dict>
+			<key>spairport_corewlankit_version</key>
+			<dict>
+				<key>_order</key>
+				<string>16</string>
+			</dict>
+			<key>spairport_current_network_information</key>
+			<dict>
+				<key>_detailLevel</key>
+				<string>0</string>
+				<key>_order</key>
+				<string>160</string>
+			</dict>
+			<key>spairport_diagnostics_version</key>
+			<dict>
+				<key>_order</key>
+				<string>75</string>
+			</dict>
+			<key>spairport_extra_version</key>
+			<dict>
+				<key>_order</key>
+				<string>20</string>
+			</dict>
+			<key>spairport_family_version</key>
+			<dict>
+				<key>_order</key>
+				<string>70</string>
+			</dict>
+			<key>spairport_net_prefs_version</key>
+			<dict>
+				<key>_order</key>
+				<string>50</string>
+			</dict>
+			<key>spairport_network_bssid</key>
+			<dict>
+				<key>_order</key>
+				<string>180</string>
+			</dict>
+			<key>spairport_network_channel</key>
+			<dict>
+				<key>_order</key>
+				<string>190</string>
+			</dict>
+			<key>spairport_network_country_code</key>
+			<dict>
+				<key>_order</key>
+				<string>195</string>
+			</dict>
+			<key>spairport_network_mcs</key>
+			<dict>
+				<key>_order</key>
+				<string>240</string>
+			</dict>
+			<key>spairport_network_phymode</key>
+			<dict>
+				<key>_order</key>
+				<string>170</string>
+			</dict>
+			<key>spairport_network_rate</key>
+			<dict>
+				<key>_order</key>
+				<string>230</string>
+			</dict>
+			<key>spairport_network_type</key>
+			<dict>
+				<key>_order</key>
+				<string>200</string>
+			</dict>
+			<key>spairport_profiler_version</key>
+			<dict>
+				<key>_order</key>
+				<string>40</string>
+			</dict>
+			<key>spairport_security_mode</key>
+			<dict>
+				<key>_order</key>
+				<string>210</string>
+			</dict>
+			<key>spairport_signal_noise</key>
+			<dict>
+				<key>_order</key>
+				<string>220</string>
+			</dict>
+			<key>spairport_software_information</key>
+			<dict>
+				<key>_order</key>
+				<string>10</string>
+			</dict>
+			<key>spairport_status_information</key>
+			<dict>
+				<key>_order</key>
+				<string>150</string>
+			</dict>
+			<key>spairport_supported_channels</key>
+			<dict>
+				<key>_order</key>
+				<string>130</string>
+			</dict>
+			<key>spairport_supported_phymodes</key>
+			<dict>
+				<key>_order</key>
+				<string>120</string>
+			</dict>
+			<key>spairport_utility_version</key>
+			<dict>
+				<key>_order</key>
+				<string>79</string>
+			</dict>
+			<key>spairport_wireless_card_type</key>
+			<dict>
+				<key>_order</key>
+				<string>80</string>
+			</dict>
+			<key>spairport_wireless_country_code</key>
+			<dict>
+				<key>_order</key>
+				<string>110</string>
+			</dict>
+			<key>spairport_wireless_firmware_version</key>
+			<dict>
+				<key>_order</key>
+				<string>90</string>
+			</dict>
+			<key>spairport_wireless_locale</key>
+			<dict>
+				<key>_order</key>
+				<string>100</string>
+			</dict>
+			<key>spairport_wireless_mac_address</key>
+			<dict>
+				<key>_order</key>
+				<string>95</string>
+			</dict>
+			<key>volumes</key>
+			<dict>
+				<key>_detailLevel</key>
+				<string>0</string>
+			</dict>
+		</dict>
+		<key>_timeStamp</key>
+		<date>2026-07-20T09:12:52Z</date>
+		<key>_versionInfo</key>
+		<dict>
+			<key>com.apple.SystemProfiler.SPAirPortReporter</key>
+			<string>1502</string>
+		</dict>
+	</dict>
+</array>
+</plist>
