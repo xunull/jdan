@@ -2836,15 +2836,5 @@ go test -tags integration ./internal/dnslookup/... ./internal/dnstrace/...
 GOWORK=off go build -o jdan .
 ```
 
-**新 clone 后启用 git hooks（一次即可）：**
-
-```bash
-git config core.hooksPath .githooks
-```
-
-`.githooks/pre-commit` 会在提交前检查暂存内容是否经过 `gofmt`，未通过时给出修复命令。hook 放在版本库里而不是 `.git/hooks/`，这样换机器不会丢，但**每个 clone 需要跑一次上面那条命令**才生效。
-
-CI 里有同样的检查兜底 —— hook 能被 `--no-verify` 绕过，新 clone 在设置 `core.hooksPath` 之前也不生效，所以两层都留着。
-
 设计文档在 `docs/brainstorms/` 与 `docs/plans/` 下按时间排列，每个新子命令通常对应一对 brainstorm + plan。
 
