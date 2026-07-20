@@ -165,14 +165,14 @@ var zodiac = []rune("鼠牛虎兔龙蛇马羊猴鸡狗猪")
 
 // GanzhiYear 返回农历年的干支（如 1984 → 甲子）。以正月初一为界。
 func GanzhiYear(lunarYear int) string {
-	i := ((lunarYear - 4) % 10 + 10) % 10
-	j := ((lunarYear - 4) % 12 + 12) % 12
+	i := ((lunarYear-4)%10 + 10) % 10
+	j := ((lunarYear-4)%12 + 12) % 12
 	return string(tianGan[i]) + string(diZhi[j])
 }
 
 // Zodiac 返回农历年的生肖（如 2024 → 龙）。
 func Zodiac(lunarYear int) string {
-	j := ((lunarYear - 4) % 12 + 12) % 12
+	j := ((lunarYear-4)%12 + 12) % 12
 	return string(zodiac[j])
 }
 
@@ -223,8 +223,8 @@ type Festival struct {
 // 都是纯农历日期推出来的；清明/冬至属节气不在此列。
 func Festivals(solarYear int) ([]Festival, error) {
 	defs := []struct {
-		name    string
-		m, d    int
+		name string
+		m, d int
 	}{
 		{"春节", 1, 1}, {"元宵", 1, 15}, {"端午", 5, 5},
 		{"七夕", 7, 7}, {"中秋", 8, 15}, {"重阳", 9, 9},

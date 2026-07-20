@@ -46,9 +46,9 @@ func TestParse_Variants(t *testing.T) {
 	// byte[8] 的高位决定 variant；用第 9 字节（index 8 = 第三组首字节）控制
 	cases := map[string]string{
 		"00000000-0000-4000-0000-000000000000": "NCS (兼容旧版)", // 0xxx
-		"00000000-0000-4000-8000-000000000000": "RFC 4122",     // 10xx
-		"00000000-0000-4000-c000-000000000000": "Microsoft",    // 110x
-		"00000000-0000-4000-e000-000000000000": "Reserved",     // 111x
+		"00000000-0000-4000-8000-000000000000": "RFC 4122",   // 10xx
+		"00000000-0000-4000-c000-000000000000": "Microsoft",  // 110x
+		"00000000-0000-4000-e000-000000000000": "Reserved",   // 111x
 	}
 	for s, want := range cases {
 		i, _ := Parse(s)
@@ -130,7 +130,7 @@ func TestParse_V1Timestamp(t *testing.T) {
 func TestParse_Tolerant(t *testing.T) {
 	want := "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
 	for _, in := range []string{
-		"3F2504E0-4F89-41D3-9A0C-0305E82C3301",      // 大写
+		"3F2504E0-4F89-41D3-9A0C-0305E82C3301", // 大写
 		"urn:uuid:3f2504e0-4f89-41d3-9a0c-0305e82c3301",
 		"{3f2504e0-4f89-41d3-9a0c-0305e82c3301}",
 		"{URN:UUID:3F2504E0-4F89-41D3-9A0C-0305E82C3301}",

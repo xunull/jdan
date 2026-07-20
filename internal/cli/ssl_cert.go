@@ -121,11 +121,11 @@ func runSSLCert(cmd *cobra.Command, args []string, out io.Writer) error {
 
 	if asJSON {
 		payload := map[string]any{
-			"source":          bundle.Source,
-			"leaf":            sslcert.Describe(bundle.Leaf()),
-			"chain":           chainDescribed(bundle.FullChain()),
-			"verification":    report,
-			"ocsp":            ocspStatuses,
+			"source":       bundle.Source,
+			"leaf":         sslcert.Describe(bundle.Leaf()),
+			"chain":        chainDescribed(bundle.FullChain()),
+			"verification": report,
+			"ocsp":         ocspStatuses,
 		}
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")

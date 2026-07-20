@@ -19,11 +19,11 @@ import (
 
 // Listener 是一个被 lsof 检测到的本地监听 socket。
 type Listener struct {
-	Process string `json:"process"`  // 进程名（comm）
+	Process string `json:"process"` // 进程名（comm）
 	PID     int    `json:"pid"`
 	User    string `json:"user"`
-	Bind    string `json:"bind"`     // "*:8080" / "127.0.0.1:8080" / "::1:8080" 等
-	Proto   string `json:"proto"`    // tcp / tcp6
+	Bind    string `json:"bind"`           // "*:8080" / "127.0.0.1:8080" / "::1:8080" 等
+	Proto   string `json:"proto"`          // tcp / tcp6
 	Path    string `json:"path,omitempty"` // 可执行路径（lsof 不直接给，留 future）
 }
 

@@ -8,7 +8,7 @@ type FirewallStatus int
 
 const (
 	FirewallUnknown  FirewallStatus = iota
-	FirewallDisabled // 仅为类型完整性保留，Linux/Windows 不返回这个值
+	FirewallDisabled                // 仅为类型完整性保留，Linux/Windows 不返回这个值
 	FirewallEnabled
 )
 

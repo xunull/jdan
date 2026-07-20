@@ -41,7 +41,7 @@ func SPKIHashBase64(cert *x509.Certificate) string {
 
 // PinEntry 描述一个 cert 的 pinning 信息（给 cli render 用）。
 type PinEntry struct {
-	Role       string `json:"role"`        // "leaf" / "intermediate" / "root"
+	Role       string `json:"role"` // "leaf" / "intermediate" / "root"
 	SubjectCN  string `json:"subject_cn"`
 	IssuerCN   string `json:"issuer_cn"`
 	SPKISha256 string `json:"spki_sha256"` // base64 standard encoding

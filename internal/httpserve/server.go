@@ -16,17 +16,17 @@ import (
 
 // Options 控制 Run 的所有行为。零值有合理默认（root=cwd、port=0=随机、bind=0.0.0.0）。
 type Options struct {
-	Root         string        // 提供服务的根目录（filepath.Abs 后存）
-	Port         int           // 0 = 自动找空闲端口（先试 8080）
-	Bind         string        // 默认 "0.0.0.0"
-	LogFormat    LogFormat     // 默认 LogText
-	LogOut       io.Writer     // 默认 os.Stdout；nil = 不写日志
-	Upload       bool          // 启用 POST /upload + GET /upload
-	UploadDir    string        // 默认 root/uploads
-	BasicAuth    string        // "user:pass" 形式；空串关闭
-	Shutdown     time.Duration // Shutdown 超时；0 = 默认 5s
+	Root         string            // 提供服务的根目录（filepath.Abs 后存）
+	Port         int               // 0 = 自动找空闲端口（先试 8080）
+	Bind         string            // 默认 "0.0.0.0"
+	LogFormat    LogFormat         // 默认 LogText
+	LogOut       io.Writer         // 默认 os.Stdout；nil = 不写日志
+	Upload       bool              // 启用 POST /upload + GET /upload
+	UploadDir    string            // 默认 root/uploads
+	BasicAuth    string            // "user:pass" 形式；空串关闭
+	Shutdown     time.Duration     // Shutdown 超时；0 = 默认 5s
 	OnStarted    func(addr string) // 可选：server 真正开始 listen 后回调
-	RootRedirect string        // 非空时 "/" 重定向到此路径（用于单文件 serve 场景）
+	RootRedirect string            // 非空时 "/" 重定向到此路径（用于单文件 serve 场景）
 }
 
 // Server 是一个已经构造好但还未跑的 server 实例。Run 阻塞直到 ctx 取消或致命错误。

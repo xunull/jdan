@@ -19,9 +19,9 @@ func TestSanitizeFilename(t *testing.T) {
 	}{
 		{"report.pdf", "report.pdf"},
 		{"  trim.txt  ", "trim.txt"},
-		{"sub/dir/file.png", "file.png"},  // filepath.Base 截到 file.png
-		{"../etc/passwd", "passwd"},       // 同上：basename 是 passwd
-		{"/abs/path/x.bin", "x.bin"},      // 绝对路径也只取 basename
+		{"sub/dir/file.png", "file.png"}, // filepath.Base 截到 file.png
+		{"../etc/passwd", "passwd"},      // 同上：basename 是 passwd
+		{"/abs/path/x.bin", "x.bin"},     // 绝对路径也只取 basename
 		{"", ""},
 		{".", ""},
 		{"..", ""},

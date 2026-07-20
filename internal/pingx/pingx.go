@@ -1,9 +1,10 @@
 // Package pingx 实现 jdan ping 子命令的核心：可指定 DNS server 解析域名再 ping。
 //
 // 设计：实际的 ICMP 由系统 ping 完成（shell out，像 jdan git 调 git），jdan 只负责
-//   1) 用指定 DNS 把域名解析成 IP（复用 internal/dnslookup，含 DoH）
-//   2) 构造 ping 的 argv
-//   3) 尽力解析 ping 汇总行供 --json
+//  1. 用指定 DNS 把域名解析成 IP（复用 internal/dnslookup，含 DoH）
+//  2. 构造 ping 的 argv
+//  3. 尽力解析 ping 汇总行供 --json
+//
 // 0 新依赖（miekg/dns、cobra 都是项目已有）。仅 macOS + Linux。
 package pingx
 

@@ -30,10 +30,10 @@ import (
 //   - 合计含 symbols     = 71
 //   - 合计 alnum 无 symbols = 57
 const (
-	charsLowerNoAmbig = "abcdefghijkmnopqrstuvwxyz"  // 25, no 'l'
-	charsUpperNoAmbig = "ABCDEFGHJKLMNPQRSTUVWXYZ"   // 24, no 'I', 'O'
-	charsDigitNoAmbig = "23456789"                   // 8, no '0', '1'
-	charsSymbols      = "!@#$%^&*()-_=+"             // 14 标准 symbols
+	charsLowerNoAmbig = "abcdefghijkmnopqrstuvwxyz" // 25, no 'l'
+	charsUpperNoAmbig = "ABCDEFGHJKLMNPQRSTUVWXYZ"  // 24, no 'I', 'O'
+	charsDigitNoAmbig = "23456789"                  // 8, no '0', '1'
+	charsSymbols      = "!@#$%^&*()-_=+"            // 14 标准 symbols
 
 	charsLowerFull = "abcdefghijklmnopqrstuvwxyz" // 26
 	charsUpperFull = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // 26

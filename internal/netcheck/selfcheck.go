@@ -20,13 +20,13 @@ type Options struct {
 
 // Report 是 SelfCheck 的完整输出。
 type Report struct {
-	OS         string                  `json:"os"`
-	Arch       string                  `json:"arch"`
-	Firewall   FirewallSection         `json:"firewall"`
-	Interfaces []InterfaceInfo         `json:"interfaces"`
-	Listening  *ListeningSection       `json:"listening,omitempty"`
-	SelfLoop   *SelfLoopSection        `json:"self_loop,omitempty"`
-	Prediction string                  `json:"prediction"`
+	OS         string            `json:"os"`
+	Arch       string            `json:"arch"`
+	Firewall   FirewallSection   `json:"firewall"`
+	Interfaces []InterfaceInfo   `json:"interfaces"`
+	Listening  *ListeningSection `json:"listening,omitempty"`
+	SelfLoop   *SelfLoopSection  `json:"self_loop,omitempty"`
+	Prediction string            `json:"prediction"`
 }
 
 type FirewallSection struct {
@@ -36,11 +36,11 @@ type FirewallSection struct {
 }
 
 type InterfaceInfo struct {
-	Name       string   `json:"name"`
-	IPs        []string `json:"ips"`
-	LAN        bool     `json:"lan"`     // 至少有一个 RFC1918 地址
-	Loopback   bool     `json:"loopback"`
-	Primary    bool     `json:"primary"` // 是默认路由出口（best-effort 判断）
+	Name     string   `json:"name"`
+	IPs      []string `json:"ips"`
+	LAN      bool     `json:"lan"` // 至少有一个 RFC1918 地址
+	Loopback bool     `json:"loopback"`
+	Primary  bool     `json:"primary"` // 是默认路由出口（best-effort 判断）
 }
 
 type ListeningSection struct {

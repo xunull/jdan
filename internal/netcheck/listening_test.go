@@ -85,11 +85,11 @@ func TestListener_IsLANReachable(t *testing.T) {
 		bind string
 		want bool
 	}{
-		{"*:8080", true},               // lsof IPv4 all-interfaces
+		{"*:8080", true}, // lsof IPv4 all-interfaces
 		{"0.0.0.0:8080", true},
-		{"::1:8080", false},            // IPv6 loopback
+		{"::1:8080", false}, // IPv6 loopback
 		{"127.0.0.1:8080", false},
-		{"192.168.1.42:8080", true},    // 具体 LAN IP
+		{"192.168.1.42:8080", true}, // 具体 LAN IP
 		{"10.0.0.5:8080", true},
 	} {
 		l := Listener{Bind: tc.bind}

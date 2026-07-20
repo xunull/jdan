@@ -86,7 +86,7 @@ Cloudflare 支持最深：还会从 CF-RAY 解出边缘机房（IATA 机场码�
 			var ns []string
 			var ips []netip.Addr
 			if !headersOnly && host != "" {
-				ns, _ = deps.lookupNS(ctx, host)  // DNS 失败不致命，降级为只用头判
+				ns, _ = deps.lookupNS(ctx, host)   // DNS 失败不致命，降级为只用头判
 				ips, _ = deps.lookupIPs(ctx, host) // 同上
 			}
 

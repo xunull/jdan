@@ -20,7 +20,7 @@ func TestIsRFC1918(t *testing.T) {
 		{"172.32.0.1", false}, // 边界外
 		{"8.8.8.8", false},    // 公网
 		{"1.1.1.1", false},
-		{"127.0.0.1", false},  // loopback
+		{"127.0.0.1", false},   // loopback
 		{"169.254.1.1", false}, // link-local
 		{"0.0.0.0", false},
 		{"::1", false}, // IPv6

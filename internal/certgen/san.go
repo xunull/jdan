@@ -60,4 +60,3 @@ func BuildSANs(primary string, extraDNS, extraIP []string) SANs {
 	}
 	return s
 }
-

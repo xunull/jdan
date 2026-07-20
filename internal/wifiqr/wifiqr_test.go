@@ -90,7 +90,7 @@ func TestPayload_WPAEmptyPasswordErrors(t *testing.T) {
 func TestParseAuth(t *testing.T) {
 	ok := map[string]Auth{
 		"wpa": AuthWPA, "WPA": AuthWPA, "wpa2": AuthWPA, "wpa3": AuthWPA, "": AuthWPA,
-		"wep": AuthWEP,
+		"wep":    AuthWEP,
 		"nopass": AuthNopass, "open": AuthNopass, "none": AuthNopass,
 	}
 	for in, want := range ok {

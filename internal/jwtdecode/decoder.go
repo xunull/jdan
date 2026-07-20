@@ -22,22 +22,22 @@ import (
 // Result 是 Decode 的输出。Header 和 Payload 是原始 JSON 字符串（已 pretty-print），
 // 适合直接打印；HeaderMap / PayloadMap 是解析后的 map，方便结构化访问。
 type Result struct {
-	Header        string                 `json:"header"`
-	Payload       string                 `json:"payload"`
-	HeaderMap     map[string]any         `json:"header_map"`
-	PayloadMap    map[string]any         `json:"payload_map"`
-	Signature     string                 `json:"signature"`     // 原始 base64url，未解码
-	Algorithm     string                 `json:"alg"`           // header.alg
-	KeyID         string                 `json:"kid,omitempty"` // header.kid
-	IssuedAt      *time.Time             `json:"issued_at,omitempty"`
-	NotBefore     *time.Time             `json:"not_before,omitempty"`
-	ExpiresAt     *time.Time             `json:"expires_at,omitempty"`
-	Expired       bool                   `json:"expired"`
-	TimeRemaining string                 `json:"time_remaining,omitempty"` // 人类可读，仅未过期时填充
-	Subject       string                 `json:"sub,omitempty"`
-	Issuer        string                 `json:"iss,omitempty"`
-	Audience      []string               `json:"aud,omitempty"`
-	Extra         map[string]any         `json:"-"` // 留作未来扩展
+	Header        string         `json:"header"`
+	Payload       string         `json:"payload"`
+	HeaderMap     map[string]any `json:"header_map"`
+	PayloadMap    map[string]any `json:"payload_map"`
+	Signature     string         `json:"signature"`     // 原始 base64url，未解码
+	Algorithm     string         `json:"alg"`           // header.alg
+	KeyID         string         `json:"kid,omitempty"` // header.kid
+	IssuedAt      *time.Time     `json:"issued_at,omitempty"`
+	NotBefore     *time.Time     `json:"not_before,omitempty"`
+	ExpiresAt     *time.Time     `json:"expires_at,omitempty"`
+	Expired       bool           `json:"expired"`
+	TimeRemaining string         `json:"time_remaining,omitempty"` // 人类可读，仅未过期时填充
+	Subject       string         `json:"sub,omitempty"`
+	Issuer        string         `json:"iss,omitempty"`
+	Audience      []string       `json:"aud,omitempty"`
+	Extra         map[string]any `json:"-"` // 留作未来扩展
 }
 
 // Decode 解码 token 字符串。**不**验证签名。

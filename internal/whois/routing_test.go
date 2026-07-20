@@ -72,11 +72,11 @@ func TestExtractTLD(t *testing.T) {
 
 func TestRoutingFor_KnownTLD(t *testing.T) {
 	cases := map[string]string{
-		"example.com":  "whois.verisign-grs.com",
-		"example.io":   "whois.nic.io",
-		"example.de":   "whois.denic.de",
-		"example.cn":   "whois.cnnic.cn",
-		"example.app":  "whois.nic.google",
+		"example.com": "whois.verisign-grs.com",
+		"example.io":  "whois.nic.io",
+		"example.de":  "whois.denic.de",
+		"example.cn":  "whois.cnnic.cn",
+		"example.app": "whois.nic.google",
 	}
 	for target, wantServer := range cases {
 		got, kind, err := RoutingFor(target)

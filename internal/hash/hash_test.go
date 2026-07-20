@@ -95,9 +95,9 @@ func TestParseAlgorithms(t *testing.T) {
 	}{
 		{"sha256", []Algorithm{AlgoSHA256}},
 		{"md5,sha256", []Algorithm{AlgoMD5, AlgoSHA256}},
-		{"MD5,SHA256", []Algorithm{AlgoMD5, AlgoSHA256}},                                // 大小写不敏感
-		{"sha256,sha256,md5", []Algorithm{AlgoSHA256, AlgoMD5}},                          // dedup
-		{"  md5  ,  sha1  ", []Algorithm{AlgoMD5, AlgoSHA1}},                            // trim
+		{"MD5,SHA256", []Algorithm{AlgoMD5, AlgoSHA256}},        // 大小写不敏感
+		{"sha256,sha256,md5", []Algorithm{AlgoSHA256, AlgoMD5}}, // dedup
+		{"  md5  ,  sha1  ", []Algorithm{AlgoMD5, AlgoSHA1}},    // trim
 	} {
 		got, err := ParseAlgorithms(tc.in)
 		if err != nil {
@@ -123,11 +123,11 @@ func TestParseAlgorithms(t *testing.T) {
 
 func TestParseChecksumLine_Variants(t *testing.T) {
 	for _, tc := range []struct {
-		in         string
-		wantPath   string
-		wantHash   string
-		wantNil    bool
-		wantErr    bool
+		in       string
+		wantPath string
+		wantHash string
+		wantNil  bool
+		wantErr  bool
 	}{
 		// 标准 shasum: 两空格分隔
 		{"abc123  file.txt", "file.txt", "abc123", false, false},

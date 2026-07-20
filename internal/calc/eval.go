@@ -25,7 +25,7 @@ var funcs1 = map[string]func(float64) (float64, error){
 	"floor": func(x float64) (float64, error) { return math.Floor(x), nil },
 	"ceil":  func(x float64) (float64, error) { return math.Ceil(x), nil },
 	"round": func(x float64) (float64, error) { return math.Round(x), nil },
-	"ln":    func(x float64) (float64, error) {
+	"ln": func(x float64) (float64, error) {
 		if x <= 0 {
 			return 0, fmt.Errorf("ln of non-positive number")
 		}

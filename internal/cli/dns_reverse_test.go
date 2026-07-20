@@ -112,9 +112,9 @@ func TestParseReverseIP_DomainSuggestsLookup(t *testing.T) {
 func TestParseReverseIP_RejectsGarbage(t *testing.T) {
 	cases := []string{
 		"not-an-ip",
-		"fe80::1%en0",          // link-local with zone-id：ParseIP 返回 nil
-		"999.999.999.999",      // out-of-range IPv4
-		"::g",                  // 含非法 hex 字符的 IPv6
+		"fe80::1%en0",     // link-local with zone-id：ParseIP 返回 nil
+		"999.999.999.999", // out-of-range IPv4
+		"::g",             // 含非法 hex 字符的 IPv6
 	}
 	for _, c := range cases {
 		t.Run(c, func(t *testing.T) {

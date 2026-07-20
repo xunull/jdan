@@ -17,27 +17,27 @@ import (
 
 // Options 控制一次 Scan 的范围与行为。
 type Options struct {
-	Host        string
-	Port        int           // 默认 443
-	SNI         string        // 默认 Host
-	Timeout     time.Duration // 整体超时；默认 15s
-	FullCipher  bool          // 默认 16 常见 cipher；true 试 Go stdlib 暴露的 ~40 个
-	SkipCipher  bool          // 跳过 cipher 枚举（更快）
-	SkipHSTS    bool          // 跳过 HTTPS GET 抓 HSTS header
-	SkipResume  bool          // 跳过 session resumption 测试
+	Host       string
+	Port       int           // 默认 443
+	SNI        string        // 默认 Host
+	Timeout    time.Duration // 整体超时；默认 15s
+	FullCipher bool          // 默认 16 常见 cipher；true 试 Go stdlib 暴露的 ~40 个
+	SkipCipher bool          // 跳过 cipher 枚举（更快）
+	SkipHSTS   bool          // 跳过 HTTPS GET 抓 HSTS header
+	SkipResume bool          // 跳过 session resumption 测试
 }
 
 // ScanReport 是一次完整审计的输出。各 section 字段对应 cli render 的 box。
 type ScanReport struct {
-	Target  string         `json:"target"`
-	Cert    *CertSection   `json:"cert,omitempty"`
+	Target   string          `json:"target"`
+	Cert     *CertSection    `json:"cert,omitempty"`
 	Versions VersionsSection `json:"tls_versions"`
-	Ciphers CiphersSection  `json:"cipher_suites"`
-	ALPN    ALPNSection    `json:"alpn"`
-	HSTS    *HSTSSection   `json:"hsts,omitempty"`
-	Resume  ResumeSection  `json:"session_resumption"`
-	Grade   GradeReport    `json:"grade"`
-	Elapsed time.Duration  `json:"elapsed_ns"`
+	Ciphers  CiphersSection  `json:"cipher_suites"`
+	ALPN     ALPNSection     `json:"alpn"`
+	HSTS     *HSTSSection    `json:"hsts,omitempty"`
+	Resume   ResumeSection   `json:"session_resumption"`
+	Grade    GradeReport     `json:"grade"`
+	Elapsed  time.Duration   `json:"elapsed_ns"`
 }
 
 // Scan 主入口。各 section 串行跑（不并行：握手对 TLS 状态机有副作用，并行

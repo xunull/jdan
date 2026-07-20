@@ -163,8 +163,8 @@ func TestExtractZip_ListMode(t *testing.T) {
 func TestExtractTarGz(t *testing.T) {
 	dir := t.TempDir()
 	tarPath := writeTestTarGz(t, dir, map[string]string{
-		"file1.txt":      "one",
-		"sub/file2.txt":  "two",
+		"file1.txt":     "one",
+		"sub/file2.txt": "two",
 	})
 	outDir := filepath.Join(dir, "out")
 	entries, err := Extract(tarPath, Options{OutDir: outDir})

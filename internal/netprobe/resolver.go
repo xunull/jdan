@@ -11,10 +11,10 @@ import (
 
 // ResolveDetail 是 resolve 阶段的特有字段。
 type ResolveDetail struct {
-	Hostname string   `json:"hostname"`
-	IPs      []net.IP `json:"ips"`
-	IsLiteral bool    `json:"is_literal"` // 输入本身就是 IP literal，无需 DNS
-	Resolver string   `json:"resolver,omitempty"` // 实际用的 resolver
+	Hostname  string   `json:"hostname"`
+	IPs       []net.IP `json:"ips"`
+	IsLiteral bool     `json:"is_literal"`         // 输入本身就是 IP literal，无需 DNS
+	Resolver  string   `json:"resolver,omitempty"` // 实际用的 resolver
 }
 
 func runResolve(ctx context.Context, t *Target, opts Options) *StageResult {

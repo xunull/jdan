@@ -20,8 +20,8 @@ const (
 
 // CipherResult 是单个 cipher 的探测结果。
 type CipherResult struct {
-	Name      string         `json:"name"`            // e.g. "ECDHE-RSA-AES256-GCM-SHA384"
-	Hex       string         `json:"id"`              // 0xc02f
+	Name      string         `json:"name"` // e.g. "ECDHE-RSA-AES256-GCM-SHA384"
+	Hex       string         `json:"id"`   // 0xc02f
 	Supported bool           `json:"supported"`
 	Strength  CipherStrength `json:"strength"`
 }

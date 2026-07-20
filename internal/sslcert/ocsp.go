@@ -14,9 +14,9 @@ import (
 
 // OCSPStatus 是单个 cert 的 OCSP 查询结果。
 type OCSPStatus struct {
-	Available    bool      `json:"available"`             // cert 是否有 OCSP responder URL
-	Checked      bool      `json:"checked"`               // 我们真的查了（没 skip）
-	Status       string    `json:"status"`                // good / revoked / unknown
+	Available    bool      `json:"available"` // cert 是否有 OCSP responder URL
+	Checked      bool      `json:"checked"`   // 我们真的查了（没 skip）
+	Status       string    `json:"status"`    // good / revoked / unknown
 	Revoked      bool      `json:"revoked"`
 	RevokedAt    time.Time `json:"revoked_at,omitempty"`
 	Reason       string    `json:"revocation_reason,omitempty"` // 文字化
@@ -142,4 +142,3 @@ func CheckChainOCSP(ctx context.Context, chain []*x509.Certificate) []OCSPStatus
 	}
 	return out
 }
-

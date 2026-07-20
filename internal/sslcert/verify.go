@@ -7,13 +7,13 @@ import (
 
 // VerificationReport 是对一个 Bundle 的 3 项验证结果。
 type VerificationReport struct {
-	Trusted          bool   `json:"trusted"`           // 系统 trust store 能验出可信链
-	TrustErr         string `json:"trust_error,omitempty"`
-	HostnameOK       bool   `json:"hostname_ok"`       // leaf SAN 包含目标 hostname
-	HostnameErr      string `json:"hostname_error,omitempty"`
-	Expired          bool   `json:"expired"`
-	NotYetValid      bool   `json:"not_yet_valid"`
-	HostnameSkipped  bool   `json:"hostname_skipped"`  // 本地 PEM 文件场景没 host 可比
+	Trusted         bool   `json:"trusted"` // 系统 trust store 能验出可信链
+	TrustErr        string `json:"trust_error,omitempty"`
+	HostnameOK      bool   `json:"hostname_ok"` // leaf SAN 包含目标 hostname
+	HostnameErr     string `json:"hostname_error,omitempty"`
+	Expired         bool   `json:"expired"`
+	NotYetValid     bool   `json:"not_yet_valid"`
+	HostnameSkipped bool   `json:"hostname_skipped"` // 本地 PEM 文件场景没 host 可比
 }
 
 // Verify 验证一个 Bundle。改 bundle.VerifiedChains 字段（让 RootFromTrust 能找到 root）。

@@ -89,9 +89,9 @@ func TestResolveDoHTarget_Errors(t *testing.T) {
 		"   ",
 		"http://dns.google/dns-query", // scheme 必须 https
 		"ftp://dns.example/dns-query",
-		"https://",                       // 缺 host
-		"dns.example.com/dns-query",      // 带 path 但没 scheme → 提示用完整 URL
-		"with space.example",             // 含空白
+		"https://",                  // 缺 host
+		"dns.example.com/dns-query", // 带 path 但没 scheme → 提示用完整 URL
+		"with space.example",        // 含空白
 		"dns example com",
 	}
 	for _, in := range cases {
@@ -179,8 +179,8 @@ type dohServerStub struct {
 	t             *testing.T
 	response      *dns.Msg
 	statusCode    int           // 0 = 200
-	rawResponse   []byte         // 非 nil 时无视 response，直接写
-	requestDelay  time.Duration  // 模拟慢响应
+	rawResponse   []byte        // 非 nil 时无视 response，直接写
+	requestDelay  time.Duration // 模拟慢响应
 	gotMethod     string
 	gotContentTyp string
 	gotQuestion   dns.Question

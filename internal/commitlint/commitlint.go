@@ -26,8 +26,8 @@ func DefaultTypes() []string {
 // Options 控制校验行为。零值即采用默认（白名单 DefaultTypes、上限 DefaultMaxHeader）。
 type Options struct {
 	Types         []string // 允许的 type；空 = DefaultTypes
-	MaxHeaderLen  int       // header 上限（rune）；<=0 = DefaultMaxHeader
-	ScopeRequired bool      // 是否强制要有 scope
+	MaxHeaderLen  int      // header 上限（rune）；<=0 = DefaultMaxHeader
+	ScopeRequired bool     // 是否强制要有 scope
 }
 
 // Commit 是一条提交信息解析后的结构。

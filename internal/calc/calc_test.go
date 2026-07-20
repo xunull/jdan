@@ -37,12 +37,12 @@ func TestEval_Basic(t *testing.T) {
 // ---- 优先级 ----
 
 func TestEval_Precedence(t *testing.T) {
-	evalOK(t, "2 + 3 * 4", 14)    // * 高于 +
-	evalOK(t, "(2 + 3) * 4", 20)  // 括号
+	evalOK(t, "2 + 3 * 4", 14)   // * 高于 +
+	evalOK(t, "(2 + 3) * 4", 20) // 括号
 	evalOK(t, "2 * 3 + 4", 10)
-	evalOK(t, "100 / 10 / 2", 5)  // / 左结合
-	evalOK(t, "2 ^ 3 ^ 2", 512)   // ^ 右结合：2^(3^2)=2^9
-	evalOK(t, "2 ^ 2 * 3", 12)    // ^ 高于 *
+	evalOK(t, "100 / 10 / 2", 5) // / 左结合
+	evalOK(t, "2 ^ 3 ^ 2", 512)  // ^ 右结合：2^(3^2)=2^9
+	evalOK(t, "2 ^ 2 * 3", 12)   // ^ 高于 *
 }
 
 // ---- 一元负号 ----
@@ -119,21 +119,21 @@ func TestEval_Constants(t *testing.T) {
 // ---- 错误 ----
 
 func TestEval_Errors(t *testing.T) {
-	evalErr(t, "1 +")          // 缺操作数
-	evalErr(t, "1 / 0")        // 除零
-	evalErr(t, "1 % 0")        // 模零
-	evalErr(t, "2 @ 3")        // 非法字符
-	evalErr(t, "(1 + 2")       // 括号不匹配
-	evalErr(t, "1 + 2)")       // 多余右括号
-	evalErr(t, "sqrt(-1)")     // sqrt 负数
-	evalErr(t, "ln(0)")        // ln 非正
-	evalErr(t, "foo(2)")       // 未知函数
-	evalErr(t, "nope")         // 未知常量
-	evalErr(t, "")             // 空表达式
-	evalErr(t, "   ")          // 空白
-	evalErr(t, "1 2")          // 两个数字无运算符
-	evalErr(t, "sqrt(1, 2)")   // 单参函数给两个参数
-	evalErr(t, "0x")           // 缺进制数字
+	evalErr(t, "1 +")        // 缺操作数
+	evalErr(t, "1 / 0")      // 除零
+	evalErr(t, "1 % 0")      // 模零
+	evalErr(t, "2 @ 3")      // 非法字符
+	evalErr(t, "(1 + 2")     // 括号不匹配
+	evalErr(t, "1 + 2)")     // 多余右括号
+	evalErr(t, "sqrt(-1)")   // sqrt 负数
+	evalErr(t, "ln(0)")      // ln 非正
+	evalErr(t, "foo(2)")     // 未知函数
+	evalErr(t, "nope")       // 未知常量
+	evalErr(t, "")           // 空表达式
+	evalErr(t, "   ")        // 空白
+	evalErr(t, "1 2")        // 两个数字无运算符
+	evalErr(t, "sqrt(1, 2)") // 单参函数给两个参数
+	evalErr(t, "0x")         // 缺进制数字
 }
 
 // ---- Parse 独立 ----

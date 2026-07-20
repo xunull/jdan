@@ -39,8 +39,8 @@ func (s *Stats) Snapshot() (requests, bytes uint64, distinctClients int) {
 // clientSet 跟踪 distinct remote address，用 mutex 保证并发安全。
 // 注意只存 IP（去端口），同一手机多次请求只算一个 client。
 type clientSet struct {
-	m   map[string]struct{}
-	mu  sync.Mutex
+	m  map[string]struct{}
+	mu sync.Mutex
 }
 
 func newClientSet() *clientSet {

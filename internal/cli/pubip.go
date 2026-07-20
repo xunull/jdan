@@ -15,7 +15,7 @@ const (
 )
 
 type provider struct {
-	name string
+	name  string
 	v4URL string
 	v6URL string
 }

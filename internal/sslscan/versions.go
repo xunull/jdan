@@ -11,10 +11,10 @@ import (
 
 // VersionResult 是单个 TLS 版本探测结果。
 type VersionResult struct {
-	Version    string `json:"version"`     // "TLS 1.0" / "TLS 1.1" / "TLS 1.2" / "TLS 1.3"
+	Version    string `json:"version"` // "TLS 1.0" / "TLS 1.1" / "TLS 1.2" / "TLS 1.3"
 	Supported  bool   `json:"supported"`
 	Err        string `json:"error,omitempty"`
-	Deprecated bool   `json:"deprecated"`  // TLS 1.0 / 1.1 是 deprecated
+	Deprecated bool   `json:"deprecated"` // TLS 1.0 / 1.1 是 deprecated
 }
 
 // VersionsSection 是版本探测的整体结果。

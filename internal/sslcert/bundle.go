@@ -20,8 +20,8 @@ import (
 //   - Source 记录数据来源（"host:port" 或 "file:cert.pem"）
 //   - VerifiedChains 是 Verify() 填充的，可能包含 root（来自 trust store）
 type Bundle struct {
-	Source        string
-	Chain         []*x509.Certificate
+	Source         string
+	Chain          []*x509.Certificate
 	VerifiedChains [][]*x509.Certificate
 
 	// Host 是 TLS 握手时用的 SNI / hostname；本地文件 source 时为空

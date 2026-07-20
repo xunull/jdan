@@ -46,14 +46,14 @@ func heatColor(pct float64) color.Color {
 
 // Model 是 Bubble Tea v2 的状态模型，持有 GPU 仪表盘的全部状态。
 type Model struct {
-	width          int
-	height         int
-	ready          bool
-	hasDarkBG      bool
-	latest         *GPUSnapshot
-	err            error
-	interval       int
-	cancel         context.CancelFunc
+	width     int
+	height    int
+	ready     bool
+	hasDarkBG bool
+	latest    *GPUSnapshot
+	err       error
+	interval  int
+	cancel    context.CancelFunc
 }
 
 // NewModel 创建初始 TUI 模型。

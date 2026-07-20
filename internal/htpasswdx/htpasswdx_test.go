@@ -6,8 +6,9 @@ import (
 )
 
 // apr1 / sha 金标准向量由 openssl 生成：
-//   openssl passwd -apr1 -salt abcd1234 secret
-//   printf password | openssl dgst -sha1 -binary | openssl base64
+//
+//	openssl passwd -apr1 -salt abcd1234 secret
+//	printf password | openssl dgst -sha1 -binary | openssl base64
 const (
 	apr1Golden = "$apr1$abcd1234$KISB.4aBzP4pecxr2tTpg1"
 	shaGolden  = "{SHA}W6ph5Mm5Pz8GgiULbPgzG37mj9g="

@@ -14,9 +14,9 @@ func sampleResult() *Result {
 		Results: []TypeResult{
 			{Type: "A", Rcode: "NOERROR", TTL: 3600, Values: []string{"93.184.216.34"}},
 			{Type: "AAAA", Rcode: "NOERROR", TTL: 3600, Values: []string{"2606:2800:220:1:248:1893:25c8:1946"}},
-			{Type: "MX", Rcode: "NOERROR", Values: []string{}},                              // 空记录
-			{Type: "TXT", Rcode: "NOERROR", TTL: 600, Values: []string{`"v=spf1 -all"`}},    // 含引号
-			{Type: "CNAME", Err: "TIMEOUT", Values: []string{}},                             // 网络错误
+			{Type: "MX", Rcode: "NOERROR", Values: []string{}},                                                         // 空记录
+			{Type: "TXT", Rcode: "NOERROR", TTL: 600, Values: []string{`"v=spf1 -all"`}},                               // 含引号
+			{Type: "CNAME", Err: "TIMEOUT", Values: []string{}},                                                        // 网络错误
 			{Type: "NS", Rcode: "NOERROR", TTL: 86400, Values: []string{"a.iana-servers.net.", "b.iana-servers.net."}}, // 多值
 		},
 	}

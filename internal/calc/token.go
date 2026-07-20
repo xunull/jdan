@@ -21,7 +21,7 @@ const (
 	tokStar
 	tokSlash
 	tokPercent
-	tokCaret  // ^ 或 **
+	tokCaret // ^ 或 **
 	tokLParen
 	tokRParen
 	tokComma

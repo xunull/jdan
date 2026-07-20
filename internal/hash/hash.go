@@ -92,7 +92,7 @@ func newHasher(a Algorithm) (hash.Hash, error) {
 
 // Result 是一次 hash 调用的产出。Path 给 cli 层显示用；多算法时 Sums 含多条。
 type Result struct {
-	Path string            `json:"path,omitempty"`
+	Path string               `json:"path,omitempty"`
 	Sums map[Algorithm]string `json:"sums"` // hex lowercase
 }
 

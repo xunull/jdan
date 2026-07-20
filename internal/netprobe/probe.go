@@ -196,9 +196,9 @@ const (
 type StageResult struct {
 	Stage       Stage         `json:"stage"`
 	Success     bool          `json:"success"`
-	Class       ErrorClass    `json:"class,omitempty"`       // 失败时的语义分类
+	Class       ErrorClass    `json:"class,omitempty"` // 失败时的语义分类
 	Duration    time.Duration `json:"duration_ns"`
-	Detail      string        `json:"detail,omitempty"`      // 一行人类可读概述
+	Detail      string        `json:"detail,omitempty"` // 一行人类可读概述
 	Err         string        `json:"error,omitempty"`
 	Explanation string        `json:"explanation,omitempty"` // "what it means" 中等长度解释
 	Hint        string        `json:"hint,omitempty"`        // 修复建议

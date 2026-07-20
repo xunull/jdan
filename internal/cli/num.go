@@ -65,14 +65,14 @@ func runNum(input string, showBits bool, width int, asJSON bool, out io.Writer) 
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
 		return enc.Encode(map[string]any{
-			"input":          input,
-			"detected_base":  base.String(),
-			"decimal":        res.Decimal,
-			"hex":            res.Hex,
-			"binary":         res.Binary,
-			"octal":          res.Octal,
-			"bits_set":       res.BitsSet,
-			"bit_width":      res.BitWidth,
+			"input":         input,
+			"detected_base": base.String(),
+			"decimal":       res.Decimal,
+			"hex":           res.Hex,
+			"binary":        res.Binary,
+			"octal":         res.Octal,
+			"bits_set":      res.BitsSet,
+			"bit_width":     res.BitWidth,
 		})
 	}
 
@@ -134,11 +134,11 @@ func runNumBit(expr string, width int, asJSON bool, out io.Writer) error {
 		enc := json.NewEncoder(out)
 		enc.SetIndent("", "  ")
 		payload := map[string]any{
-			"op":      string(r.Op),
-			"a":       r.A,
-			"result":  res.Decimal,
-			"hex":     res.Hex,
-			"binary":  res.Binary,
+			"op":     string(r.Op),
+			"a":      r.A,
+			"result": res.Decimal,
+			"hex":    res.Hex,
+			"binary": res.Binary,
 		}
 		if r.Op != numconv.OpNOT {
 			payload["b"] = r.B

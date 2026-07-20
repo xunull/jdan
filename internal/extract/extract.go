@@ -59,10 +59,10 @@ var ErrUnknownFormat = errors.New("unknown archive format")
 
 // Entry 是一个 archive 条目的元信息（给 --list 用，不实际解压时填充）。
 type Entry struct {
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	IsDir   bool   `json:"is_dir"`
-	Mode    string `json:"mode,omitempty"`
+	Name  string `json:"name"`
+	Size  int64  `json:"size"`
+	IsDir bool   `json:"is_dir"`
+	Mode  string `json:"mode,omitempty"`
 }
 
 // Options 控制解压行为。

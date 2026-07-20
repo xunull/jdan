@@ -14,36 +14,36 @@ import (
 
 // Summary 是 *x509.Certificate 的人类友好摘要，用于 cli render 和 JSON 输出。
 type Summary struct {
-	Subject       string    `json:"subject"`        // CN=foo, O=bar,...
-	SubjectCN     string    `json:"subject_cn"`
-	Issuer        string    `json:"issuer"`
-	IssuerCN      string    `json:"issuer_cn"`
-	NotBefore     time.Time `json:"not_before"`
-	NotAfter      time.Time `json:"not_after"`
-	ValidDays     int       `json:"valid_days"`     // NotAfter - NotBefore 总天数
-	DaysLeft      int       `json:"days_left"`      // NotAfter - now
-	Expired       bool      `json:"expired"`
-	NotYetValid   bool      `json:"not_yet_valid"`
+	Subject     string    `json:"subject"` // CN=foo, O=bar,...
+	SubjectCN   string    `json:"subject_cn"`
+	Issuer      string    `json:"issuer"`
+	IssuerCN    string    `json:"issuer_cn"`
+	NotBefore   time.Time `json:"not_before"`
+	NotAfter    time.Time `json:"not_after"`
+	ValidDays   int       `json:"valid_days"` // NotAfter - NotBefore 总天数
+	DaysLeft    int       `json:"days_left"`  // NotAfter - now
+	Expired     bool      `json:"expired"`
+	NotYetValid bool      `json:"not_yet_valid"`
 
-	SAN           []string  `json:"san"`            // DNS names from SAN extension
-	IPAddresses   []string  `json:"ip_addresses,omitempty"`
-	EmailSANs     []string  `json:"email_sans,omitempty"`
-	URISANs       []string  `json:"uri_sans,omitempty"`
+	SAN         []string `json:"san"` // DNS names from SAN extension
+	IPAddresses []string `json:"ip_addresses,omitempty"`
+	EmailSANs   []string `json:"email_sans,omitempty"`
+	URISANs     []string `json:"uri_sans,omitempty"`
 
-	KeyAlgorithm  string    `json:"key_algorithm"`  // RSA 2048 / EC P-256 / Ed25519
-	SigAlgorithm  string    `json:"signature_algorithm"`
+	KeyAlgorithm string `json:"key_algorithm"` // RSA 2048 / EC P-256 / Ed25519
+	SigAlgorithm string `json:"signature_algorithm"`
 
-	Serial        string    `json:"serial"`         // hex, colon-separated
-	SHA256        string    `json:"sha256"`         // fingerprint
-	SHA1          string    `json:"sha1"`           // 仍然有人用 SHA1 pin
+	Serial string `json:"serial"` // hex, colon-separated
+	SHA256 string `json:"sha256"` // fingerprint
+	SHA1   string `json:"sha1"`   // 仍然有人用 SHA1 pin
 
-	IsCA          bool      `json:"is_ca"`
-	IsSelfSigned  bool      `json:"is_self_signed"`
-	KeyUsage      []string  `json:"key_usage,omitempty"`
-	ExtKeyUsage   []string  `json:"ext_key_usage,omitempty"`
+	IsCA         bool     `json:"is_ca"`
+	IsSelfSigned bool     `json:"is_self_signed"`
+	KeyUsage     []string `json:"key_usage,omitempty"`
+	ExtKeyUsage  []string `json:"ext_key_usage,omitempty"`
 
-	OCSPServer    []string  `json:"ocsp_server,omitempty"`
-	IssuingCertURL []string `json:"issuing_cert_url,omitempty"`
+	OCSPServer      []string `json:"ocsp_server,omitempty"`
+	IssuingCertURL  []string `json:"issuing_cert_url,omitempty"`
 	CRLDistribution []string `json:"crl_distribution_points,omitempty"`
 }
 
@@ -54,28 +54,28 @@ func Describe(c *x509.Certificate) Summary {
 	}
 	now := Now()
 	s := Summary{
-		Subject:        c.Subject.String(),
-		SubjectCN:      c.Subject.CommonName,
-		Issuer:         c.Issuer.String(),
-		IssuerCN:       c.Issuer.CommonName,
-		NotBefore:      c.NotBefore,
-		NotAfter:       c.NotAfter,
-		ValidDays:      int(c.NotAfter.Sub(c.NotBefore).Hours() / 24),
-		DaysLeft:       int(c.NotAfter.Sub(now).Hours() / 24),
-		Expired:        now.After(c.NotAfter),
-		NotYetValid:    now.Before(c.NotBefore),
-		SAN:            c.DNSNames,
-		KeyAlgorithm:   keyAlgorithmString(c),
-		SigAlgorithm:   c.SignatureAlgorithm.String(),
-		Serial:         hexColon(c.SerialNumber.Bytes()),
-		SHA256:         fingerprintSHA256(c),
-		SHA1:           fingerprintSHA1(c),
-		IsCA:           c.IsCA,
-		IsSelfSigned:   isSelfSigned(c),
-		KeyUsage:       keyUsageStrings(c.KeyUsage),
-		ExtKeyUsage:    extKeyUsageStrings(c.ExtKeyUsage),
-		OCSPServer:     c.OCSPServer,
-		IssuingCertURL: c.IssuingCertificateURL,
+		Subject:         c.Subject.String(),
+		SubjectCN:       c.Subject.CommonName,
+		Issuer:          c.Issuer.String(),
+		IssuerCN:        c.Issuer.CommonName,
+		NotBefore:       c.NotBefore,
+		NotAfter:        c.NotAfter,
+		ValidDays:       int(c.NotAfter.Sub(c.NotBefore).Hours() / 24),
+		DaysLeft:        int(c.NotAfter.Sub(now).Hours() / 24),
+		Expired:         now.After(c.NotAfter),
+		NotYetValid:     now.Before(c.NotBefore),
+		SAN:             c.DNSNames,
+		KeyAlgorithm:    keyAlgorithmString(c),
+		SigAlgorithm:    c.SignatureAlgorithm.String(),
+		Serial:          hexColon(c.SerialNumber.Bytes()),
+		SHA256:          fingerprintSHA256(c),
+		SHA1:            fingerprintSHA1(c),
+		IsCA:            c.IsCA,
+		IsSelfSigned:    isSelfSigned(c),
+		KeyUsage:        keyUsageStrings(c.KeyUsage),
+		ExtKeyUsage:     extKeyUsageStrings(c.ExtKeyUsage),
+		OCSPServer:      c.OCSPServer,
+		IssuingCertURL:  c.IssuingCertificateURL,
 		CRLDistribution: c.CRLDistributionPoints,
 	}
 	for _, ip := range c.IPAddresses {

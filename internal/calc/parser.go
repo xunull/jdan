@@ -35,8 +35,8 @@ func Parse(input string) (Node, error) {
 	return n, nil
 }
 
-func (p *parser) cur() token  { return p.toks[p.pos] }
-func (p *parser) advance()    { p.pos++ }
+func (p *parser) cur() token { return p.toks[p.pos] }
+func (p *parser) advance()   { p.pos++ }
 
 func (p *parser) parseExpr() (Node, error) {
 	left, err := p.parseTerm()

@@ -32,7 +32,7 @@ func TestEncode_CodeSetSelection(t *testing.T) {
 
 // C 集应比 B 集窄：同样 8 位数字，C 编 4 个符号、B 编 8 个符号。
 func TestEncode_CodeSetCIsNarrower(t *testing.T) {
-	c, _ := Encode("12345678")  // C集
+	c, _ := Encode("12345678") // C集
 	b, _ := Encode("1234567a") // 含字母强制 B集（同 8 字符）
 	if c.Width() >= b.Width() {
 		t.Errorf("C集应更窄：C=%d B=%d", c.Width(), b.Width())

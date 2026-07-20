@@ -9,6 +9,7 @@ import (
 
 	"github.com/xunull/jdan/internal/filebak"
 )
+
 var fileCmd = &cobra.Command{
 	Use:   "file",
 	Short: "文件相关子命令",
@@ -28,6 +29,7 @@ var fileBakCmd = &cobra.Command{
 		return err
 	},
 }
+
 func init() {
 	fileBakCmd.Flags().String("desc", "", "可选描述（仅字母、汉字、数字与空格；空格会变为下划线）")
 	fileCmd.AddCommand(fileBakCmd)

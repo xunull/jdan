@@ -20,9 +20,9 @@ type KeyInfo struct {
 	Comment        string `json:"comment,omitempty"` // key comment
 	FingerprintSHA string `json:"fingerprint_sha256"`
 	FingerprintMD5 string `json:"fingerprint_md5"`
-	Encrypted      bool   `json:"encrypted,omitempty"`           // 仅私钥
-	PublicKeyLine  string `json:"public_key_line,omitempty"`     // 私钥导出的 authorized_keys 行
-	SecurityKey    bool   `json:"security_key,omitempty"`        // sk-* (FIDO/U2F 硬件密钥)
+	Encrypted      bool   `json:"encrypted,omitempty"`       // 仅私钥
+	PublicKeyLine  string `json:"public_key_line,omitempty"` // 私钥导出的 authorized_keys 行
+	SecurityKey    bool   `json:"security_key,omitempty"`    // sk-* (FIDO/U2F 硬件密钥)
 }
 
 // InfoFromPublicKey 从 ssh.PublicKey + comment 组装 KeyInfo。

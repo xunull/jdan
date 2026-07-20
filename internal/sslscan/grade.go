@@ -7,20 +7,20 @@ import (
 
 // GradeReport 是综合评分输出。
 type GradeReport struct {
-	Score       int      `json:"score"`        // 0-100
-	Letter      string   `json:"letter"`       // A+ / A / B / C / D / F
-	Strengths   []string `json:"strengths"`    // 加分点
-	Concerns    []string `json:"concerns"`     // 减分点
-	Subscores   Subscore `json:"subscores"`
+	Score     int      `json:"score"`     // 0-100
+	Letter    string   `json:"letter"`    // A+ / A / B / C / D / F
+	Strengths []string `json:"strengths"` // 加分点
+	Concerns  []string `json:"concerns"`  // 减分点
+	Subscores Subscore `json:"subscores"`
 }
 
 // Subscore 是各维度分数（便于 debug 评分）
 type Subscore struct {
-	Cert     int `json:"cert"`     // 25 max
-	Protocol int `json:"protocol"` // 30 max
-	KeyEx    int `json:"key_exchange"` // 25 max（forward secrecy）
+	Cert     int `json:"cert"`            // 25 max
+	Protocol int `json:"protocol"`        // 30 max
+	KeyEx    int `json:"key_exchange"`    // 25 max（forward secrecy）
 	Cipher   int `json:"cipher_strength"` // 20 max
-	Modifier int `json:"modifier"` // HSTS/preload bonus
+	Modifier int `json:"modifier"`        // HSTS/preload bonus
 }
 
 // computeGrade 综合 ScanReport 各 section 给出 A+/A/B/C/D/F 评分。

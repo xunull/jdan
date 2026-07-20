@@ -8,14 +8,14 @@ import (
 )
 
 type jsonResult struct {
-	URL              string  `json:"url"`
-	StatusCode       int     `json:"status_code"`
-	DNSLookupMs      float64 `json:"dns_lookup_ms"`
-	TCPConnectMs     float64 `json:"tcp_connect_ms"`
-	TLSHandshakeMs   float64 `json:"tls_handshake_ms"`
-	ServerProcessMs  float64 `json:"server_processing_ms"`
+	URL               string  `json:"url"`
+	StatusCode        int     `json:"status_code"`
+	DNSLookupMs       float64 `json:"dns_lookup_ms"`
+	TCPConnectMs      float64 `json:"tcp_connect_ms"`
+	TLSHandshakeMs    float64 `json:"tls_handshake_ms"`
+	ServerProcessMs   float64 `json:"server_processing_ms"`
 	ContentTransferMs float64 `json:"content_transfer_ms"`
-	TotalMs          float64 `json:"total_ms"`
+	TotalMs           float64 `json:"total_ms"`
 }
 
 type jsonOutput struct {

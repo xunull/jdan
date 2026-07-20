@@ -26,13 +26,13 @@ import (
 // ─── 测试 helper: 生成 self-signed cert ──────────────────────────────────
 
 type genCertOpts struct {
-	CommonName  string
-	DNSNames    []string
-	NotBefore   time.Time
-	NotAfter    time.Time
-	IsCA        bool
-	EC          bool // true → EC; false → RSA 2048
-	OCSPServer  []string
+	CommonName string
+	DNSNames   []string
+	NotBefore  time.Time
+	NotAfter   time.Time
+	IsCA       bool
+	EC         bool // true → EC; false → RSA 2048
+	OCSPServer []string
 }
 
 func genCert(t *testing.T, opts genCertOpts) (*x509.Certificate, interface{}) {
@@ -384,7 +384,7 @@ func TestBundle_FullChain_DedupesRoot(t *testing.T) {
 	root, _ := genCert(t, genCertOpts{CommonName: "root", IsCA: true})
 	// server already sent root
 	b := &Bundle{
-		Chain:         []*x509.Certificate{leaf, root},
+		Chain:          []*x509.Certificate{leaf, root},
 		VerifiedChains: [][]*x509.Certificate{{leaf, root}},
 	}
 	full := b.FullChain()

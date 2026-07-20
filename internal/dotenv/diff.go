@@ -4,9 +4,9 @@ import "sort"
 
 // DiffResult 是两个 .env 的对比结果。
 type DiffResult struct {
-	OnlyInA   []string     `json:"only_in_a"`   // a 有 b 没有的 key
-	OnlyInB   []string     `json:"only_in_b"`   // b 有 a 没有的 key
-	Common    []string     `json:"common"`      // 两边都有的 key
+	OnlyInA   []string     `json:"only_in_a"`            // a 有 b 没有的 key
+	OnlyInB   []string     `json:"only_in_b"`            // b 有 a 没有的 key
+	Common    []string     `json:"common"`               // 两边都有的 key
 	ValueDiff []ValueDelta `json:"value_diff,omitempty"` // 仅 withValues 时填充
 }
 

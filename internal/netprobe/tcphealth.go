@@ -10,10 +10,10 @@ import (
 
 // TCPHealthDetail 是 tcp_health 阶段的特有字段。
 type TCPHealthDetail struct {
-	HoldDuration   time.Duration `json:"hold_duration_ns"`     // 实际 hold 多长（成功时 ≈ Options.HealthDuration，失败时是真实耗时）
-	RemoteClosed   bool          `json:"remote_closed"`        // 远端在 hold 期内主动关闭
-	GotBanner      bool          `json:"got_banner"`           // 远端主动推送数据（SSH/SMTP/POP3 welcome）
-	BannerPreview  string        `json:"banner_preview,omitempty"`
+	HoldDuration  time.Duration `json:"hold_duration_ns"` // 实际 hold 多长（成功时 ≈ Options.HealthDuration，失败时是真实耗时）
+	RemoteClosed  bool          `json:"remote_closed"`    // 远端在 hold 期内主动关闭
+	GotBanner     bool          `json:"got_banner"`       // 远端主动推送数据（SSH/SMTP/POP3 welcome）
+	BannerPreview string        `json:"banner_preview,omitempty"`
 }
 
 // runTCPHealth 在 TCP 阶段已经 SUCCESS 的基础上，再 dial 一次同一 IP，
