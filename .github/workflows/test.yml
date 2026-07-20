@@ -23,6 +23,18 @@ jobs:
           check-latest: true
           cache: true
 
+      # gofmt 只在一个平台上跑就够了，格式与 GOOS 无关。
+      # 用 -l 列出不合规文件而不是 -w 就地改：CI 应该报告问题，不是偷偷修好。
+      - name: gofmt
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "以下文件未经 gofmt 格式化，本地跑 'gofmt -w .' 修复：" >&2
+            echo "$unformatted" >&2
+            exit 1
+          fi
+
       - name: go vet
         run: go vet ./...
 
