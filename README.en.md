@@ -103,6 +103,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan tree2`](#jdan-tree2) — show a two-level directory tree in multiple columns
 - [`jdan disk`](#jdan-disk) — disk usage overview (per-mount capacity, df-style)
 - [`jdan size`](#jdan-size) — directory size ranking (who ate the space; with share bars)
+- [`jdan wifi`](#jdan-wifi) — WiFi status and channel congestion analysis (which channel to switch to)
 - [`jdan readme`](#jdan-readme) — print the README.md of a given directory (with bat highlighting)
 
 **System**
@@ -2348,6 +2349,36 @@ $ jdan size --json | jq      # full tree as JSON
 **Root total matches `du -sh` byte for byte**, with matching semantics (hardlinks counted once, no filesystem crossing by default, symlinks not followed, directories' own blocks included). One deliberate difference: a hardlink is attributed to the **lexicographically smallest path** rather than `du`'s "first one encountered", so repeated concurrent scans of the same tree produce byte-identical output; the tradeoff is that individual subdirectory numbers may differ from `du`.
 
 Concurrent traversal: measured 6.3× faster than single-threaded on 11,793 files with a warm cache. Concurrency should track the storage medium, not CPU count: keep the default on SSD, use `--jobs 2` to `4` on spinning disks. Permission errors are collected without aborting, summarized in the footer, and still exit 0. `--json` always emits the full tree (unaffected by `--top`/`--depth`). Non-darwin/linux platforms fall back to logical size with a header note.
+
+### `jdan wifi`
+
+Inspect the current wireless connection and analyze channel congestion from neighboring APs, with a switch recommendation. Answers what the menu bar never tells you: whether your channel is contended, whether SNR is adequate, which PHY was negotiated, and which part of the band your neighbors have saturated. **0 new dependencies**. macOS only.
+
+Full technical doc: [docs/jdan-wifi.md](docs/jdan-wifi.md)
+
+```bash
+$ jdan wifi --band 5
+en0  802.11ax  channel 36 (5GHz, 80MHz → occupies 36/40/44/48)
+     signal -41dBm / noise -92dBm   SNR 51dB
+     WPA2/WPA3 Personal   negotiated 1200 Mbps (MCS 11)
+
+5GHz channel occupancy (★ = this host, 3 samples)
+  149    ███░░░░░░░       1
+  52     █████░░░░░       2   DFS
+  36 ★   ██████████       4
+
+$ jdan wifi --samples 5      # more samples (scans are noisy; default 3)
+$ jdan wifi --all-channels
+$ jdan wifi --json | jq
+```
+
+**Why not `airport`**: on macOS 26.5.2 the `airport` binary has been **deleted** (not deprecated, the file is gone) while nearly every tutorial online still uses it; `networksetup -getairportnetwork` **lies** and reports "not associated" while connected; `wdutil info` needs sudo. This uses `system_profiler -xml`, about 1.7s per scan.
+
+**On SSID**: macOS 14 reclassified it as location data, so a CLI cannot read it (shown as redacted, with the grant path printed). Channel, signal, PHY, security and all neighbor RF data are unaffected — and channel analysis needs none of them.
+
+**Two numbers, not one score**: co-channel BSS count (CSMA/CA deferral, measured in airtime, largely independent of relative strength) and adjacent-channel noise (undecodable energy summed as linear power). Collapsing them into one score understates "many mid-strength co-channel BSSes", which is genuinely bad in practice. 5GHz 80/160MHz widths expand via **fixed alignment blocks** (`44@80` occupies `{36,40,44,48}`, not `{44,48,52,56}`).
+
+Scan results are unstable — six consecutive runs at the same instant returned 13/14/17/15/17/17 neighbors (31% spread) — so it samples 3 times and takes the union; a channel is only marked empty when all N samples saw nothing. Recommended channels must support the current width, and DFS-range recommendations carry the CAC quiet-period warning (60s, 600s on weather-radar channels).
 
 ### `jdan unix-time`
 
