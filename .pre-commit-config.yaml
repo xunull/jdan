@@ -1,11 +1,25 @@
-# 提交前防泄密：用 gitleaks 扫描暂存区，发现 API key / 密码 / token / 私钥
-# 就阻止提交。密钥一旦进入 git 历史，即使删掉也必须当作已泄露来轮换，代价
-# 高得多；提交前这道闸是最划算的防线。
+# 提交前检查。pre-commit 会先 stash 未暂存的改动，所以钩子看到的就是本次
+# 要提交的内容（暂存区），不会被工作区里还没 add 的改动干扰。
 #
 # 新 clone 启用一次即可：pre-commit install
-# 临时放行本次提交：      SKIP=gitleaks git commit  （或 git commit --no-verify）
+# 临时放行本次提交：      git commit --no-verify
+#                       或只跳某个：SKIP=gitleaks git commit / SKIP=gofmt git commit
 repos:
+  # 防泄密：发现 API key / 密码 / token / 私钥就阻止提交。密钥一旦进入 git
+  # 历史，即使删掉也必须当作已泄露来轮换，代价高得多。
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
     hooks:
       - id: gitleaks
+
+  # gofmt：本地 hook 调系统 gofmt（Go 项目本机必有），零外部依赖、无需 pin。
+  # report-only 而不是 gofmt -w：与 CI 的检查一致，也不改动你正在提交的内容。
+  # gofmt -l 即使列出不合规文件也退出 0，所以包一层：有输出就非 0 退出。
+  - repo: local
+    hooks:
+      - id: gofmt
+        name: gofmt
+        description: 检查 Go 文件是否经过 gofmt 格式化（report-only，与 CI 一致）
+        entry: bash -c 'out=$(gofmt -l "$@"); [ -z "$out" ] && exit 0; echo "未经 gofmt 格式化：" >&2; echo "$out" >&2; echo "修复：gofmt -w 上述文件 后 git add" >&2; exit 1' --
+        language: system
+        types: [go]
