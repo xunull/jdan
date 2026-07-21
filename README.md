@@ -2836,5 +2836,17 @@ go test -tags integration ./internal/dnslookup/... ./internal/dnstrace/...
 GOWORK=off go build -o jdan .
 ```
 
+**新 clone 后启用提交前防泄密钩子（一次即可）：**
+
+```bash
+pip install pre-commit   # 或 brew install pre-commit
+pre-commit install
+```
+
+`.pre-commit-config.yaml` 配了 [gitleaks](https://github.com/gitleaks/gitleaks)，每次 `git commit` 前扫描暂存区，发现 API key / 密码 / token / 私钥就阻止提交。配置进了版本库，但钩子本身不进，所以**每个 clone 需要跑一次 `pre-commit install`** 才生效。
+
+- 临时放行本次提交：`SKIP=gitleaks git commit`（或 `git commit --no-verify`）
+- 误报：命中行尾加 `#gitleaks:allow`，或把 fingerprint 写进 `.gitleaksignore`
+
 设计文档在 `docs/brainstorms/` 与 `docs/plans/` 下按时间排列，每个新子命令通常对应一对 brainstorm + plan。
 

@@ -2815,4 +2815,16 @@ go test -tags integration ./internal/dnslookup/... ./internal/dnstrace/...
 GOWORK=off go build -o jdan .
 ```
 
+**Enable the secret-scanning pre-commit hook after a fresh clone (once):**
+
+```bash
+pip install pre-commit   # or brew install pre-commit
+pre-commit install
+```
+
+`.pre-commit-config.yaml` wires up [gitleaks](https://github.com/gitleaks/gitleaks), which scans the staged diff before every `git commit` and blocks the commit if it finds an API key, password, token or private key. The config is in version control but the hook itself is not, so **each clone must run `pre-commit install`** to activate it.
+
+- Bypass for one commit: `SKIP=gitleaks git commit` (or `git commit --no-verify`)
+- False positive: add `#gitleaks:allow` at the end of the matched line, or put the fingerprint in `.gitleaksignore`
+
 Design docs are under `docs/brainstorms/` and `docs/plans/`, ordered by time, with each new subcommand typically corresponding to a brainstorm + plan pair.
