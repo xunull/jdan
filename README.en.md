@@ -143,6 +143,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan morse`](#jdan-morse) — text ↔ Morse code (ITU, auto-detects direction)
 - [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
 - [`jdan pinyin`](#jdan-pinyin) — Chinese → pinyin (multiple tone styles; the shared first step of t9/sp)
+- [`jdan strokes`](#jdan-strokes) — Chinese character stroke counts (per-char + total, from Unicode Unihan)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
@@ -322,6 +323,28 @@ $ jdan alpha -u        # uppercase table
 ```
 
 With no argument it prints the letters plus the position numbers **column-aligned directly below** (each letter sits right above its number); with one argument it does a one-way lookup: letter → number / number → letter. `-u` uses uppercase. Out-of-range (0/27) or non-single-letter input errors out.
+
+### `jdan strokes`
+
+Look up Chinese character stroke counts, listing each character with a total — something an IME can't give you (an IME only shows the one character you're typing). Data is Unicode Unihan's `kTotalStrokes`, offline table lookup, **0 new dependencies**, covering all CJK including extensions (102,998 chars in Unicode 17.0.0); rare name characters are covered too.
+
+Full technical doc: [docs/jdan-strokes.md](docs/jdan-strokes.md)
+
+```bash
+$ jdan strokes 龙凤呈祥
+龙 5 / 凤 4 / 呈 7 / 祥 10
+共 26 画
+
+$ jdan strokes 龙     # 5 strokes (simplified)
+$ jdan strokes 龍     # 16 strokes (traditional — different code point, different count)
+$ jdan strokes 鑫龗   # 24 / 33 (rare chars covered)
+$ echo 龙凤呈祥 | jdan strokes    # read from stdin
+$ jdan strokes --json 龙凤
+```
+
+**Stroke counts only, no stroke order**: stroke order has no authoritative open machine-readable data (Unicode has no such field, the national standard has no open machine-readable version, open datasets are font-derived approximations that don't fully match the standard), and a plausible-but-possibly-wrong stroke order is worse than none. Non-Han characters (letters/punctuation/emoji) are skipped; Han characters not in the table are marked unknown, excluded from the total with a notice.
+
+The table uses a **sorted slice + binary search** rather than a map literal (a 103k-entry map literal is ~1.3 MB of source and compiles slowly). `kTotalStrokes` lives in `Unihan_IRGSources.txt` (moved there from DictionaryLikeData in Unicode 15), is now single-valued, and maxes at 84 strokes (U+3106C), so uint8 suffices.
 
 ### `jdan pinyin`
 

@@ -144,6 +144,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan morse`](#jdan-morse) — 文本 ↔ 摩斯电码（ITU，自动判方向）
 - [`jdan alpha`](#jdan-alpha) — 字母表 ↔ 序号对照（A1Z26；表格 + 单向查询）
 - [`jdan pinyin`](#jdan-pinyin) — 中文 → 拼音（多种声调样式；t9/sp 的共同第一步）
+- [`jdan strokes`](#jdan-strokes) — 查汉字笔画数（逐字 + 总数；数据来自 Unicode Unihan）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
 - [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
@@ -323,6 +324,28 @@ $ jdan alpha -u        # 大写表
 ```
 
 无参数打印字母行 + **列对齐在正下方**的序号行（每个字母正好落在它的序号上方）；带一个参数就单向查询：字母 → 序号 / 序号 → 字母。`-u` 用大写。越界（0/27）或非单字母报错。
+
+### `jdan strokes`
+
+查汉字笔画数，整句逐字列出并给总数——这是输入法给不了的（输入法只显示你正在打的那一个字）。数据是 Unicode Unihan 的 `kTotalStrokes`，离线查表，**0 新依赖**，覆盖全部 CJK 含扩展区（实测 U17 共 102,998 字），起名用的生僻字也查得到。
+
+详细技术文档：[docs/jdan-strokes.md](docs/jdan-strokes.md)
+
+```bash
+$ jdan strokes 龙凤呈祥
+龙 5 / 凤 4 / 呈 7 / 祥 10
+共 26 画
+
+$ jdan strokes 龙     # 5 画（简体）
+$ jdan strokes 龍     # 16 画（繁体，不同码点不同画数）
+$ jdan strokes 鑫龗   # 24 / 33（生僻字也查得到）
+$ echo 龙凤呈祥 | jdan strokes    # 从 stdin 读
+$ jdan strokes --json 龙凤
+```
+
+**只做笔画数，不做笔顺**：笔顺没有权威的开放机读数据（Unicode 无此字段，国标无开放机读版，开源数据都是从字体推导的近似值且不完全等同国标），给一个「看起来权威实则可能错」的笔顺比不给更糟。非汉字（字母/标点/emoji）跳过不计；表里查不到的汉字标为「未知」，总数不含它但会提示。
+
+数据表用**排序 slice + 二分查找**而非 map 字面量（103k 条 map 字面量约 1.3 MB 源码、编译慢）。`kTotalStrokes` 在 `Unihan_IRGSources.txt`（Unicode 15 起从 DictionaryLikeData 移过去了），现全是单值，最大 84 画（U+3106C），uint8 够用。
 
 ### `jdan pinyin`
 
