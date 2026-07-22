@@ -148,6 +148,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan trad`](#jdan-trad) — 简繁转换（词汇级：发→發/髮 消歧、软件→軟體 地区词；数据来自 OpenCC）
 - [`jdan sijiao`](#jdan-sijiao) — 查汉字四角号码（王云五检字法；数据来自 Unicode Unihan）
 - [`jdan cangjie`](#jdan-cangjie) — 查汉字仓颉码（含字根，如 明 AB 日月；数据来自 Unicode Unihan）
+- [`jdan jyutping`](#jdan-jyutping) — 查汉字粤拼（粤语读音，如 你 nei5；数据来自 Unicode Unihan）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
 - [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
@@ -410,6 +411,22 @@ $ jdan cangjie --json 明你
 **为什么能显示字根**：仓颉把字拆成 1-5 个字根、每根对应一个字母键（`明`=日+月=`AB`）。拆成哪几个根靠字形、算不出来（同笔顺），只能查 `kCangjie` 表；但**字母↔字根是固定 25 键映射**（A日 B月 … X難 Y卜，无 Z），所以能把 `AB` 翻成 `日月`——这是 `sijiao` 给不了的（四角只有最终码、无法逐角分解）。字根表正确性经变异测试守卫。
 
 **能力边界**：仓颉三代（与五代等版本可能有出入）；覆盖约 2.9 万字（表外字标「无」）；全单值（比 sijiao 更简单）；仓颉主要台/港用，价值在"离线 + 补输入法/检字线 + 字根教学"。
+
+### `jdan jyutping`
+
+查汉字的**粤拼**（Jyutping 粤语读音）：`你 → nei5`。`pinyin` 给普通话，`jyutping` 给粤语，补齐两条读音线。数据是 Unicode Unihan 的 `kCantonese`，离线查表，**0 新依赖**——跟 `strokes`/`sijiao`/`cangjie` 是四胞胎（同一份 Unihan、同一套 gen + 排序表 + 二分），比 cangjie 还简单（无字根表、全单值）。只做正查（字→读音），反查暂不支持。
+
+详细技术文档：[docs/jdan-jyutping.md](docs/jdan-jyutping.md)
+
+```bash
+$ jdan jyutping 你              # 你  nei5
+$ jdan jyutping 你好            # 你 nei5 / 好 hou2
+$ jdan jyutping 我爱广东        # 我 ngo5 / 爱 oi3 / 广 gwong2 / 东 dung1
+$ echo 你好 | jdan jyutping      # 从 stdin 读
+$ jdan jyutping --json 你好
+```
+
+**能力边界（诚实划界）**：`kCantonese` 每字只存**一个主读音**，**列不了多音字的其它读法**——这点和 `pinyin` 不同（pinyin 有 `--heteronym` 能列多音，粤拼数据只有一个值），两者都不做词级消歧（`行` 只给 hang4、给不了"走路"haang4）。Jyutping 数字调（非耶鲁式）；覆盖约 2.99 万字；要多音+词级得换 rime-cantonese 等更全的粤语词典。
 
 ### `jdan pinyin`
 

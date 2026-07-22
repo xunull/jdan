@@ -147,6 +147,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan trad`](#jdan-trad) — Simplified ↔ Traditional conversion (word-level: 发→發/髮 disambiguation, 软件→軟體 regional; from OpenCC)
 - [`jdan sijiao`](#jdan-sijiao) — Four-Corner Code lookup for Han characters (Wang Yunwu method; from Unicode Unihan)
 - [`jdan cangjie`](#jdan-cangjie) — Cangjie code lookup for Han characters (with radicals, e.g. 明 AB 日月; from Unicode Unihan)
+- [`jdan jyutping`](#jdan-jyutping) — Cantonese romanization for Han characters (Jyutping, e.g. 你 nei5; from Unicode Unihan)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
@@ -409,6 +410,22 @@ $ jdan cangjie --json 明你
 **Why it can show radicals**: Cangjie splits a character into 1–5 radicals, each mapped to a letter key (`明` = 日+月 = `AB`). Which radicals a glyph decomposes into can't be computed from the code point (same as stroke order) — it must come from the `kCangjie` table; but the **letter↔radical mapping is a fixed 25-key table** (A日 B月 … X難 Y卜, no Z), so `AB` can be rendered as `日月` — something `sijiao` can't do (four-corner stores only the final code, with no per-corner breakdown). The radical table's correctness is guarded by a mutation test.
 
 **Capability boundary**: Cangjie v3 (may differ from v5 and other versions); covers ~29k characters (out-of-table chars marked "无"); all single-valued (simpler than sijiao); Cangjie is used mainly in Taiwan/HK — the value is "offline + completing the input-method/character-indexing line + radical teaching."
+
+### `jdan jyutping`
+
+Look up the **Cantonese romanization** (粤拼/Jyutping) of a Han character: `你 → nei5`. `pinyin` gives Mandarin readings, `jyutping` gives Cantonese — completing both reading lines. Data is Unicode Unihan's `kCantonese` field, an offline table lookup, **zero new deps** — a quadruplet with `strokes`/`sijiao`/`cangjie` (same Unihan, same gen + sorted-table + binary-search), and even simpler than cangjie (no radical table, all single-valued). Forward only (char→reading); reverse not supported yet.
+
+Full technical doc: [docs/jdan-jyutping.md](docs/jdan-jyutping.md)
+
+```bash
+$ jdan jyutping 你              # 你  nei5
+$ jdan jyutping 你好            # 你 nei5 / 好 hou2
+$ jdan jyutping 我爱广东        # 我 ngo5 / 爱 oi3 / 广 gwong2 / 东 dung1
+$ echo 你好 | jdan jyutping      # read from stdin
+$ jdan jyutping --json 你好
+```
+
+**Capability boundary (honest scoping)**: `kCantonese` stores only **one primary reading per char** and **cannot list a polyphone's alternate readings** — unlike `pinyin`, which has `--heteronym` to enumerate all readings (the Cantonese data only has one value). Neither does word-level disambiguation (`行` gives only hang4, not haang4 for "walk"). Jyutping uses tone digits (not Yale); covers ~29.9k characters; for polyphones + word-level you'd need a fuller Cantonese dictionary like rime-cantonese.
 
 ### `jdan pinyin`
 
