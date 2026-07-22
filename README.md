@@ -145,6 +145,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan alpha`](#jdan-alpha) — 字母表 ↔ 序号对照（A1Z26；表格 + 单向查询）
 - [`jdan pinyin`](#jdan-pinyin) — 中文 → 拼音（多种声调样式；t9/sp 的共同第一步）
 - [`jdan strokes`](#jdan-strokes) — 查汉字笔画数（逐字 + 总数；数据来自 Unicode Unihan）
+- [`jdan trad`](#jdan-trad) — 简繁转换（词汇级：发→發/髮 消歧、软件→軟體 地区词；数据来自 OpenCC）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
 - [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
@@ -346,6 +347,31 @@ $ jdan strokes --json 龙凤
 **只做笔画数，不做笔顺**：笔顺没有权威的开放机读数据（Unicode 无此字段，国标无开放机读版，开源数据都是从字体推导的近似值且不完全等同国标），给一个「看起来权威实则可能错」的笔顺比不给更糟。非汉字（字母/标点/emoji）跳过不计；表里查不到的汉字标为「未知」，总数不含它但会提示。
 
 数据表用**排序 slice + 二分查找**而非 map 字面量（103k 条 map 字面量约 1.3 MB 源码、编译慢）。`kTotalStrokes` 在 `Unihan_IRGSources.txt`（Unicode 15 起从 DictionaryLikeData 移过去了），现全是单值，最大 84 画（U+3106C），uint8 够用。
+
+### `jdan trad`
+
+中文简↔繁转换。不止换字形，还**按词消歧**（同一个「发」在「头发」里是 髮、在「发展」里是 發）、可选**地区用词**（软件→軟體、网络→網路）。数据是 [OpenCC](https://github.com/BYVoid/OpenCC)（Apache-2.0）离线词典，`go:embed` 内嵌 9 个 `.txt`（~1.18MB），**0 新依赖**，算法是自写的前向最大匹配——跟 `lunar`/`strokes` 一样的「内嵌数据 + 自写算法」路子。
+
+详细技术文档：[docs/jdan-trad.md](docs/jdan-trad.md)
+
+```bash
+$ jdan trad 头发和发展            # 頭髮和發展（同字不同繁，按词分）
+$ jdan trad --to twp 软件网络     # 軟體網路（台湾用词）
+$ jdan trad --to s 軟體           # 软体（繁 → 简）
+$ echo 软件 | jdan trad --to twp  # 从 stdin 读（大输入逐行处理）
+$ jdan trad --diff --to twp 软件和网络
+「軟體」和「網路」
+改动 2 处：
+  软件 → 軟體
+  网络 → 網路
+$ jdan trad --json --to twp 软件
+```
+
+`--to`：`t`(默认，简→繁) / `tw`(台湾字形) / `twp`(台湾含用词) / `hk`(香港字形) / `s`(繁→简)。非汉字（字母/数字/标点/emoji）原样透传。
+
+**为什么不能逐字换**：`发→發/髮`、`干→幹/乾/干`、`台→臺/颱/檯` 都是一简对多繁，必须看词。管线严格复刻 OpenCC 源码：多趟 conversion 顺序执行，词典组分 `union`（取最长）与 `short_circuit`（第一个命中的词典即停）两种语义。
+
+**能力边界（诚实划界）**：简繁 + 地区词到 OpenCC 词典为止，不做全量翻译。`s2t/t2s` 与 OpenCC 逐字节一致；`tw/twp/hk` 未做 MMSEG 预分词，极少数跨词边界例可能与 OpenCC 有别；另有约 1.7% 台湾地区词（多为外国地名，如 索馬里/毛里塔尼亞）因缺 OpenCC 编译期生成词典而回转不到——均写进文档，量化见 `TestTWPhrasesReachability`。
 
 ### `jdan pinyin`
 

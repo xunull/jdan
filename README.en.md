@@ -144,6 +144,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan alpha`](#jdan-alpha) — alphabet ↔ position table (A1Z26; table + one-way lookup)
 - [`jdan pinyin`](#jdan-pinyin) — Chinese → pinyin (multiple tone styles; the shared first step of t9/sp)
 - [`jdan strokes`](#jdan-strokes) — Chinese character stroke counts (per-char + total, from Unicode Unihan)
+- [`jdan trad`](#jdan-trad) — Simplified ↔ Traditional conversion (word-level: 发→發/髮 disambiguation, 软件→軟體 regional; from OpenCC)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
@@ -345,6 +346,31 @@ $ jdan strokes --json 龙凤
 **Stroke counts only, no stroke order**: stroke order has no authoritative open machine-readable data (Unicode has no such field, the national standard has no open machine-readable version, open datasets are font-derived approximations that don't fully match the standard), and a plausible-but-possibly-wrong stroke order is worse than none. Non-Han characters (letters/punctuation/emoji) are skipped; Han characters not in the table are marked unknown, excluded from the total with a notice.
 
 The table uses a **sorted slice + binary search** rather than a map literal (a 103k-entry map literal is ~1.3 MB of source and compiles slowly). `kTotalStrokes` lives in `Unihan_IRGSources.txt` (moved there from DictionaryLikeData in Unicode 15), is now single-valued, and maxes at 84 strokes (U+3106C), so uint8 suffices.
+
+### `jdan trad`
+
+Simplified ↔ Traditional Chinese conversion. Not just glyphs — it **disambiguates by word** (the same 发 is 髮 in 头发 but 發 in 发展) and optionally converts **regional vocabulary** (软件→軟體, 网络→網路). Data is [OpenCC](https://github.com/BYVoid/OpenCC) (Apache-2.0) offline dictionaries, `go:embed`-ed as 9 `.txt` files (~1.18MB), **zero new deps**, with a hand-rolled forward-maximum-matching converter — the same "embedded data + own algorithm" path as `lunar`/`strokes`.
+
+Full technical doc: [docs/jdan-trad.md](docs/jdan-trad.md)
+
+```bash
+$ jdan trad 头发和发展            # 頭髮和發展 (same char, different traditional, split by word)
+$ jdan trad --to twp 软件网络     # 軟體網路 (Taiwan vocabulary)
+$ jdan trad --to s 軟體           # 软体 (traditional → simplified)
+$ echo 软件 | jdan trad --to twp  # read from stdin (large input processed line by line)
+$ jdan trad --diff --to twp 软件和网络
+「軟體」和「網路」
+改动 2 处：
+  软件 → 軟體
+  网络 → 網路
+$ jdan trad --json --to twp 软件
+```
+
+`--to`: `t` (default, S→T) / `tw` (Taiwan glyphs) / `twp` (Taiwan + vocabulary) / `hk` (Hong Kong glyphs) / `s` (T→S). Non-Han characters (letters/digits/punctuation/emoji) pass through unchanged.
+
+**Why not char-by-char**: `发→發/髮`, `干→幹/乾/干`, `台→臺/颱/檯` are all one-simplified-to-many-traditional and need word context. The pipeline faithfully mirrors OpenCC's source: multiple conversions run in sequence, and dict groups use two policies — `union` (longest match wins) and `short_circuit` (first dict with a match wins).
+
+**Capability boundary (honest scoping)**: simplified↔traditional + regional words, to the extent OpenCC's dictionaries cover — no full translation. `s2t/t2s` are byte-for-byte identical to OpenCC; `tw/twp/hk` skip MMSEG pre-segmentation, so rare cross-word-boundary cases may differ; and ~1.7% of Taiwan regional words (mostly foreign place names like 索馬里/毛里塔尼亞) can't round-trip because two OpenCC build-generated dictionaries aren't shipped — all documented, quantified in `TestTWPhrasesReachability`.
 
 ### `jdan pinyin`
 
