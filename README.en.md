@@ -145,6 +145,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan pinyin`](#jdan-pinyin) — Chinese → pinyin (multiple tone styles; the shared first step of t9/sp)
 - [`jdan strokes`](#jdan-strokes) — Chinese character stroke counts (per-char + total, from Unicode Unihan)
 - [`jdan trad`](#jdan-trad) — Simplified ↔ Traditional conversion (word-level: 发→發/髮 disambiguation, 软件→軟體 regional; from OpenCC)
+- [`jdan sijiao`](#jdan-sijiao) — Four-Corner Code lookup for Han characters (Wang Yunwu method; from Unicode Unihan)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
@@ -371,6 +372,24 @@ $ jdan trad --json --to twp 软件
 **Why not char-by-char**: `发→發/髮`, `干→幹/乾/干`, `台→臺/颱/檯` are all one-simplified-to-many-traditional and need word context. The pipeline faithfully mirrors OpenCC's source: multiple conversions run in sequence, and dict groups use two policies — `union` (longest match wins) and `short_circuit` (first dict with a match wins).
 
 **Capability boundary (honest scoping)**: simplified↔traditional + regional words, to the extent OpenCC's dictionaries cover — no full translation. `s2t/t2s` are byte-for-byte identical to OpenCC; `tw/twp/hk` skip MMSEG pre-segmentation, so rare cross-word-boundary cases may differ; and ~1.7% of Taiwan regional words (mostly foreign place names like 索馬里/毛里塔尼亞) can't round-trip because two OpenCC build-generated dictionaries aren't shipped — all documented, quantified in `TestTWPhrasesReachability`.
+
+### `jdan sijiao`
+
+Look up the **Four-Corner Code** (四角号码, Wang Yunwu's character-indexing method) of a Han character: read the stroke shape at each of the four corners → 4-digit main code + supplementary digit → `NNNN.N`. Data is Unicode Unihan's `kFourCornerCode` field, an offline table lookup, **zero new deps** — same source and architecture as `strokes` (same Unihan, same gen + sorted-table + binary-search). Forward only (char→code); reverse (code→char) is not supported yet.
+
+Full technical doc: [docs/jdan-sijiao.md](docs/jdan-sijiao.md)
+
+```bash
+$ jdan sijiao 王              # 王  1010.4
+$ jdan sijiao 你              # 你  2729.0, 2729.2   (multi-value, comma within a char)
+$ jdan sijiao 口业专          # 口 6000.0 / 业 3210 / 专 5030   (slash between chars)
+$ echo 王 | jdan sijiao        # read from stdin
+$ jdan sijiao --json 你口
+```
+
+**Table lookup only, not computed**: the four corner shapes require the glyph — they can't be derived from the code point (same reason as stroke order). The table is `kFourCornerCode`, the twin of `strokes`' `kTotalStrokes`. The 10-shape mnemonic is embedded in `--help` to teach the method, but the command **only outputs codes, no per-corner breakdown** (Unihan stores only the final code).
+
+**Capability boundary**: covers ~16.9k common/traditional characters (deep-extension rare chars have no code and are marked "无"); 149 multi-value chars (e.g. `你` → two codes) are **kept in full, never truncated**; four-corner is an old indexing method with a small audience — the value is "offline + completing the character-indexing line."
 
 ### `jdan pinyin`
 

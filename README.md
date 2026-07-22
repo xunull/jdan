@@ -146,6 +146,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan pinyin`](#jdan-pinyin) — 中文 → 拼音（多种声调样式；t9/sp 的共同第一步）
 - [`jdan strokes`](#jdan-strokes) — 查汉字笔画数（逐字 + 总数；数据来自 Unicode Unihan）
 - [`jdan trad`](#jdan-trad) — 简繁转换（词汇级：发→發/髮 消歧、软件→軟體 地区词；数据来自 OpenCC）
+- [`jdan sijiao`](#jdan-sijiao) — 查汉字四角号码（王云五检字法；数据来自 Unicode Unihan）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
 - [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
@@ -372,6 +373,24 @@ $ jdan trad --json --to twp 软件
 **为什么不能逐字换**：`发→發/髮`、`干→幹/乾/干`、`台→臺/颱/檯` 都是一简对多繁，必须看词。管线严格复刻 OpenCC 源码：多趟 conversion 顺序执行，词典组分 `union`（取最长）与 `short_circuit`（第一个命中的词典即停）两种语义。
 
 **能力边界（诚实划界）**：简繁 + 地区词到 OpenCC 词典为止，不做全量翻译。`s2t/t2s` 与 OpenCC 逐字节一致；`tw/twp/hk` 未做 MMSEG 预分词，极少数跨词边界例可能与 OpenCC 有别；另有约 1.7% 台湾地区词（多为外国地名，如 索馬里/毛里塔尼亞）因缺 OpenCC 编译期生成词典而回转不到——均写进文档，量化见 `TestTWPhrasesReachability`。
+
+### `jdan sijiao`
+
+查汉字的**四角号码**（王云五检字法）。看字四个角的笔形取 4 位主码 + 附号 → `NNNN.N`。数据是 Unicode Unihan 的 `kFourCornerCode`，离线查表，**0 新依赖**——跟 `strokes` 同源同架构（同一份 Unihan、同一套 gen + 排序表 + 二分）。只做正查（字→码），反查（码→字）暂不支持。
+
+详细技术文档：[docs/jdan-sijiao.md](docs/jdan-sijiao.md)
+
+```bash
+$ jdan sijiao 王              # 王  1010.4
+$ jdan sijiao 你              # 你  2729.0, 2729.2   （多值，同字用逗号）
+$ jdan sijiao 口业专          # 口 6000.0 / 业 3210 / 专 5030   （字与字用斜杠）
+$ echo 王 | jdan sijiao        # 从 stdin 读
+$ jdan sijiao --json 你口
+```
+
+**只能查表、不能算**：四个角的笔形要看字形，从码点算不出来（同笔顺）。表就是 `kFourCornerCode`，和 `strokes` 的 `kTotalStrokes` 一个模子。十类笔形口诀「横一 垂二 三点捺 叉四 插五 方框六 七角 八八 九是小 点下有横变零头」内置在 `--help` 里教方法，但**只给码、不做逐角分解**（Unihan 只存最终码）。
+
+**能力边界**：覆盖约 1.69 万常用/传统字（深扩展区生僻字无码，表外汉字标「无」）；149 个多值字（如 `你`→两个码）**整串保留不截断**；四角号码是老检字法，受众小，价值在"离线 + 补检字线"。
 
 ### `jdan pinyin`
 
