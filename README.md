@@ -147,6 +147,7 @@ jdan completion powershell | Out-String | Invoke-Expression
 - [`jdan strokes`](#jdan-strokes) — 查汉字笔画数（逐字 + 总数；数据来自 Unicode Unihan）
 - [`jdan trad`](#jdan-trad) — 简繁转换（词汇级：发→發/髮 消歧、软件→軟體 地区词；数据来自 OpenCC）
 - [`jdan sijiao`](#jdan-sijiao) — 查汉字四角号码（王云五检字法；数据来自 Unicode Unihan）
+- [`jdan cangjie`](#jdan-cangjie) — 查汉字仓颉码（含字根，如 明 AB 日月；数据来自 Unicode Unihan）
 - [`jdan t9`](#jdan-t9) — 中文/英文 → 九宫格(T9)按键序列（汉字按拼音）
 - [`jdan spt9`](#jdan-spt9) — 中文 → 小鹤双拼九宫格按键（每字 2 键）
 - [`jdan sp`](#jdan-sp) — 中文 → 26 键双拼按键（多方案 + `--all` 对比）
@@ -391,6 +392,24 @@ $ jdan sijiao --json 你口
 **只能查表、不能算**：四个角的笔形要看字形，从码点算不出来（同笔顺）。表就是 `kFourCornerCode`，和 `strokes` 的 `kTotalStrokes` 一个模子。十类笔形口诀「横一 垂二 三点捺 叉四 插五 方框六 七角 八八 九是小 点下有横变零头」内置在 `--help` 里教方法，但**只给码、不做逐角分解**（Unihan 只存最终码）。
 
 **能力边界**：覆盖约 1.69 万常用/传统字（深扩展区生僻字无码，表外汉字标「无」）；149 个多值字（如 `你`→两个码）**整串保留不截断**；四角号码是老检字法，受众小，价值在"离线 + 补检字线"。
+
+### `jdan cangjie`
+
+查汉字的**仓颉码**（朱邦復输入法，台/港主流），并把字母码翻成字根一并显示：`明 → AB（日月）`。数据是 Unicode Unihan 的 `kCangjie`（仓颉三代），离线查表，**0 新依赖**——跟 `strokes`（笔画）、`sijiao`（四角）是三胞胎（同一份 Unihan、同一套 gen + 排序表 + 二分）。只做正查（字→码），反查（码→字）暂不支持。
+
+详细技术文档：[docs/jdan-cangjie.md](docs/jdan-cangjie.md)
+
+```bash
+$ jdan cangjie 明              # 明  AB（日月）
+$ jdan cangjie 你              # 你  ONF（人弓火）
+$ jdan cangjie 明变            # 明 AB（日月） / 变 YCE（卜金水）   （字与字用斜杠）
+$ echo 明 | jdan cangjie        # 从 stdin 读
+$ jdan cangjie --json 明你
+```
+
+**为什么能显示字根**：仓颉把字拆成 1-5 个字根、每根对应一个字母键（`明`=日+月=`AB`）。拆成哪几个根靠字形、算不出来（同笔顺），只能查 `kCangjie` 表；但**字母↔字根是固定 25 键映射**（A日 B月 … X難 Y卜，无 Z），所以能把 `AB` 翻成 `日月`——这是 `sijiao` 给不了的（四角只有最终码、无法逐角分解）。字根表正确性经变异测试守卫。
+
+**能力边界**：仓颉三代（与五代等版本可能有出入）；覆盖约 2.9 万字（表外字标「无」）；全单值（比 sijiao 更简单）；仓颉主要台/港用，价值在"离线 + 补输入法/检字线 + 字根教学"。
 
 ### `jdan pinyin`
 

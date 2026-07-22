@@ -146,6 +146,7 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan strokes`](#jdan-strokes) — Chinese character stroke counts (per-char + total, from Unicode Unihan)
 - [`jdan trad`](#jdan-trad) — Simplified ↔ Traditional conversion (word-level: 发→發/髮 disambiguation, 软件→軟體 regional; from OpenCC)
 - [`jdan sijiao`](#jdan-sijiao) — Four-Corner Code lookup for Han characters (Wang Yunwu method; from Unicode Unihan)
+- [`jdan cangjie`](#jdan-cangjie) — Cangjie code lookup for Han characters (with radicals, e.g. 明 AB 日月; from Unicode Unihan)
 - [`jdan t9`](#jdan-t9) — Chinese/English → 9-key (T9) keypress sequence (Han via pinyin)
 - [`jdan spt9`](#jdan-spt9) — Chinese → Xiaohe double-pinyin nine-key keypresses (2 keys/char)
 - [`jdan sp`](#jdan-sp) — Chinese → 26-key double-pinyin keypresses (multi-scheme + `--all`)
@@ -390,6 +391,24 @@ $ jdan sijiao --json 你口
 **Table lookup only, not computed**: the four corner shapes require the glyph — they can't be derived from the code point (same reason as stroke order). The table is `kFourCornerCode`, the twin of `strokes`' `kTotalStrokes`. The 10-shape mnemonic is embedded in `--help` to teach the method, but the command **only outputs codes, no per-corner breakdown** (Unihan stores only the final code).
 
 **Capability boundary**: covers ~16.9k common/traditional characters (deep-extension rare chars have no code and are marked "无"); 149 multi-value chars (e.g. `你` → two codes) are **kept in full, never truncated**; four-corner is an old indexing method with a small audience — the value is "offline + completing the character-indexing line."
+
+### `jdan cangjie`
+
+Look up the **Cangjie code** (仓颉码, Chu Bong-Foo's input method, mainstream in Taiwan/HK) of a Han character, and translate the letter code into radicals: `明 → AB（日月）`. Data is Unicode Unihan's `kCangjie` field (Cangjie v3), an offline table lookup, **zero new deps** — a triplet with `strokes` (strokes) and `sijiao` (four-corner): same Unihan, same gen + sorted-table + binary-search. Forward only (char→code); reverse (code→char) not supported yet.
+
+Full technical doc: [docs/jdan-cangjie.md](docs/jdan-cangjie.md)
+
+```bash
+$ jdan cangjie 明              # 明  AB（日月）
+$ jdan cangjie 你              # 你  ONF（人弓火）
+$ jdan cangjie 明变            # 明 AB（日月） / 变 YCE（卜金水）   (slash between chars)
+$ echo 明 | jdan cangjie        # read from stdin
+$ jdan cangjie --json 明你
+```
+
+**Why it can show radicals**: Cangjie splits a character into 1–5 radicals, each mapped to a letter key (`明` = 日+月 = `AB`). Which radicals a glyph decomposes into can't be computed from the code point (same as stroke order) — it must come from the `kCangjie` table; but the **letter↔radical mapping is a fixed 25-key table** (A日 B月 … X難 Y卜, no Z), so `AB` can be rendered as `日月` — something `sijiao` can't do (four-corner stores only the final code, with no per-corner breakdown). The radical table's correctness is guarded by a mutation test.
+
+**Capability boundary**: Cangjie v3 (may differ from v5 and other versions); covers ~29k characters (out-of-table chars marked "无"); all single-valued (simpler than sijiao); Cangjie is used mainly in Taiwan/HK — the value is "offline + completing the input-method/character-indexing line + radical teaching."
 
 ### `jdan pinyin`
 
