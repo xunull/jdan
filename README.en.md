@@ -110,6 +110,9 @@ Index grouped by topic (the actual section order follows when each command was a
 - [`jdan macgpu`](#jdan-macgpu) — Apple Silicon GPU TUI monitor
 - [`jdan unix-time`](#jdan-unix-time) — Unix timestamp → local time
 - [`jdan cal`](#jdan-cal) — print a month/year calendar (highlights today, Monday start)
+- [`jdan lunar`](#jdan-lunar) — Gregorian ↔ Chinese lunar calendar (ganzhi / zodiac / lunar festivals)
+- [`jdan jieqi`](#jdan-jieqi) — exact times of the 24 solar terms (astronomical, no year limit)
+- [`jdan ganzhi`](#jdan-ganzhi) — the four pillars (BaZi) + elements & nayin; sexagenary lookup
 
 **Random Generation (CSPRNG)**
 - [`jdan rand password`](#jdan-rand-password) — 1Password-style random password
@@ -2556,7 +2559,75 @@ $ jdan lunar 2026 --festivals        # list a year's lunar festivals (Spring Fes
 $ jdan lunar 2026-06-26 --json
 ```
 
-**Correctness is guarded by real anchors + a full round-trip test**: the 2024/2025/2026 Spring Festivals, Mid-Autumn, Dragon Boat, and leap months (2025 leap-6, 2023 leap-2, 2020 leap-4) are each asserted, plus a `Gregorian → lunar → Gregorian` round-trip across the entire 1900–2100 range. Range is 1900–2100; out-of-range dates error. The ganzhi year boundary is the lunar new year (zodiac year). **Intentionally out of scope**: huangli almanac auspicious/inauspicious advice (no authoritative algorithm), the 24 solar terms (solar, a different computation), and any third-party lunar library (the embedded table suffices).
+**Correctness is guarded by real anchors + a full round-trip test**: the 2024/2025/2026 Spring Festivals, Mid-Autumn, Dragon Boat, and leap months (2025 leap-6, 2023 leap-2, 2020 leap-4) are each asserted, plus a `Gregorian → lunar → Gregorian` round-trip across the entire 1900–2100 range. Range is 1900–2100; out-of-range dates error. The ganzhi year boundary here is the lunar new year (**zodiac year**). BaZi's year pillar starts at Lichun instead — a different convention that disagrees for up to ~30 days a year; this command flags the disagreement and points at [`jdan ganzhi`](#jdan-ganzhi). For the solar terms themselves see [`jdan jieqi`](#jdan-jieqi). **Intentionally out of scope**: huangli almanac auspicious/inauspicious advice (no authoritative algorithm) and any third-party lunar library (the embedded table suffices).
+
+### `jdan jieqi`
+
+**Exact times of the 24 solar terms.** A solar term is the instant the Sun's apparent ecliptic longitude reaches a multiple of 15°; this command computes it to the minute. **Pure algorithm, no data tables, no year limit** — unlike `jdan lunar`, which is capped at 1900–2100 by its embedded lunar table.
+
+Detailed technical docs: [docs/jdan-jieqi.md](docs/jdan-jieqi.md)
+
+```bash
+$ jdan jieqi 2026
+2026 年二十四节气（CST）
+  01-05 16:23  节  小寒  285°
+  01-20 09:44  气  大寒  300°
+  02-04 04:02  节  立春  315°
+  ...
+  12-22 04:50  气  冬至  270°
+
+$ jdan jieqi --next
+下一个节气：立秋（节，135°）
+  2026-08-07 19:42（CST）
+  还有 11 天 3 小时
+
+$ jdan jieqi --tz Asia/Tokyo         # display timezone only; the answer does not change
+$ jdan jieqi 2026 --json
+```
+
+**Algorithm chain**: truncated VSOP87 for Earth's heliocentric longitude → Sun's geocentric apparent longitude (nutation Δψ, aberration −20.4898″/R, FK5 correction) → Newton iteration to solve 15°k → **subtract ΔT** to get UT. That last step is the easy one to miss: the solution is in Terrestrial Time, which in 2026 runs 69 seconds ahead — enough to flip the year pillar for someone born near a term boundary, and nothing errors out.
+
+**Accuracy is measured, not claimed**: regression-tested against 144 anchors from two independent authorities (NAOJ and AstroPixels). Deviation is ≤1 minute for 1900–2026 and 3 minutes at 2100 (the two authorities themselves differ by 1–2 minutes there — different ΔT extrapolation models). VSOP87 is truncated to 200 terms, chosen by diffing all 4824 solar terms across 1900–2100 against the full 2077-term series: a 67-term cut passes all six anchor years but is off by up to 48 seconds across the full range, so picking a cutoff from anchor years alone gets it wrong.
+
+The 12 "jie" (longitude 315+30k) delimit the month pillar; the 12 "qi" do not. Verified range is 1900–2100; outside it the command still computes but warns, and `--json` reports `verified: false`.
+
+### `jdan ganzhi`
+
+**The four pillars (BaZi)**: given an instant, compute the year, month, day, and hour sexagenary pillars, with the five elements, yin/yang, and the year pillar's nayin.
+
+Detailed technical docs: [docs/jdan-ganzhi.md](docs/jdan-ganzhi.md)
+
+```bash
+$ jdan ganzhi 1990-05-20 14:30
+输入: 1990-05-20 14:30（CST）
+
+  年柱  庚午   金火  阳  马年
+  月柱  辛巳   金火  阴  （立夏 起）
+  日柱  乙酉   木金  阴
+  时柱  癸未   水土  阴
+
+  纳音  路旁土        口径  节气年（立春为界）
+
+$ jdan ganzhi 1990-05-20              # no time given → no hour pillar
+$ jdan ganzhi --of 甲子                # look up ordinal, elements, nayin
+$ jdan ganzhi --table                 # the full sexagenary cycle
+$ jdan ganzhi 2026-07-27 23:30 --late-zi
+$ jdan ganzhi 1990-05-20 14:30 --json
+```
+
+**Two conventions, both correct, each labelled.** The year pillar here starts at **Lichun** (start of spring), while `jdan lunar`'s ganzhi starts at the **lunar new year**. Spring Festival drifts between Jan 21 and Feb 20 while Lichun is fixed around Feb 3, so every year has a stretch of up to ~30 days where the two disagree — "it's the year of the Horse" at New Year uses the zodiac year; BaZi's year pillar uses the solar-term year. **Both commands flag the disagreement while it lasts**, so it does not look like a bug. Most online BaZi tools silently pick one and never mention the other.
+
+**The month pillar follows solar terms, not calendar months** (Lichun starts the Yin month, Jingzhe the Mao month, and so on).
+
+**No time given, no hour pillar**: defaulting to 00:00 would fabricate a Zi hour you never supplied.
+
+**The Zi-hour dispute**: whether 23:00–23:59 belongs to the next day or the current one has two living traditions and no authoritative ruling. The default follows the mainstream school (the day rolls over at 23:00); `--late-zi` selects the other. It changes **two of the four pillars**, so output within that hour states which school was used.
+
+**Timezone**: UTC+8 from 1929-01-01, and Beijing local mean solar time (UTC+8:05:43) before that — China did not formally adopt UTC+8 until 1929, a 5m43s difference. `--tz` declares which zone the wall clock belongs to and does change the answer: with an explicit date and time it shifts the **year and month pillars** (the wall clock is fixed, the absolute instant moves, and those two are compared against solar-term instants); with no arguments it shifts the **day and hour pillars**.
+
+**The day pillar's phase has an external basis**: 1912-02-18 and 1949-10-01 are both Jiazi days (two independent statements, 13740 days apart = 229×60, self-consistent, and both dates' lunar equivalents check out against `jdan lunar`). The implementation stores the anchor date itself rather than the derived offset constant — that constant is an intermediate result, and writing it down would hide the actual fact inside a magic number.
+
+**Intentionally out of scope**: huangli almanac advice, shensha, luck cycles, and any fortune-telling interpretation — this is a calendar tool, not a divination tool. True solar time correction is also not done (strict BaZi adjusts for the birthplace's longitude, which needs an extra input).
 
 ### `jdan readme`
 
