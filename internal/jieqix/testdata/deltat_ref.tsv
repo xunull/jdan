@@ -1,0 +1,10 @@
+# NAOJ 报告的每年 ΔT（TT - UT，秒）
+# 同一次抓取，来源同 solar_terms_ut.tsv。model 列是 NAOJ 自动选用的模型。
+# 用途：deltat.go 的实现锚点。
+# 列：year  delta_t_seconds  model
+1900	-1.9	S2020
+1929	24.4	S2020
+1950	28.9	S2020
+2000	64.0	予測値
+2026	69.0	予測値
+2100	102.2	S2020
