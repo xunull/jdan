@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 	"time"
+
+	"github.com/xunull/jdan/internal/ganzhix"
 )
 
 // lunarInfo[year-1900]：bits 4-15 = 1..12 月大小（1=30 天），bits 0-3 = 闰月号（0=无），
@@ -159,22 +161,19 @@ func LunarToSolar(year, month, day int, leap bool) (time.Time, error) {
 
 // ---- 干支 / 生肖 ----
 
-var tianGan = []rune("甲乙丙丁戊己庚辛壬癸")
-var diZhi = []rune("子丑寅卯辰巳午未申酉戌亥")
-var zodiac = []rune("鼠牛虎兔龙蛇马羊猴鸡狗猪")
+// 干支表与索引算法住在 internal/ganzhix —— 那里是它们的语义归属，
+// 而且 ganzhix/jieqix 不受本包 1900–2100 的硬边界限制。
+// 这里只做转发，保持本包既有 API 不变。
+//
+// ⚠️ 口径提醒：本包传的是**农历年**（正月初一为界的生肖年）。
+// 八字四柱的年柱以**立春**为界，两者在春节到立春之间会给出不同干支，
+// 最长约 30 天。要四柱请用 ganzhix.Of，不要拿 GanzhiYear 去凑。
 
 // GanzhiYear 返回农历年的干支（如 1984 → 甲子）。以正月初一为界。
-func GanzhiYear(lunarYear int) string {
-	i := ((lunarYear-4)%10 + 10) % 10
-	j := ((lunarYear-4)%12 + 12) % 12
-	return string(tianGan[i]) + string(diZhi[j])
-}
+func GanzhiYear(lunarYear int) string { return ganzhix.FromYear(lunarYear).String() }
 
-// Zodiac 返回农历年的生肖（如 2024 → 龙）。
-func Zodiac(lunarYear int) string {
-	j := ((lunarYear-4)%12 + 12) % 12
-	return string(zodiac[j])
-}
+// Zodiac 返回农历年的生肖（如 2024 → 龙）。以正月初一为界。
+func Zodiac(lunarYear int) string { return ganzhix.ZodiacOfYear(lunarYear) }
 
 // ---- 名称 ----
 
