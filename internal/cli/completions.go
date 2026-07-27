@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xunull/jdan/internal/dnslookup"
+	"github.com/xunull/jdan/internal/ganzhix"
 )
 
 // 命令名 + flag 名的补全是 cobra 自带的（jdan completion <shell>）。这里给一批「值有
@@ -36,6 +37,7 @@ func registerCompletions() {
 	reg([]string{"http", "headers"}, "method", httpMethods...)
 	reg([]string{"net", "probe"}, "method", httpMethods...)
 	reg([]string{"json", "merge"}, "arrays", "replace", "append")
+	reg([]string{"ganzhi"}, "of", ganzhiChoices()...)
 	reg([]string{"dns", "lookup"}, "type", dnsRecordTypes...)
 	reg([]string{"dns", "trace"}, "type", dnsRecordTypes...)
 
@@ -58,4 +60,16 @@ func monthComplete(_ *cobra.Command, args []string, _ string) ([]string, cobra.S
 		"1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12",
 		"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 	}, cobra.ShellCompDirectiveNoFileComp
+}
+
+// ganzhiChoices 给 `jdan ganzhi --of` 挂值补全。
+// 六十甲子是固定的 60 个值，全部列出来正好——不用让用户去记哪些组合合法
+// （阴阳不配的「甲丑」之类并不存在，靠补全就能挡住一半误输入）。
+func ganzhiChoices() []string {
+	all := ganzhix.Sexagenary()
+	out := make([]string, 0, len(all))
+	for _, p := range all {
+		out = append(out, p.String())
+	}
+	return out
 }
